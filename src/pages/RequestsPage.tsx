@@ -27,6 +27,8 @@ const RequestsPage = () => {
 
       setLoading(true)
       try {
+        console.log("Current user:", user) // Debug log
+        
         // Get ALL requests to see what's in the database
         const { data: allRequestsData, error: allRequestsError } = await supabase
           .from("equipment_requests")
@@ -40,20 +42,37 @@ const RequestsPage = () => {
           throw allRequestsError
         }
 
+        console.log("All requests from database:", allRequestsData) // Debug log
+
         // Filter requests this user should see
         let userRequests: any[] = []
 
         if (user.is_admin) {
           // Admin sees all requests
           userRequests = allRequestsData || []
+          console.log("Admin user - showing all requests:", userRequests.length)
         } else {
           // Filter requests this user should see
           userRequests = (allRequestsData || []).filter((req) => {
             const isRequester = req.requester_id === user.id
             const isOwner = req.equipment?.owner_id === user.id
             const isForwarded = req.forwarded_to === user.id
+            
+            // Debug logs
+            console.log(`Request ${req.id}:`, {
+              requester_id: req.requester_id,
+              equipment_owner_id: req.equipment?.owner_id,
+              forwarded_to: req.forwarded_to,
+              current_user_id: user.id,
+              isRequester,
+              isOwner,
+              isForwarded,
+              shouldShow: isRequester || isOwner || isForwarded
+            })
+            
             return isRequester || isOwner || isForwarded
           })
+          console.log("Non-admin user - filtered requests:", userRequests.length)
         }
 
         setRequests(userRequests)
@@ -216,7 +235,7 @@ const RequestsPage = () => {
           notes: `Forwarded by admin ${user?.name} to handle approval`,
         })
         .eq("id", requestId)
-        .select("*, equipment(*), event(*), requester:requester_id(*), approver:approved_by(*)")
+        .select("*, equipment(*), event(*), requester:requester_id(*), approver:approved_by(*), forwarded_user:forwarded_to(*)")
         .single()
 
       if (error) throw error
@@ -335,6 +354,17 @@ const RequestsPage = () => {
         <h1 className="text-3xl font-bold text-gray-900">Equipment Requests</h1>
         <p className="text-gray-600 mt-2">Manage equipment requests and approvals</p>
       </div>
+
+      {/* Debug information - remove this in production */}
+      {process.env.NODE_ENV === 'development' && (
+        <div className="mb-4 p-4 bg-gray-100 rounded-lg">
+          <h3 className="font-semibold text-sm">Debug Info:</h3>
+          <p className="text-xs">Current User ID: {user?.id}</p>
+          <p className="text-xs">Is Admin: {user?.is_admin ? 'Yes' : 'No'}</p>
+          <p className="text-xs">Total Requests Found: {requests.length}</p>
+          <p className="text-xs">Filtered Requests: {filteredRequests.length}</p>
+        </div>
+      )}
 
       <div className="mb-6 flex flex-col md:flex-row gap-4">
         <div className="relative flex-grow">
