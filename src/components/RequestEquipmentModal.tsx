@@ -7,6 +7,29 @@ import { X, AlertTriangle, Clock } from "lucide-react"
 import { useSupabase } from "../contexts/SupabaseContext"
 import type { Equipment, User, Event, TimeConflict } from "../types"
 import { format } from "date-fns"
+import { toZonedTime, fromZonedTime } from "date-fns-tz"
+
+// Helper function to format time in IST with 12-hour format
+const formatTimeIST = (dateString: string, formatStr = "MMM d, h:mm a") => {
+  const date = new Date(dateString)
+  const istDate = toZonedTime(date, "Asia/Kolkata")
+  return format(istDate, formatStr)
+}
+
+// Helper function to convert local datetime-local input to IST
+const convertToIST = (localDateTime: string) => {
+  if (!localDateTime) return ""
+  const localDate = new Date(localDateTime)
+  return fromZonedTime(localDate, "Asia/Kolkata").toISOString()
+}
+
+// Helper function to convert IST to local datetime-local input
+const convertFromIST = (istDateTime: string) => {
+  if (!istDateTime) return ""
+  const istDate = new Date(istDateTime)
+  const localDate = toZonedTime(istDate, "Asia/Kolkata")
+  return format(localDate, "yyyy-MM-dd'T'HH:mm")
+}
 
 interface RequestEquipmentModalProps {
   equipment: Equipment
@@ -122,10 +145,9 @@ const RequestEquipmentModal: React.FC<RequestEquipmentModalProps> = ({ equipment
     if (selectedEvent) {
       const event = events.find((e) => e.id === selectedEvent)
       if (event) {
-        const startDate = new Date(event.start_time)
-        const endDate = new Date(event.end_time)
-        setStartTime(startDate.toISOString().slice(0, 16))
-        setEndTime(endDate.toISOString().slice(0, 16))
+        // Convert event times to local datetime-local format for IST
+        setStartTime(convertFromIST(event.start_time))
+        setEndTime(convertFromIST(event.end_time))
       }
     }
   }, [selectedEvent, events])
@@ -140,10 +162,14 @@ const RequestEquipmentModal: React.FC<RequestEquipmentModalProps> = ({ equipment
 
       setCheckingConflicts(true)
       try {
-        const { data, error } = await supabase.rpc("check_time_conflicts", {
+        // Convert local times to IST for conflict checking
+        const istStartTime = convertToIST(startTime)
+        const istEndTime = convertToIST(endTime)
+
+        const { data, error } = await supabase.rpc("check_time_conflict", {
           p_equipment_id: equipment.id,
-          p_start_time: startTime,
-          p_end_time: endTime,
+          p_start_time: istStartTime,
+          p_end_time: istEndTime,
         })
 
         if (error) throw error
@@ -176,6 +202,10 @@ const RequestEquipmentModal: React.FC<RequestEquipmentModalProps> = ({ equipment
     setError(null)
 
     try {
+      // Convert local times to IST for storage
+      const istStartTime = convertToIST(startTime)
+      const istEndTime = convertToIST(endTime)
+
       // Create equipment request with time information
       const { data, error } = await supabase
         .from("equipment_requests")
@@ -185,8 +215,8 @@ const RequestEquipmentModal: React.FC<RequestEquipmentModalProps> = ({ equipment
           requester_id: currentUser.id,
           status: "pending",
           notes: notes || null,
-          start_time: startTime,
-          end_time: endTime,
+          start_time: istStartTime,
+          end_time: istEndTime,
         })
         .select("*")
         .single()
@@ -283,7 +313,7 @@ const RequestEquipmentModal: React.FC<RequestEquipmentModalProps> = ({ equipment
                     <option value="">Select an event (optional)...</option>
                     {events.map((event) => (
                       <option key={event.id} value={event.id}>
-                        {event.title} ({format(new Date(event.start_time), "MMM d, yyyy")})
+                        {event.title} ({formatTimeIST(event.start_time, "MMM d, yyyy")})
                       </option>
                     ))}
                   </select>
@@ -297,7 +327,7 @@ const RequestEquipmentModal: React.FC<RequestEquipmentModalProps> = ({ equipment
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label htmlFor="startTime" className="block text-sm font-medium text-gray-700">
-                    Start Time <span className="text-red-500">*</span>
+                    Start Time (IST) <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="datetime-local"
@@ -310,7 +340,7 @@ const RequestEquipmentModal: React.FC<RequestEquipmentModalProps> = ({ equipment
                 </div>
                 <div>
                   <label htmlFor="endTime" className="block text-sm font-medium text-gray-700">
-                    End Time <span className="text-red-500">*</span>
+                    End Time (IST) <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="datetime-local"
@@ -346,8 +376,8 @@ const RequestEquipmentModal: React.FC<RequestEquipmentModalProps> = ({ equipment
                         <ul className="mt-1 list-disc list-inside">
                           {timeConflicts.map((conflict) => (
                             <li key={conflict.conflicting_request_id}>
-                              {conflict.requester_name}: {format(new Date(conflict.start_time), "MMM d, HH:mm")} -{" "}
-                              {format(new Date(conflict.end_time), "HH:mm")}
+                              {conflict.requester_name}: {formatTimeIST(conflict.start_time, "MMM d, h:mm a")} -{" "}
+                              {formatTimeIST(conflict.end_time, "h:mm a")}
                             </li>
                           ))}
                         </ul>
@@ -376,8 +406,8 @@ const RequestEquipmentModal: React.FC<RequestEquipmentModalProps> = ({ equipment
                               {req.start_time && req.end_time && (
                                 <span className="text-xs">
                                   {" "}
-                                  ({format(new Date(req.start_time), "MMM d, HH:mm")} -{" "}
-                                  {format(new Date(req.end_time), "HH:mm")})
+                                  ({formatTimeIST(req.start_time, "MMM d, h:mm a")} -{" "}
+                                  {formatTimeIST(req.end_time, "h:mm a")})
                                 </span>
                               )}
                               {req.current_holder && ` (currently with ${req.current_holder.name})`}
