@@ -3,7 +3,7 @@
 import type React from "react"
 
 import { useState, useEffect } from "react"
-import { X } from "lucide-react"
+import { X, AlertTriangle } from "lucide-react"
 import { useSupabase } from "../contexts/SupabaseContext"
 import type { Equipment, User, Event } from "../types"
 import { format } from "date-fns"
@@ -23,14 +23,18 @@ const RequestEquipmentModal: React.FC<RequestEquipmentModalProps> = ({ equipment
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
+  const [existingRequests, setExistingRequests] = useState<any[]>([])
+  const [currentUserWithEquipment, setCurrentUserWithEquipment] = useState<any>(null)
 
   useEffect(() => {
-    const fetchUserEvents = async () => {
+    const fetchData = async () => {
+      if (!isOpen) return
+
       try {
         const today = new Date().toISOString()
 
         // Fetch upcoming events created by the current user
-        const { data, error } = await supabase
+        const { data: eventsData, error: eventsError } = await supabase
           .from("events")
           .select("*")
           .eq("created_by", currentUser.id)
@@ -38,19 +42,46 @@ const RequestEquipmentModal: React.FC<RequestEquipmentModalProps> = ({ equipment
           .gte("start_time", today)
           .order("start_time")
 
-        if (error) throw error
+        if (eventsError) throw eventsError
+        setEvents(eventsData || [])
 
-        setEvents(data || [])
+        // Check for existing pending requests for this equipment
+        const { data: requestsData, error: requestsError } = await supabase
+          .from("equipment_requests")
+          .select(`
+            *,
+            requester:users!equipment_requests_requester_id_fkey(*),
+            events(*)
+          `)
+          .eq("equipment_id", equipment.id)
+          .eq("status", "pending")
+
+        if (requestsError) throw requestsError
+        setExistingRequests(requestsData || [])
+
+        // Check if equipment is currently in use and get current user
+        if (equipment.status === "in_use") {
+          const { data: logData } = await supabase
+            .from("equipment_logs")
+            .select("*, user:user_id(*)")
+            .eq("equipment_id", equipment.id)
+            .is("return_time", null)
+            .order("checkout_time", { ascending: false })
+            .limit(1)
+            .single()
+
+          if (logData?.user) {
+            setCurrentUserWithEquipment(logData.user)
+          }
+        }
       } catch (error) {
-        console.error("Error fetching events:", error)
-        setError("Failed to load events. Please try again.")
+        console.error("Error fetching data:", error)
+        setError("Failed to load data. Please try again.")
       }
     }
 
-    if (isOpen) {
-      fetchUserEvents()
-    }
-  }, [supabase, currentUser.id, isOpen])
+    fetchData()
+  }, [supabase, currentUser.id, isOpen, equipment.id, equipment.status])
 
   // Reset form when modal opens
   useEffect(() => {
@@ -65,13 +96,18 @@ const RequestEquipmentModal: React.FC<RequestEquipmentModalProps> = ({ equipment
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
+    if (!selectedEvent) {
+      setError("Please select an event. Equipment requests must be associated with an approved event.")
+      return
+    }
+
     setLoading(true)
     setError(null)
 
     try {
       console.log("Submitting request with data:", {
         equipment_id: equipment.id,
-        event_id: selectedEvent || null,
+        event_id: selectedEvent,
         requester_id: currentUser.id,
         status: "pending",
         notes: notes || null,
@@ -82,7 +118,7 @@ const RequestEquipmentModal: React.FC<RequestEquipmentModalProps> = ({ equipment
         .from("equipment_requests")
         .insert({
           equipment_id: equipment.id,
-          event_id: selectedEvent || null,
+          event_id: selectedEvent,
           requester_id: currentUser.id,
           status: "pending",
           notes: notes || null,
@@ -143,9 +179,50 @@ const RequestEquipmentModal: React.FC<RequestEquipmentModalProps> = ({ equipment
                 </p>
               </div>
 
+              {/* Show current user if equipment is in use */}
+              {equipment.status === "in_use" && currentUserWithEquipment && (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3">
+                  <div className="flex">
+                    <AlertTriangle className="h-5 w-5 text-yellow-400" />
+                    <div className="ml-3">
+                      <h3 className="text-sm font-medium text-yellow-800">Equipment Currently In Use</h3>
+                      <div className="mt-2 text-sm text-yellow-700">
+                        <p>
+                          This equipment is currently with{" "}
+                          <span className="font-medium">{currentUserWithEquipment.name}</span>. Your request will be
+                          processed when the equipment is returned.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Show existing pending requests */}
+              {existingRequests.length > 0 && (
+                <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
+                  <div className="flex">
+                    <AlertTriangle className="h-5 w-5 text-blue-400" />
+                    <div className="ml-3">
+                      <h3 className="text-sm font-medium text-blue-800">Existing Requests</h3>
+                      <div className="mt-2 text-sm text-blue-700">
+                        <p>There are {existingRequests.length} pending request(s) for this equipment:</p>
+                        <ul className="mt-1 list-disc list-inside">
+                          {existingRequests.map((req) => (
+                            <li key={req.id}>
+                              {req.requester?.name} for {req.events?.title || "general use"}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div>
                 <label htmlFor="event" className="block text-sm font-medium text-gray-700">
-                  Select Event (Optional)
+                  Select Event <span className="text-red-500">*</span>
                 </label>
                 {events.length > 0 ? (
                   <select
@@ -153,8 +230,9 @@ const RequestEquipmentModal: React.FC<RequestEquipmentModalProps> = ({ equipment
                     className="select mt-1"
                     value={selectedEvent}
                     onChange={(e) => setSelectedEvent(e.target.value)}
+                    required
                   >
-                    <option value="">No specific event</option>
+                    <option value="">Select an event...</option>
                     {events.map((event) => (
                       <option key={event.id} value={event.id}>
                         {event.title} ({format(new Date(event.start_time), "MMM d, yyyy")})
@@ -162,8 +240,9 @@ const RequestEquipmentModal: React.FC<RequestEquipmentModalProps> = ({ equipment
                     ))}
                   </select>
                 ) : (
-                  <div className="mt-1 p-3 bg-blue-50 text-blue-700 rounded-md text-sm">
-                    You don't have any upcoming approved events. You can still request equipment for general use.
+                  <div className="mt-1 p-3 bg-red-50 text-red-700 rounded-md text-sm">
+                    You don't have any upcoming approved events. You must have an approved event to request equipment.
+                    Please create an event first.
                   </div>
                 )}
               </div>
@@ -189,7 +268,7 @@ const RequestEquipmentModal: React.FC<RequestEquipmentModalProps> = ({ equipment
               <button type="button" onClick={onClose} className="btn btn-outline" disabled={loading}>
                 Cancel
               </button>
-              <button type="submit" className="btn btn-primary" disabled={loading}>
+              <button type="submit" className="btn btn-primary" disabled={loading || events.length === 0}>
                 {loading ? "Submitting..." : "Submit Request"}
               </button>
             </div>
