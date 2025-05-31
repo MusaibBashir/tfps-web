@@ -46,9 +46,21 @@ export interface Event {
   created_by: string
   is_approved: boolean
   approved_by: string | null
+  is_open: boolean
+  max_participants: number | null
   created_at: string
   creator?: User
   approver?: User
+  participants?: EventParticipant[]
+}
+
+export interface EventParticipant {
+  id: string
+  event_id: string
+  user_id: string
+  joined_at: string
+  role: "creator" | "participant"
+  user?: User
 }
 
 export interface EquipmentRequest {
@@ -58,10 +70,11 @@ export interface EquipmentRequest {
   requester_id: string
   status: "pending" | "approved" | "rejected" | "received" | "returned"
   approved_by: string | null
+  forwarded_to: string | null
   notes: string | null
   created_at: string
   equipment?: Equipment
-  events?: Event // Changed from event to events
+  events?: Event
   requester?: User
   approver?: User
   forwarded_user?: User
