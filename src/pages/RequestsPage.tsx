@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { Link } from "react-router-dom"
-import { ClipboardList, Search, CheckCircle, XCircle, Package, UserPlus, Send } from "lucide-react"
+import { ClipboardList, Search, CheckCircle, XCircle, Package, UserPlus, Send, ArrowRightLeft } from "lucide-react"
 import { useSupabase } from "../contexts/SupabaseContext"
 import { useAuth } from "../contexts/AuthContext"
 import type { EquipmentRequest } from "../types"
@@ -20,6 +20,10 @@ const RequestsPage = () => {
   const [forwardingId, setForwardingId] = useState<string | null>(null)
   const [selectedForwardUser, setSelectedForwardUser] = useState<string>("")
   const [allUsers, setAllUsers] = useState<any[]>([])
+  const [returningId, setReturningId] = useState<string | null>(null)
+  const [returnToUser, setReturnToUser] = useState<string>("")
+  const [returnCondition, setReturnCondition] = useState<"perfect" | "damaged">("perfect")
+  const [damageNotes, setDamageNotes] = useState("")
 
   useEffect(() => {
     const fetchRequests = async () => {
@@ -35,7 +39,8 @@ const RequestsPage = () => {
             equipment(*),
             requester:users!equipment_requests_requester_id_fkey(*),
             approver:users!equipment_requests_approved_by_fkey(*),
-            forwarded_user:users!equipment_requests_forwarded_to_fkey(*)
+            forwarded_user:users!equipment_requests_forwarded_to_fkey(*),
+            current_holder:users!equipment_requests_current_holder_id_fkey(*)
           `)
           .order("created_at", { ascending: false })
 
@@ -72,7 +77,12 @@ const RequestsPage = () => {
             const isRequester = req.requester_id === user.id
             const isOwner = req.equipment?.owner_id === user.id
             const isForwarded = req.forwarded_to === user.id
-            return isRequester || isOwner || isForwarded
+            const isCurrentHolder = req.current_holder_id === user.id
+            // Show forwarded requests only to the forwarded user, not the original approver
+            const canSeeForwarded = req.forwarded_to && req.forwarded_to === user.id
+            const isOriginalApprover = req.approved_by === user.id && !req.forwarded_to
+
+            return isRequester || isOwner || canSeeForwarded || isCurrentHolder || isOriginalApprover
           })
         }
 
@@ -89,22 +99,20 @@ const RequestsPage = () => {
   }, [supabase, user])
 
   useEffect(() => {
-    // Fetch all users for forwarding dropdown (admins only)
+    // Fetch all users for forwarding dropdown and return options
     const fetchUsers = async () => {
-      if (user?.is_admin) {
-        try {
-          const { data, error } = await supabase.from("users").select("id, name, is_admin").order("name")
+      try {
+        const { data, error } = await supabase.from("users").select("id, name, is_admin").order("name")
 
-          if (error) throw error
-          setAllUsers(data || [])
-        } catch (error) {
-          console.error("Error fetching users:", error)
-        }
+        if (error) throw error
+        setAllUsers(data || [])
+      } catch (error) {
+        console.error("Error fetching users:", error)
       }
     }
 
     fetchUsers()
-  }, [supabase, user])
+  }, [supabase])
 
   useEffect(() => {
     // Filter requests based on search query and status
@@ -138,6 +146,7 @@ const RequestsPage = () => {
         .update({
           status: "approved",
           approved_by: user?.id,
+          current_holder_id: request.requester_id,
         })
         .eq("id", requestId)
         .select(`
@@ -145,7 +154,8 @@ const RequestsPage = () => {
           equipment(*),
           requester:users!equipment_requests_requester_id_fkey(*),
           approver:users!equipment_requests_approved_by_fkey(*),
-          forwarded_user:users!equipment_requests_forwarded_to_fkey(*)
+          forwarded_user:users!equipment_requests_forwarded_to_fkey(*),
+          current_holder:users!equipment_requests_current_holder_id_fkey(*)
         `)
         .single()
 
@@ -188,13 +198,185 @@ const RequestsPage = () => {
           .neq("id", requestId)
       }
 
-      // Manually attach event if needed
-      if (data.event_id) {
-        const { data: eventData } = await supabase.from("events").select("*").eq("id", data.event_id).single()
-        data.events = eventData
+      // Refresh requests
+      await refreshRequests()
+    } catch (error) {
+      console.error("Error approving request:", error)
+    } finally {
+      setProcessingId(null)
+    }
+  }
+
+  const handleReceived = async (requestId: string) => {
+    setProcessingId(requestId)
+    try {
+      const { data, error } = await supabase
+        .from("equipment_requests")
+        .update({
+          status: "received",
+          received_time: new Date().toISOString(),
+        })
+        .eq("id", requestId)
+        .select(`
+          *,
+          equipment(*),
+          requester:users!equipment_requests_requester_id_fkey(*),
+          current_holder:users!equipment_requests_current_holder_id_fkey(*)
+        `)
+        .single()
+
+      if (error) throw error
+
+      await refreshRequests()
+    } catch (error) {
+      console.error("Error marking as received:", error)
+    } finally {
+      setProcessingId(null)
+    }
+  }
+
+  const handleReturn = async (requestId: string) => {
+    if (returnToUser === "other" && !returnToUser) {
+      alert("Please select a user to return to")
+      return
+    }
+
+    setProcessingId(requestId)
+    try {
+      const request = requests.find((r) => r.id === requestId)
+      if (!request) return
+
+      const returnTime = new Date().toISOString()
+
+      if (returnToUser === "owner" || returnToUser === request.equipment?.owner_id) {
+        // Returning to original owner - complete the cycle
+        await supabase
+          .from("equipment_requests")
+          .update({
+            status: "returned",
+            returned_time: returnTime,
+            return_condition: returnCondition,
+            damage_notes: returnCondition === "damaged" ? damageNotes : null,
+          })
+          .eq("id", requestId)
+
+        // Update equipment status
+        await supabase
+          .from("equipment")
+          .update({
+            status: "available",
+            condition_notes: returnCondition === "damaged" ? damageNotes : null,
+          })
+          .eq("id", request.equipment_id)
+
+        // Update equipment log
+        const { data: logData } = await supabase
+          .from("equipment_logs")
+          .select("*")
+          .eq("equipment_id", request.equipment_id)
+          .eq("user_id", request.current_holder_id || request.requester_id)
+          .is("return_time", null)
+          .order("checkout_time", { ascending: false })
+          .limit(1)
+          .single()
+
+        if (logData) {
+          await supabase
+            .from("equipment_logs")
+            .update({
+              return_time: returnTime,
+            })
+            .eq("id", logData.id)
+        }
+
+        // Create damage report if damaged
+        if (returnCondition === "damaged" && damageNotes) {
+          await supabase.from("damage_reports").insert({
+            equipment_id: request.equipment_id,
+            reported_by: user?.id,
+            damage_description: damageNotes,
+            severity: "moderate", // Default severity
+          })
+        }
+      } else {
+        // Transferring to another user
+        const newHolderId = returnToUser
+
+        // Update current request
+        await supabase
+          .from("equipment_requests")
+          .update({
+            status: "returned",
+            returned_time: returnTime,
+            current_holder_id: newHolderId,
+          })
+          .eq("id", requestId)
+
+        // Create transfer record
+        await supabase.from("equipment_transfers").insert({
+          equipment_id: request.equipment_id,
+          from_user_id: request.current_holder_id || request.requester_id,
+          to_user_id: newHolderId,
+          transfer_time: returnTime,
+          notes: `Transferred via equipment request system`,
+        })
+
+        // Update equipment log
+        const { data: logData } = await supabase
+          .from("equipment_logs")
+          .select("*")
+          .eq("equipment_id", request.equipment_id)
+          .eq("user_id", request.current_holder_id || request.requester_id)
+          .is("return_time", null)
+          .order("checkout_time", { ascending: false })
+          .limit(1)
+          .single()
+
+        if (logData) {
+          await supabase
+            .from("equipment_logs")
+            .update({
+              return_time: returnTime,
+              transferred_to: newHolderId,
+              transfer_time: returnTime,
+            })
+            .eq("id", logData.id)
+        }
+
+        // Create new log for new holder
+        await supabase.from("equipment_logs").insert({
+          equipment_id: request.equipment_id,
+          user_id: newHolderId,
+          checkout_time: returnTime,
+        })
+
+        // Update any pending requests for this equipment to show new current holder
+        await supabase
+          .from("equipment_requests")
+          .update({
+            current_holder_id: newHolderId,
+            notes: `Equipment transferred to new holder. Please coordinate with them.`,
+          })
+          .eq("equipment_id", request.equipment_id)
+          .eq("status", "pending")
       }
 
-      // Refresh all requests to show updated statuses
+      setReturningId(null)
+      setReturnToUser("")
+      setReturnCondition("perfect")
+      setDamageNotes("")
+      await refreshRequests()
+    } catch (error) {
+      console.error("Error processing return:", error)
+    } finally {
+      setProcessingId(null)
+    }
+  }
+
+  const refreshRequests = async () => {
+    if (!user) return
+
+    try {
       const { data: updatedRequests } = await supabase
         .from("equipment_requests")
         .select(`
@@ -202,7 +384,8 @@ const RequestsPage = () => {
           equipment(*),
           requester:users!equipment_requests_requester_id_fkey(*),
           approver:users!equipment_requests_approved_by_fkey(*),
-          forwarded_user:users!equipment_requests_forwarded_to_fkey(*)
+          forwarded_user:users!equipment_requests_forwarded_to_fkey(*),
+          current_holder:users!equipment_requests_current_holder_id_fkey(*)
         `)
         .order("created_at", { ascending: false })
 
@@ -225,7 +408,11 @@ const RequestsPage = () => {
               const isRequester = req.requester_id === user.id
               const isOwner = req.equipment?.owner_id === user.id
               const isForwarded = req.forwarded_to === user.id
-              return isRequester || isOwner || isForwarded
+              const isCurrentHolder = req.current_holder_id === user.id
+              const canSeeForwarded = req.forwarded_to && req.forwarded_to === user.id
+              const isOriginalApprover = req.approved_by === user.id && !req.forwarded_to
+
+              return isRequester || isOwner || canSeeForwarded || isCurrentHolder || isOriginalApprover
             })
           }
 
@@ -234,9 +421,7 @@ const RequestsPage = () => {
         }
       }
     } catch (error) {
-      console.error("Error approving request:", error)
-    } finally {
-      setProcessingId(null)
+      console.error("Error refreshing requests:", error)
     }
   }
 
@@ -250,65 +435,11 @@ const RequestsPage = () => {
           approved_by: user?.id,
         })
         .eq("id", requestId)
-        .select(`
-          *,
-          equipment(*),
-          requester:users!equipment_requests_requester_id_fkey(*),
-          approver:users!equipment_requests_approved_by_fkey(*),
-          forwarded_user:users!equipment_requests_forwarded_to_fkey(*)
-        `)
-        .single()
 
       if (error) throw error
-
-      // Manually attach event if needed
-      if (data.event_id) {
-        const { data: eventData } = await supabase.from("events").select("*").eq("id", data.event_id).single()
-        data.events = eventData
-      }
-
-      setRequests(requests.map((request) => (request.id === requestId ? data : request)))
-      setFilteredRequests(filteredRequests.map((request) => (request.id === requestId ? data : request)))
+      await refreshRequests()
     } catch (error) {
       console.error("Error rejecting request:", error)
-    } finally {
-      setProcessingId(null)
-    }
-  }
-
-  const handleReceived = async (requestId: string) => {
-    setProcessingId(requestId)
-    try {
-      const request = requests.find((r) => r.id === requestId)
-      if (!request) return
-
-      // Update request status
-      const { data, error } = await supabase
-        .from("equipment_requests")
-        .update({
-          status: "received",
-        })
-        .eq("id", requestId)
-        .select(`
-          *,
-          equipment(*),
-          requester:users!equipment_requests_requester_id_fkey(*),
-          approver:users!equipment_requests_approved_by_fkey(*)
-        `)
-        .single()
-
-      if (error) throw error
-
-      // Manually attach event if needed
-      if (data.event_id) {
-        const { data: eventData } = await supabase.from("events").select("*").eq("id", data.event_id).single()
-        data.events = eventData
-      }
-
-      setRequests(requests.map((r) => (r.id === requestId ? data : r)))
-      setFilteredRequests(filteredRequests.map((r) => (r.id === requestId ? data : r)))
-    } catch (error) {
-      console.error("Error marking as received:", error)
     } finally {
       setProcessingId(null)
     }
@@ -329,28 +460,12 @@ const RequestsPage = () => {
           notes: `Forwarded by admin ${user?.name} to handle approval`,
         })
         .eq("id", requestId)
-        .select(`
-          *,
-          equipment(*),
-          requester:users!equipment_requests_requester_id_fkey(*),
-          approver:users!equipment_requests_approved_by_fkey(*),
-          forwarded_user:users!equipment_requests_forwarded_to_fkey(*)
-        `)
-        .single()
 
       if (error) throw error
 
-      // Manually attach event if needed
-      if (data.event_id) {
-        const { data: eventData } = await supabase.from("events").select("*").eq("id", data.event_id).single()
-        data.events = eventData
-      }
-
-      setRequests(requests.map((request) => (request.id === requestId ? data : request)))
-      setFilteredRequests(filteredRequests.map((request) => (request.id === requestId ? data : request)))
-
       setForwardingId(null)
       setSelectedForwardUser("")
+      await refreshRequests()
     } catch (error) {
       console.error("Error forwarding request:", error)
     } finally {
@@ -358,70 +473,11 @@ const RequestsPage = () => {
     }
   }
 
-  const handleReturned = async (requestId: string) => {
-    setProcessingId(requestId)
-    try {
-      const request = requests.find((r) => r.id === requestId)
-      if (!request) return
-
-      // Update request status
-      const { data, error } = await supabase
-        .from("equipment_requests")
-        .update({
-          status: "returned",
-        })
-        .eq("id", requestId)
-        .select(`
-          *,
-          equipment(*),
-          requester:users!equipment_requests_requester_id_fkey(*),
-          approver:users!equipment_requests_approved_by_fkey(*)
-        `)
-        .single()
-
-      if (error) throw error
-
-      // Update equipment status
-      await supabase
-        .from("equipment")
-        .update({
-          status: "available",
-        })
-        .eq("id", request.equipment_id)
-
-      // Update equipment log
-      const { data: logData } = await supabase
-        .from("equipment_logs")
-        .select("*")
-        .eq("equipment_id", request.equipment_id)
-        .eq("user_id", request.requester_id)
-        .is("return_time", null)
-        .order("checkout_time", { ascending: false })
-        .limit(1)
-        .single()
-
-      if (logData) {
-        await supabase
-          .from("equipment_logs")
-          .update({
-            return_time: new Date().toISOString(),
-          })
-          .eq("id", logData.id)
-      }
-
-      // Manually attach event if needed
-      if (data.event_id) {
-        const { data: eventData } = await supabase.from("events").select("*").eq("id", data.event_id).single()
-        data.events = eventData
-      }
-
-      setRequests(requests.map((r) => (r.id === requestId ? data : r)))
-      setFilteredRequests(filteredRequests.map((r) => (r.id === requestId ? data : r)))
-    } catch (error) {
-      console.error("Error marking as returned:", error)
-    } finally {
-      setProcessingId(null)
-    }
+  const canApprove = (request: any) => {
+    if (user?.is_admin) return true
+    if (request.equipment?.owner_id && user?.id === request.equipment?.owner_id && !request.forwarded_to) return true
+    if (request.forwarded_to === user?.id) return true
+    return false
   }
 
   const getStatusBadge = (status: string) => {
@@ -530,6 +586,11 @@ const RequestsPage = () => {
                             "General use"
                           )}
                         </div>
+                        {request.current_holder && (
+                          <div className="text-xs text-blue-600 mt-1">
+                            Currently with: {request.current_holder?.name}
+                          </div>
+                        )}
                         {request.notes && <div className="text-xs text-gray-500 mt-1">Note: {request.notes}</div>}
                       </div>
                     </div>
@@ -557,25 +618,6 @@ const RequestsPage = () => {
                           {request.requester?.name}
                         </Link>
                       </div>
-                      {request.approver && (
-                        <div className="mt-2 flex items-center text-sm text-gray-500 sm:mt-0 sm:ml-6">
-                          <div className="flex-shrink-0 mr-1.5">
-                            <svg
-                              className="h-4 w-4 text-gray-400"
-                              xmlns="http://www.w3.org/2000/svg"
-                              viewBox="0 0 20 20"
-                              fill="currentColor"
-                            >
-                              <path
-                                fillRule="evenodd"
-                                d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-6-3a2 2 0 11-4 0 2 2 0 014 0zm-2 4a5 5 0 00-4.546 2.916A5.986 5.986 0 0010 16a5.986 5.986 0 004.546-2.084A5 5 0 0010 11z"
-                                clipRule="evenodd"
-                              />
-                            </svg>
-                          </div>
-                          Processed by: {request.approver?.name}
-                        </div>
-                      )}
                       {request.forwarded_user && (
                         <div className="mt-2 flex items-center text-sm text-blue-600 sm:mt-0 sm:ml-6">
                           <div className="flex-shrink-0 mr-1.5">
@@ -594,7 +636,7 @@ const RequestsPage = () => {
                       >
                         <path
                           fillRule="evenodd"
-                          d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z"
+                          d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 0 100-2H6z"
                           clipRule="evenodd"
                         />
                       </svg>
@@ -604,30 +646,27 @@ const RequestsPage = () => {
 
                   {/* Action buttons based on status and user role */}
                   <div className="mt-4 flex flex-wrap gap-2">
-                    {/* Admin, equipment owner, or forwarded user can approve/reject pending requests */}
-                    {request.status === "pending" &&
-                      (user?.is_admin ||
-                        (request.equipment?.owner_id && user?.id === request.equipment?.owner_id) ||
-                        user?.id === request.forwarded_to) && (
-                        <>
-                          <button
-                            onClick={() => handleApprove(request.id)}
-                            disabled={!!processingId}
-                            className="inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50"
-                          >
-                            <CheckCircle className="mr-1 h-4 w-4" />
-                            Approve
-                          </button>
-                          <button
-                            onClick={() => handleReject(request.id)}
-                            disabled={!!processingId}
-                            className="inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50"
-                          >
-                            <XCircle className="mr-1 h-4 w-4" />
-                            Reject
-                          </button>
-                        </>
-                      )}
+                    {/* Approve/Reject for pending requests */}
+                    {request.status === "pending" && canApprove(request) && (
+                      <>
+                        <button
+                          onClick={() => handleApprove(request.id)}
+                          disabled={!!processingId}
+                          className="inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50"
+                        >
+                          <CheckCircle className="mr-1 h-4 w-4" />
+                          Approve
+                        </button>
+                        <button
+                          onClick={() => handleReject(request.id)}
+                          disabled={!!processingId}
+                          className="inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50"
+                        >
+                          <XCircle className="mr-1 h-4 w-4" />
+                          Reject
+                        </button>
+                      </>
+                    )}
 
                     {/* Forward option for admins on hall equipment only */}
                     {request.status === "pending" &&
@@ -682,8 +721,8 @@ const RequestsPage = () => {
                         </>
                       )}
 
-                    {/* Approver can mark as received when approved */}
-                    {request.status === "approved" && request.approved_by === user?.id && (
+                    {/* Received button for approved requests (requester only) */}
+                    {request.status === "approved" && request.requester_id === user?.id && (
                       <button
                         onClick={() => handleReceived(request.id)}
                         disabled={!!processingId}
@@ -694,17 +733,85 @@ const RequestsPage = () => {
                       </button>
                     )}
 
-                    {/* Requester can mark as returned when received */}
-                    {request.status === "received" && request.requester_id === user?.id && (
-                      <button
-                        onClick={() => handleReturned(request.id)}
-                        disabled={!!processingId}
-                        className="inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50"
-                      >
-                        <CheckCircle className="mr-1 h-4 w-4" />
-                        Mark as Returned
-                      </button>
-                    )}
+                    {/* Return button for received requests (current holder) */}
+                    {request.status === "received" &&
+                      (request.current_holder_id === user?.id || request.requester_id === user?.id) && (
+                        <>
+                          {returningId === request.id ? (
+                            <div className="flex flex-col gap-2 w-full">
+                              <div className="flex items-center gap-2">
+                                <select
+                                  className="text-xs border border-gray-300 rounded px-2 py-1"
+                                  value={returnToUser}
+                                  onChange={(e) => setReturnToUser(e.target.value)}
+                                >
+                                  <option value="">Return to...</option>
+                                  <option value="owner">Equipment Owner</option>
+                                  {allUsers
+                                    .filter((u) => u.id !== user.id)
+                                    .map((u) => (
+                                      <option key={u.id} value={u.id}>
+                                        {u.name}
+                                      </option>
+                                    ))}
+                                </select>
+
+                                <select
+                                  className="text-xs border border-gray-300 rounded px-2 py-1"
+                                  value={returnCondition}
+                                  onChange={(e) => setReturnCondition(e.target.value as "perfect" | "damaged")}
+                                >
+                                  <option value="perfect">Perfect Condition</option>
+                                  <option value="damaged">Damaged</option>
+                                </select>
+                              </div>
+
+                              {returnCondition === "damaged" && (
+                                <textarea
+                                  className="text-xs border border-gray-300 rounded px-2 py-1 w-full"
+                                  placeholder="Describe the damage..."
+                                  value={damageNotes}
+                                  onChange={(e) => setDamageNotes(e.target.value)}
+                                  rows={2}
+                                />
+                              )}
+
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={() => handleReturn(request.id)}
+                                  disabled={
+                                    !returnToUser || !!processingId || (returnCondition === "damaged" && !damageNotes)
+                                  }
+                                  className="inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50"
+                                >
+                                  <ArrowRightLeft className="mr-1 h-3 w-3" />
+                                  Return
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setReturningId(null)
+                                    setReturnToUser("")
+                                    setReturnCondition("perfect")
+                                    setDamageNotes("")
+                                  }}
+                                  className="inline-flex items-center px-2.5 py-1.5 border border-gray-300 text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => setReturningId(request.id)}
+                              disabled={!!processingId}
+                              className="inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50"
+                            >
+                              <ArrowRightLeft className="mr-1 h-4 w-4" />
+                              Return Equipment
+                            </button>
+                          )}
+                        </>
+                      )}
 
                     {processingId === request.id && (
                       <span className="inline-flex items-center text-xs text-gray-500">
