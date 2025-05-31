@@ -107,8 +107,48 @@ const EquipmentDetailPage = () => {
 
   const handleEquipmentUpdate = (updatedEquipment: Equipment) => {
     setEquipment(updatedEquipment)
-    // Refresh the page data to get updated current user info
-    window.location.reload()
+    // Refresh the data instead of reloading the page
+    if (updatedEquipment.status === "in_use") {
+      // Fetch current user info
+      const fetchCurrentUser = async () => {
+        try {
+          const { data: currentLogData } = await supabase
+            .from("equipment_logs")
+            .select("*, user:user_id(*)")
+            .eq("equipment_id", updatedEquipment.id)
+            .is("return_time", null)
+            .order("checkout_time", { ascending: false })
+            .limit(1)
+            .single()
+
+          if (currentLogData?.user) {
+            setCurrentUser(currentLogData.user as UserType)
+          }
+        } catch (error) {
+          console.error("Error fetching current user:", error)
+        }
+      }
+      fetchCurrentUser()
+    } else {
+      setCurrentUser(null)
+    }
+
+    // Refresh history
+    const fetchHistory = async () => {
+      try {
+        const { data: historyData } = await supabase
+          .from("equipment_logs")
+          .select("*, user:user_id(*)")
+          .eq("equipment_id", updatedEquipment.id)
+          .order("checkout_time", { ascending: false })
+          .limit(5)
+
+        setHistory(historyData || [])
+      } catch (error) {
+        console.error("Error fetching history:", error)
+      }
+    }
+    fetchHistory()
   }
 
   if (loading) {
