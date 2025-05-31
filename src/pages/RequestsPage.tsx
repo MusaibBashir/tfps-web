@@ -27,12 +27,16 @@ const RequestsPage = () => {
 
       setLoading(true)
       try {
-        // Get ALL requests to see what's in the database
+        // Get ALL requests using explicit relationship names to avoid ambiguity
         const { data: allRequestsData, error: allRequestsError } = await supabase
           .from("equipment_requests")
-          .select(
-            "*, equipment(*), events(*), requester:requester_id(*), approver:approved_by(*), forwarded_user:forwarded_to(*)",
-          )
+          .select(`
+            *,
+            equipment(*),
+            requester:users!equipment_requests_requester_id_fkey(*),
+            approver:users!equipment_requests_approved_by_fkey(*),
+            forwarded_user:users!equipment_requests_forwarded_to_fkey(*)
+          `)
           .order("created_at", { ascending: false })
 
         if (allRequestsError) {
@@ -40,15 +44,31 @@ const RequestsPage = () => {
           throw allRequestsError
         }
 
+        // Fetch events separately for requests that have event_id
+        let requestsWithEvents = allRequestsData || []
+        if (requestsWithEvents.length > 0) {
+          const eventIds = requestsWithEvents.filter((req) => req.event_id).map((req) => req.event_id)
+
+          if (eventIds.length > 0) {
+            const { data: eventsForRequests } = await supabase.from("events").select("*").in("id", eventIds)
+
+            // Manually attach events to requests
+            requestsWithEvents = requestsWithEvents.map((req) => ({
+              ...req,
+              events: req.event_id ? eventsForRequests?.find((e) => e.id === req.event_id) : null,
+            }))
+          }
+        }
+
         // Filter requests this user should see
         let userRequests: any[] = []
 
         if (user.is_admin) {
           // Admin sees all requests
-          userRequests = allRequestsData || []
+          userRequests = requestsWithEvents
         } else {
           // Filter requests this user should see
-          userRequests = (allRequestsData || []).filter((req) => {
+          userRequests = requestsWithEvents.filter((req) => {
             const isRequester = req.requester_id === user.id
             const isOwner = req.equipment?.owner_id === user.id
             const isForwarded = req.forwarded_to === user.id
@@ -116,12 +136,22 @@ const RequestsPage = () => {
           approved_by: user?.id,
         })
         .eq("id", requestId)
-        .select(
-          "*, equipment(*), events(*), requester:requester_id(*), approver:approved_by(*), forwarded_user:forwarded_to(*)",
-        )
+        .select(`
+          *,
+          equipment(*),
+          requester:users!equipment_requests_requester_id_fkey(*),
+          approver:users!equipment_requests_approved_by_fkey(*),
+          forwarded_user:users!equipment_requests_forwarded_to_fkey(*)
+        `)
         .single()
 
       if (error) throw error
+
+      // Manually attach event if needed
+      if (data.event_id) {
+        const { data: eventData } = await supabase.from("events").select("*").eq("id", data.event_id).single()
+        data.events = eventData
+      }
 
       setRequests(requests.map((request) => (request.id === requestId ? data : request)))
       setFilteredRequests(filteredRequests.map((request) => (request.id === requestId ? data : request)))
@@ -142,12 +172,22 @@ const RequestsPage = () => {
           approved_by: user?.id,
         })
         .eq("id", requestId)
-        .select(
-          "*, equipment(*), events(*), requester:requester_id(*), approver:approved_by(*), forwarded_user:forwarded_to(*)",
-        )
+        .select(`
+          *,
+          equipment(*),
+          requester:users!equipment_requests_requester_id_fkey(*),
+          approver:users!equipment_requests_approved_by_fkey(*),
+          forwarded_user:users!equipment_requests_forwarded_to_fkey(*)
+        `)
         .single()
 
       if (error) throw error
+
+      // Manually attach event if needed
+      if (data.event_id) {
+        const { data: eventData } = await supabase.from("events").select("*").eq("id", data.event_id).single()
+        data.events = eventData
+      }
 
       setRequests(requests.map((request) => (request.id === requestId ? data : request)))
       setFilteredRequests(filteredRequests.map((request) => (request.id === requestId ? data : request)))
@@ -171,7 +211,12 @@ const RequestsPage = () => {
           status: "received",
         })
         .eq("id", requestId)
-        .select("*, equipment(*), events(*), requester:requester_id(*), approver:approved_by(*)")
+        .select(`
+          *,
+          equipment(*),
+          requester:users!equipment_requests_requester_id_fkey(*),
+          approver:users!equipment_requests_approved_by_fkey(*)
+        `)
         .single()
 
       if (error) throw error
@@ -191,6 +236,12 @@ const RequestsPage = () => {
         checkout_time: new Date().toISOString(),
         expected_return_time: request.events?.end_time,
       })
+
+      // Manually attach event if needed
+      if (data.event_id) {
+        const { data: eventData } = await supabase.from("events").select("*").eq("id", data.event_id).single()
+        data.events = eventData
+      }
 
       setRequests(requests.map((r) => (r.id === requestId ? data : r)))
       setFilteredRequests(filteredRequests.map((r) => (r.id === requestId ? data : r)))
@@ -216,10 +267,22 @@ const RequestsPage = () => {
           notes: `Forwarded by admin ${user?.name} to handle approval`,
         })
         .eq("id", requestId)
-        .select("*, equipment(*), events(*), requester:requester_id(*), approver:approved_by(*)")
+        .select(`
+          *,
+          equipment(*),
+          requester:users!equipment_requests_requester_id_fkey(*),
+          approver:users!equipment_requests_approved_by_fkey(*),
+          forwarded_user:users!equipment_requests_forwarded_to_fkey(*)
+        `)
         .single()
 
       if (error) throw error
+
+      // Manually attach event if needed
+      if (data.event_id) {
+        const { data: eventData } = await supabase.from("events").select("*").eq("id", data.event_id).single()
+        data.events = eventData
+      }
 
       setRequests(requests.map((request) => (request.id === requestId ? data : request)))
       setFilteredRequests(filteredRequests.map((request) => (request.id === requestId ? data : request)))
@@ -246,7 +309,12 @@ const RequestsPage = () => {
           status: "returned",
         })
         .eq("id", requestId)
-        .select("*, equipment(*), events(*), requester:requester_id(*), approver:approved_by(*)")
+        .select(`
+          *,
+          equipment(*),
+          requester:users!equipment_requests_requester_id_fkey(*),
+          approver:users!equipment_requests_approved_by_fkey(*)
+        `)
         .single()
 
       if (error) throw error
@@ -277,6 +345,12 @@ const RequestsPage = () => {
             return_time: new Date().toISOString(),
           })
           .eq("id", logData.id)
+      }
+
+      // Manually attach event if needed
+      if (data.event_id) {
+        const { data: eventData } = await supabase.from("events").select("*").eq("id", data.event_id).single()
+        data.events = eventData
       }
 
       setRequests(requests.map((r) => (r.id === requestId ? data : r)))
