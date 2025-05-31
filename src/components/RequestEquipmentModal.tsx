@@ -47,8 +47,20 @@ const RequestEquipmentModal: React.FC<RequestEquipmentModalProps> = ({ equipment
       }
     }
 
-    fetchUserEvents()
-  }, [supabase, currentUser.id])
+    if (isOpen) {
+      fetchUserEvents()
+    }
+  }, [supabase, currentUser.id, isOpen])
+
+  // Reset form when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      setSelectedEvent("")
+      setNotes("")
+      setError(null)
+      setSuccess(false)
+    }
+  }, [isOpen])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -57,8 +69,7 @@ const RequestEquipmentModal: React.FC<RequestEquipmentModalProps> = ({ equipment
     setError(null)
 
     try {
-      // Create equipment request
-      const { error } = await supabase.from("equipment_requests").insert({
+      console.log("Submitting request with data:", {
         equipment_id: equipment.id,
         event_id: selectedEvent || null,
         requester_id: currentUser.id,
@@ -66,17 +77,34 @@ const RequestEquipmentModal: React.FC<RequestEquipmentModalProps> = ({ equipment
         notes: notes || null,
       })
 
-      if (error) throw error
+      // Create equipment request
+      const { data, error } = await supabase
+        .from("equipment_requests")
+        .insert({
+          equipment_id: equipment.id,
+          event_id: selectedEvent || null,
+          requester_id: currentUser.id,
+          status: "pending",
+          notes: notes || null,
+        })
+        .select("*")
+        .single()
 
+      if (error) {
+        console.error("Supabase error:", error)
+        throw error
+      }
+
+      console.log("Request created successfully:", data)
       setSuccess(true)
+
+      // Close modal after 2 seconds
       setTimeout(() => {
         onClose()
-        // Refresh the page to show the new request
-        window.location.reload()
       }, 2000)
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error requesting equipment:", error)
-      setError("Failed to submit request. Please try again.")
+      setError(error.message || "Failed to submit request. Please try again.")
     } finally {
       setLoading(false)
     }
