@@ -33,17 +33,33 @@ const RequestEquipmentModal: React.FC<RequestEquipmentModalProps> = ({ equipment
       try {
         const today = new Date().toISOString()
 
-        // Fetch upcoming events created by the current user
-        const { data: eventsData, error: eventsError } = await supabase
+        // Fetch upcoming events (both created by user and joined by user)
+        const { data: userEvents, error: userEventsError } = await supabase
           .from("events")
           .select("*")
           .eq("created_by", currentUser.id)
-          .eq("is_approved", true) // Only approved events
           .gte("start_time", today)
           .order("start_time")
 
-        if (eventsError) throw eventsError
-        setEvents(eventsData || [])
+        if (userEventsError) throw userEventsError
+
+        // Fetch events user has joined
+        const { data: joinedEvents, error: joinedEventsError } = await supabase
+          .from("event_participants")
+          .select("events(*)")
+          .eq("user_id", currentUser.id)
+          .eq("role", "participant")
+
+        if (joinedEventsError) throw joinedEventsError
+
+        // Combine and deduplicate events
+        const allEvents = [...(userEvents || []), ...(joinedEvents?.map((ep) => ep.events).filter(Boolean) || [])]
+
+        const uniqueEvents = allEvents
+          .filter((event, index, self) => index === self.findIndex((e) => e.id === event.id))
+          .filter((event) => new Date(event.start_time) >= new Date(today))
+
+        setEvents(uniqueEvents)
 
         // Check for existing pending requests for this equipment
         const { data: requestsData, error: requestsError } = await supabase
@@ -51,7 +67,8 @@ const RequestEquipmentModal: React.FC<RequestEquipmentModalProps> = ({ equipment
           .select(`
             *,
             requester:users!equipment_requests_requester_id_fkey(*),
-            events(*)
+            events(*),
+            current_holder:users!equipment_requests_current_holder_id_fkey(*)
           `)
           .eq("equipment_id", equipment.id)
           .eq("status", "pending")
@@ -97,7 +114,7 @@ const RequestEquipmentModal: React.FC<RequestEquipmentModalProps> = ({ equipment
     e.preventDefault()
 
     if (!selectedEvent) {
-      setError("Please select an event. Equipment requests must be associated with an approved event.")
+      setError("Please select an event. Equipment requests must be associated with an event.")
       return
     }
 
@@ -190,7 +207,7 @@ const RequestEquipmentModal: React.FC<RequestEquipmentModalProps> = ({ equipment
                         <p>
                           This equipment is currently with{" "}
                           <span className="font-medium">{currentUserWithEquipment.name}</span>. Your request will be
-                          processed when the equipment is returned.
+                          forwarded to them for coordination.
                         </p>
                       </div>
                     </div>
@@ -211,6 +228,7 @@ const RequestEquipmentModal: React.FC<RequestEquipmentModalProps> = ({ equipment
                           {existingRequests.map((req) => (
                             <li key={req.id}>
                               {req.requester?.name} for {req.events?.title || "general use"}
+                              {req.current_holder && ` (currently with ${req.current_holder.name})`}
                             </li>
                           ))}
                         </ul>
@@ -241,8 +259,8 @@ const RequestEquipmentModal: React.FC<RequestEquipmentModalProps> = ({ equipment
                   </select>
                 ) : (
                   <div className="mt-1 p-3 bg-red-50 text-red-700 rounded-md text-sm">
-                    You don't have any upcoming approved events. You must have an approved event to request equipment.
-                    Please create an event first.
+                    You don't have any upcoming events. You must have an event to request equipment. Please create an
+                    event or join an open event first.
                   </div>
                 )}
               </div>
