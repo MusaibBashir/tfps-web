@@ -27,94 +27,37 @@ const RequestsPage = () => {
 
       setLoading(true)
       try {
-        console.log("Current user:", user)
+        // Get ALL requests to see what's in the database
+        const { data: allRequestsData, error: allRequestsError } = await supabase
+          .from("equipment_requests")
+          .select(
+            "*, equipment(*), event(*), requester:requester_id(*), approver:approved_by(*), forwarded_user:forwarded_to(*)",
+          )
+          .order("created_at", { ascending: false })
+
+        if (allRequestsError) {
+          console.error("Error fetching all requests:", allRequestsError)
+          throw allRequestsError
+        }
+
+        // Filter requests this user should see
+        let userRequests: any[] = []
 
         if (user.is_admin) {
-          console.log("Fetching all requests for admin")
           // Admin sees all requests
-          const { data, error } = await supabase
-            .from("equipment_requests")
-            .select(
-              "*, equipment(*), event(*), requester:requester_id(*), approver:approved_by(*), forwarded_user:forwarded_to(*)",
-            )
-            .order("created_at", { ascending: false })
-
-          if (error) {
-            console.error("Error fetching admin requests:", error)
-            throw error
-          }
-
-          console.log("Admin requests fetched:", data?.length || 0)
-          setRequests(data || [])
-          setFilteredRequests(data || [])
+          userRequests = allRequestsData || []
         } else {
-          console.log("Fetching requests for non-admin user")
-
-          // For non-admin users, we need to fetch:
-          // 1. Their own requests
-          // 2. Requests for equipment they own
-          // 3. Requests forwarded to them
-
-          const queries = []
-
-          // 1. User's own requests
-          queries.push(
-            supabase
-              .from("equipment_requests")
-              .select(
-                "*, equipment(*), event(*), requester:requester_id(*), approver:approved_by(*), forwarded_user:forwarded_to(*)",
-              )
-              .eq("requester_id", user.id),
-          )
-
-          // 2. Requests for equipment owned by this user
-          queries.push(
-            supabase
-              .from("equipment_requests")
-              .select(
-                "*, equipment!inner(*), event(*), requester:requester_id(*), approver:approved_by(*), forwarded_user:forwarded_to(*)",
-              )
-              .eq("equipment.owner_id", user.id),
-          )
-
-          // 3. Requests forwarded to this user
-          queries.push(
-            supabase
-              .from("equipment_requests")
-              .select(
-                "*, equipment(*), event(*), requester:requester_id(*), approver:approved_by(*), forwarded_user:forwarded_to(*)",
-              )
-              .eq("forwarded_to", user.id),
-          )
-
-          const results = await Promise.all(queries)
-
-          // Check for errors
-          results.forEach((result, index) => {
-            if (result.error) {
-              console.error(`Error in query ${index + 1}:`, result.error)
-              throw result.error
-            }
+          // Filter requests this user should see
+          userRequests = (allRequestsData || []).filter((req) => {
+            const isRequester = req.requester_id === user.id
+            const isOwner = req.equipment?.owner_id === user.id
+            const isForwarded = req.forwarded_to === user.id
+            return isRequester || isOwner || isForwarded
           })
-
-          // Combine all results and remove duplicates
-          const allRequests = [...(results[0].data || []), ...(results[1].data || []), ...(results[2].data || [])]
-
-          console.log("Raw requests from all queries:", allRequests.length)
-          console.log("User requests:", results[0].data?.length || 0)
-          console.log("Owner requests:", results[1].data?.length || 0)
-          console.log("Forwarded requests:", results[2].data?.length || 0)
-
-          // Remove duplicates based on ID
-          const uniqueRequests = allRequests.filter(
-            (request, index, array) => array.findIndex((r) => r.id === request.id) === index,
-          )
-
-          console.log("Unique requests after deduplication:", uniqueRequests.length)
-
-          setRequests(uniqueRequests)
-          setFilteredRequests(uniqueRequests)
         }
+
+        setRequests(userRequests)
+        setFilteredRequests(userRequests)
       } catch (error) {
         console.error("Error fetching requests:", error)
       } finally {
@@ -386,20 +329,11 @@ const RequestsPage = () => {
     }
   }
 
-  // Debug info
-  console.log("Current user in render:", user)
-  console.log("Total requests:", requests.length)
-  console.log("Filtered requests:", filteredRequests.length)
-
   return (
     <div className="container mx-auto">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900">Equipment Requests</h1>
         <p className="text-gray-600 mt-2">Manage equipment requests and approvals</p>
-        {/* Debug info */}
-        <div className="mt-2 text-xs text-gray-500">
-          Debug: User ID: {user?.id}, Is Admin: {user?.is_admin ? "Yes" : "No"}, Total Requests: {requests.length}
-        </div>
       </div>
 
       <div className="mb-6 flex flex-col md:flex-row gap-4">
