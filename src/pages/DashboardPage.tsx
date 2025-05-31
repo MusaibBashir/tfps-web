@@ -37,32 +37,54 @@ const DashboardPage = () => {
           .is("parent_id", null)
           .limit(5)
 
-        // Fetch pending requests with manual joins
-        const { data: requestsData } = await supabase
+        // Fetch pending requests
+        const { data: requestsData, error: requestsError } = await supabase
           .from("equipment_requests")
           .select(`
-            *,
-            equipment:equipment_id(*),
-            requester:requester_id(*)
+            id,
+            equipment_id,
+            event_id,
+            requester_id,
+            status,
+            approved_by,
+            notes,
+            created_at,
+            equipment:equipment_id(*)
           `)
           .eq("status", "pending")
           .order("created_at", { ascending: false })
           .limit(5)
 
-        // Fetch events separately for requests that have event_id
+        if (requestsError) {
+          console.error("Error fetching requests:", requestsError)
+          throw requestsError
+        }
+
+        // Fetch requesters for the requests
         if (requestsData && requestsData.length > 0) {
-          const eventIds = requestsData.filter((req) => req.event_id).map((req) => req.event_id)
+          const requesterIds = requestsData.map((req) => req.requester_id).filter(Boolean)
 
-          if (eventIds.length > 0) {
-            const { data: eventsForRequests } = await supabase.from("events").select("*").in("id", eventIds)
+          if (requesterIds.length > 0) {
+            const { data: requestersData } = await supabase.from("users").select("id, name").in("id", requesterIds)
 
-            // Manually attach events to requests
-            const requestsWithEvents = requestsData.map((req) => ({
+            // Fetch events for requests that have event_id
+            const eventIds = requestsData.filter((req) => req.event_id).map((req) => req.event_id)
+
+            let eventsForRequests = []
+            if (eventIds.length > 0) {
+              const { data: eventsData } = await supabase.from("events").select("id, title").in("id", eventIds)
+
+              eventsForRequests = eventsData || []
+            }
+
+            // Combine all data
+            const enrichedRequests = requestsData.map((req) => ({
               ...req,
-              events: req.event_id ? eventsForRequests?.find((e) => e.id === req.event_id) : null,
+              requester: requestersData?.find((u) => u.id === req.requester_id) || null,
+              events: req.event_id ? eventsForRequests.find((e) => e.id === req.event_id) : null,
             }))
 
-            setRequests(requestsWithEvents)
+            setRequests(enrichedRequests)
           } else {
             setRequests(requestsData)
           }
@@ -202,6 +224,9 @@ const DashboardPage = () => {
                         </span>
                       </div>
                     </div>
+                    {request.requester && (
+                      <div className="mt-1 text-xs text-gray-500">Requested by: {request.requester.name}</div>
+                    )}
                   </li>
                 ))}
               </ul>
