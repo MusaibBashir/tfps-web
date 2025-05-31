@@ -24,6 +24,7 @@ const RequestsPage = () => {
   const [returnToUser, setReturnToUser] = useState<string>("")
   const [returnCondition, setReturnCondition] = useState<"perfect" | "damaged">("perfect")
   const [damageNotes, setDamageNotes] = useState("")
+  const [equipmentInPossession, setEquipmentInPossession] = useState<any[]>([])
 
   useEffect(() => {
     const fetchRequests = async () => {
@@ -64,6 +65,19 @@ const RequestsPage = () => {
             }))
           }
         }
+
+        // Get equipment currently in user's possession (from equipment_logs)
+        const { data: equipmentLogs } = await supabase
+          .from("equipment_logs")
+          .select(`
+            *,
+            equipment(*),
+            user:user_id(*)
+          `)
+          .eq("user_id", user.id)
+          .is("return_time", null)
+
+        setEquipmentInPossession(equipmentLogs || [])
 
         // Filter requests this user should see
         let userRequests: any[] = []
@@ -191,6 +205,7 @@ const RequestsPage = () => {
           .from("equipment_requests")
           .update({
             forwarded_to: request.requester_id,
+            current_holder_id: request.requester_id,
             notes: `Equipment approved for ${request.requester?.name}. Please coordinate with them for usage.`,
           })
           .eq("equipment_id", request.equipment_id)
@@ -298,6 +313,17 @@ const RequestsPage = () => {
             severity: "moderate", // Default severity
           })
         }
+
+        // Mark all related pending requests as returned if they were in the chain
+        await supabase
+          .from("equipment_requests")
+          .update({
+            status: "returned",
+            returned_time: returnTime,
+          })
+          .eq("equipment_id", request.equipment_id)
+          .in("status", ["pending", "received"])
+          .neq("id", requestId)
       } else {
         // Transferring to another user
         const newHolderId = returnToUser
@@ -308,7 +334,6 @@ const RequestsPage = () => {
           .update({
             status: "returned",
             returned_time: returnTime,
-            current_holder_id: newHolderId,
           })
           .eq("id", requestId)
 
@@ -321,7 +346,7 @@ const RequestsPage = () => {
           notes: `Transferred via equipment request system`,
         })
 
-        // Update equipment log
+        // Update equipment log for current holder
         const { data: logData } = await supabase
           .from("equipment_logs")
           .select("*")
@@ -359,6 +384,18 @@ const RequestsPage = () => {
           })
           .eq("equipment_id", request.equipment_id)
           .eq("status", "pending")
+
+        // Create a virtual request for the new holder so they can return it
+        await supabase.from("equipment_requests").insert({
+          equipment_id: request.equipment_id,
+          event_id: request.event_id,
+          requester_id: newHolderId,
+          status: "received",
+          approved_by: user?.id,
+          current_holder_id: newHolderId,
+          received_time: returnTime,
+          notes: `Equipment transferred from ${user?.name}. Please return when done.`,
+        })
       }
 
       setReturningId(null)
@@ -368,6 +405,86 @@ const RequestsPage = () => {
       await refreshRequests()
     } catch (error) {
       console.error("Error processing return:", error)
+    } finally {
+      setProcessingId(null)
+    }
+  }
+
+  const handleReturnFromPossession = async (equipmentLog: any) => {
+    if (returnToUser === "other" && !returnToUser) {
+      alert("Please select a user to return to")
+      return
+    }
+
+    setProcessingId(equipmentLog.id)
+    try {
+      const returnTime = new Date().toISOString()
+
+      if (returnToUser === "owner" || returnToUser === equipmentLog.equipment?.owner_id) {
+        // Returning to original owner
+        await supabase
+          .from("equipment")
+          .update({
+            status: "available",
+            condition_notes: returnCondition === "damaged" ? damageNotes : null,
+          })
+          .eq("id", equipmentLog.equipment_id)
+
+        // Update equipment log
+        await supabase
+          .from("equipment_logs")
+          .update({
+            return_time: returnTime,
+          })
+          .eq("id", equipmentLog.id)
+
+        // Create damage report if damaged
+        if (returnCondition === "damaged" && damageNotes) {
+          await supabase.from("damage_reports").insert({
+            equipment_id: equipmentLog.equipment_id,
+            reported_by: user?.id,
+            damage_description: damageNotes,
+            severity: "moderate",
+          })
+        }
+      } else {
+        // Transfer to another user
+        const newHolderId = returnToUser
+
+        // Update current log
+        await supabase
+          .from("equipment_logs")
+          .update({
+            return_time: returnTime,
+            transferred_to: newHolderId,
+            transfer_time: returnTime,
+          })
+          .eq("id", equipmentLog.id)
+
+        // Create new log for new holder
+        await supabase.from("equipment_logs").insert({
+          equipment_id: equipmentLog.equipment_id,
+          user_id: newHolderId,
+          checkout_time: returnTime,
+        })
+
+        // Create transfer record
+        await supabase.from("equipment_transfers").insert({
+          equipment_id: equipmentLog.equipment_id,
+          from_user_id: user?.id,
+          to_user_id: newHolderId,
+          transfer_time: returnTime,
+          notes: `Direct transfer via equipment management`,
+        })
+      }
+
+      setReturningId(null)
+      setReturnToUser("")
+      setReturnCondition("perfect")
+      setDamageNotes("")
+      await refreshRequests()
+    } catch (error) {
+      console.error("Error processing return from possession:", error)
     } finally {
       setProcessingId(null)
     }
@@ -420,6 +537,19 @@ const RequestsPage = () => {
           setFilteredRequests(userRequests)
         }
       }
+
+      // Refresh equipment in possession
+      const { data: equipmentLogs } = await supabase
+        .from("equipment_logs")
+        .select(`
+          *,
+          equipment(*),
+          user:user_id(*)
+        `)
+        .eq("user_id", user.id)
+        .is("return_time", null)
+
+      setEquipmentInPossession(equipmentLogs || [])
     } catch (error) {
       console.error("Error refreshing requests:", error)
     }
@@ -527,6 +657,102 @@ const RequestsPage = () => {
         <h1 className="text-3xl font-bold text-gray-900">Equipment Requests</h1>
         <p className="text-gray-600 mt-2">Manage equipment requests and approvals</p>
       </div>
+
+      {/* Equipment in Possession Section */}
+      {equipmentInPossession.length > 0 && (
+        <div className="mb-8">
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">Equipment in Your Possession</h2>
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div className="space-y-3">
+              {equipmentInPossession.map((log) => (
+                <div key={log.id} className="flex items-center justify-between bg-white p-3 rounded-md">
+                  <div>
+                    <span className="font-medium text-gray-900">{log.equipment?.name}</span>
+                    <span className="text-sm text-gray-500 ml-2">
+                      Since {format(parseISO(log.checkout_time), "MMM d, yyyy")}
+                    </span>
+                  </div>
+                  <div className="flex gap-2">
+                    {returningId === `possession-${log.id}` ? (
+                      <div className="flex flex-col gap-2">
+                        <div className="flex items-center gap-2">
+                          <select
+                            className="text-xs border border-gray-300 rounded px-2 py-1"
+                            value={returnToUser}
+                            onChange={(e) => setReturnToUser(e.target.value)}
+                          >
+                            <option value="">Return to...</option>
+                            <option value="owner">Equipment Owner</option>
+                            {allUsers
+                              .filter((u) => u.id !== user.id)
+                              .map((u) => (
+                                <option key={u.id} value={u.id}>
+                                  {u.name}
+                                </option>
+                              ))}
+                          </select>
+
+                          <select
+                            className="text-xs border border-gray-300 rounded px-2 py-1"
+                            value={returnCondition}
+                            onChange={(e) => setReturnCondition(e.target.value as "perfect" | "damaged")}
+                          >
+                            <option value="perfect">Perfect Condition</option>
+                            <option value="damaged">Damaged</option>
+                          </select>
+                        </div>
+
+                        {returnCondition === "damaged" && (
+                          <textarea
+                            className="text-xs border border-gray-300 rounded px-2 py-1 w-full"
+                            placeholder="Describe the damage..."
+                            value={damageNotes}
+                            onChange={(e) => setDamageNotes(e.target.value)}
+                            rows={2}
+                          />
+                        )}
+
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleReturnFromPossession(log)}
+                            disabled={
+                              !returnToUser || !!processingId || (returnCondition === "damaged" && !damageNotes)
+                            }
+                            className="inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50"
+                          >
+                            <ArrowRightLeft className="mr-1 h-3 w-3" />
+                            Return
+                          </button>
+                          <button
+                            onClick={() => {
+                              setReturningId(null)
+                              setReturnToUser("")
+                              setReturnCondition("perfect")
+                              setDamageNotes("")
+                            }}
+                            className="inline-flex items-center px-2.5 py-1.5 border border-gray-300 text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setReturningId(`possession-${log.id}`)}
+                        disabled={!!processingId}
+                        className="inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50"
+                      >
+                        <ArrowRightLeft className="mr-1 h-4 w-4" />
+                        Return Equipment
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="mb-6 flex flex-col md:flex-row gap-4">
         <div className="relative flex-grow">
