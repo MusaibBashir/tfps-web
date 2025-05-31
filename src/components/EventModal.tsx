@@ -18,6 +18,28 @@ interface EventModalProps {
   isAdmin: boolean
 }
 
+// Helper function to convert IST datetime string to local date/time inputs
+const parseISTDateTime = (isoString: string) => {
+  // Parse the ISO string and treat it as IST
+  const date = new Date(isoString)
+  
+  // Create a new date object that represents the IST time as local time
+  // This prevents timezone conversion
+  const istDate = new Date(date.getTime() + (date.getTimezoneOffset() * 60000))
+  
+  return {
+    date: format(istDate, "yyyy-MM-dd"),
+    time: format(istDate, "HH:mm")
+  }
+}
+
+// Helper function to create IST datetime string from local date/time inputs
+const createISTDateTime = (dateStr: string, timeStr: string) => {
+  // Create datetime string in IST format
+  // This treats the input as IST time directly
+  return `${dateStr}T${timeStr}:00+05:30`
+}
+
 const EventModal: React.FC<EventModalProps> = ({
   event,
   isOpen,
@@ -56,19 +78,22 @@ const EventModal: React.FC<EventModalProps> = ({
       setIsEventOpen(event.is_open || false)
       setMaxParticipants(event.max_participants)
 
-      const startDateTime = parseISO(event.start_time)
-      const endDateTime = parseISO(event.end_time)
+      // Parse IST datetime strings
+      const startDateTime = parseISTDateTime(event.start_time)
+      const endDateTime = parseISTDateTime(event.end_time)
 
-      setStartDate(format(startDateTime, "yyyy-MM-dd"))
-      setStartTime(format(startDateTime, "HH:mm"))
-      setEndDate(format(endDateTime, "yyyy-MM-dd"))
-      setEndTime(format(endDateTime, "HH:mm"))
+      setStartDate(startDateTime.date)
+      setStartTime(startDateTime.time)
+      setEndDate(endDateTime.date)
+      setEndTime(endDateTime.time)
 
       // Fetch participants for existing event
       fetchParticipants(event.id)
     } else {
       // Default values for new event
       const now = new Date()
+      const endTime = new Date(now.getTime() + 2 * 60 * 60 * 1000) // Add 2 hours
+      
       setTitle("")
       setDescription("")
       setLocation("")
@@ -78,7 +103,7 @@ const EventModal: React.FC<EventModalProps> = ({
       setStartDate(format(now, "yyyy-MM-dd"))
       setStartTime(format(now, "HH:mm"))
       setEndDate(format(now, "yyyy-MM-dd"))
-      setEndTime(format(now.setHours(now.getHours() + 2), "HH:mm"))
+      setEndTime(format(endTime, "HH:mm"))
       setParticipants([])
     }
   }, [event])
@@ -135,8 +160,9 @@ const EventModal: React.FC<EventModalProps> = ({
     setError(null)
 
     try {
-      const startDateTime = `${startDate}T${startTime}:00`
-      const endDateTime = `${endDate}T${endTime}:00`
+      // Create IST datetime strings
+      const startDateTime = createISTDateTime(startDate, startTime)
+      const endDateTime = createISTDateTime(endDate, endTime)
 
       const eventData = {
         title,
@@ -315,7 +341,7 @@ const EventModal: React.FC<EventModalProps> = ({
               </div>
               <div>
                 <label htmlFor="startTime" className="block text-sm font-medium text-gray-700">
-                  Start Time
+                  Start Time (IST)
                 </label>
                 <input
                   type="time"
@@ -346,7 +372,7 @@ const EventModal: React.FC<EventModalProps> = ({
               </div>
               <div>
                 <label htmlFor="endTime" className="block text-sm font-medium text-gray-700">
-                  End Time
+                  End Time (IST)
                 </label>
                 <input
                   type="time"
