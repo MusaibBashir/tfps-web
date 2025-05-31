@@ -226,8 +226,10 @@ const EquipmentDetailPage = () => {
                         : "bg-red-100 text-red-800"
                   }`}
                 >
-                  {equipment.status.replace("_", " ").charAt(0).toUpperCase() +
-                    equipment.status.replace("_", " ").slice(1)}
+                  {equipment.status === "maintenance"
+                    ? "Damaged"
+                    : equipment.status.replace("_", " ").charAt(0).toUpperCase() +
+                      equipment.status.replace("_", " ").slice(1)}
                 </span>
                 <span
                   className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
