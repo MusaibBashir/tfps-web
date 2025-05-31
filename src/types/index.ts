@@ -18,6 +18,7 @@ export interface Equipment {
   parent_id: string | null
   ownership_type: "student" | "hall"
   owner_id: string | null
+  hall: string | null
   status: "available" | "in_use" | "maintenance"
   image_url: string | null
   details: string | null
@@ -71,7 +72,7 @@ export interface EventParticipant {
 export interface EquipmentRequest {
   id: string
   equipment_id: string
-  event_id: string
+  event_id: string | null
   requester_id: string
   status: "pending" | "approved" | "rejected" | "received" | "returned"
   approved_by: string | null
@@ -82,6 +83,10 @@ export interface EquipmentRequest {
   return_condition: "perfect" | "damaged" | null
   damage_notes: string | null
   notes: string | null
+  start_time: string | null
+  end_time: string | null
+  declined_reason: string | null
+  auto_declined: boolean | null
   created_at: string
   equipment?: Equipment
   events?: Event
@@ -114,4 +119,11 @@ export interface EquipmentTransfer {
   created_at: string
   from_user?: User
   to_user?: User
+}
+
+export interface TimeConflict {
+  conflicting_request_id: string
+  requester_name: string
+  start_time: string
+  end_time: string
 }
