@@ -21,6 +21,8 @@ export interface Equipment {
   status: "available" | "in_use" | "maintenance"
   image_url: string | null
   details: string | null
+  condition_notes: string | null
+  last_damage_report: any | null
   created_at: string
 }
 
@@ -31,8 +33,11 @@ export interface EquipmentLog {
   checkout_time: string
   expected_return_time: string | null
   return_time: string | null
+  transferred_to: string | null
+  transfer_time: string | null
   created_at: string
   user?: User
+  transferred_user?: User
 }
 
 export interface Event {
@@ -71,6 +76,11 @@ export interface EquipmentRequest {
   status: "pending" | "approved" | "rejected" | "received" | "returned"
   approved_by: string | null
   forwarded_to: string | null
+  current_holder_id: string | null
+  received_time: string | null
+  returned_time: string | null
+  return_condition: "perfect" | "damaged" | null
+  damage_notes: string | null
   notes: string | null
   created_at: string
   equipment?: Equipment
@@ -78,4 +88,30 @@ export interface EquipmentRequest {
   requester?: User
   approver?: User
   forwarded_user?: User
+  current_holder?: User
+}
+
+export interface DamageReport {
+  id: string
+  equipment_id: string
+  reported_by: string
+  damage_description: string
+  severity: "minor" | "moderate" | "severe"
+  reported_at: string
+  repair_status: "pending" | "in_progress" | "completed"
+  repair_notes: string | null
+  created_at: string
+  reporter?: User
+}
+
+export interface EquipmentTransfer {
+  id: string
+  equipment_id: string
+  from_user_id: string
+  to_user_id: string
+  transfer_time: string
+  notes: string | null
+  created_at: string
+  from_user?: User
+  to_user?: User
 }
