@@ -23,8 +23,14 @@ const RequestsPage = () => {
 
   useEffect(() => {
     const fetchRequests = async () => {
+      if (!user) return
+
+      setLoading(true)
       try {
-        if (user?.is_admin) {
+        console.log("Current user:", user)
+
+        if (user.is_admin) {
+          console.log("Fetching all requests for admin")
           // Admin sees all requests
           const { data, error } = await supabase
             .from("equipment_requests")
@@ -33,56 +39,78 @@ const RequestsPage = () => {
             )
             .order("created_at", { ascending: false })
 
-          if (error) throw error
-          if (data) {
-            setRequests(data)
-            setFilteredRequests(data)
+          if (error) {
+            console.error("Error fetching admin requests:", error)
+            throw error
           }
+
+          console.log("Admin requests fetched:", data?.length || 0)
+          setRequests(data || [])
+          setFilteredRequests(data || [])
         } else {
-          // Non-admin sees their own requests + requests for equipment they own + requests forwarded to them
-          const [userRequests, ownerRequests, forwardedRequests] = await Promise.all([
-            // Requests made by the user
+          console.log("Fetching requests for non-admin user")
+
+          // For non-admin users, we need to fetch:
+          // 1. Their own requests
+          // 2. Requests for equipment they own
+          // 3. Requests forwarded to them
+
+          const queries = []
+
+          // 1. User's own requests
+          queries.push(
             supabase
               .from("equipment_requests")
               .select(
                 "*, equipment(*), event(*), requester:requester_id(*), approver:approved_by(*), forwarded_user:forwarded_to(*)",
               )
-              .eq("requester_id", user?.id)
-              .order("created_at", { ascending: false }),
+              .eq("requester_id", user.id),
+          )
 
-            // Requests for equipment owned by the user (student-owned equipment only)
+          // 2. Requests for equipment owned by this user
+          queries.push(
             supabase
               .from("equipment_requests")
               .select(
                 "*, equipment!inner(*), event(*), requester:requester_id(*), approver:approved_by(*), forwarded_user:forwarded_to(*)",
               )
-              .eq("equipment.owner_id", user?.id)
-              .eq("equipment.ownership_type", "student") // Make sure it's student-owned
-              .order("created_at", { ascending: false }),
+              .eq("equipment.owner_id", user.id),
+          )
 
-            // Requests forwarded to the user
+          // 3. Requests forwarded to this user
+          queries.push(
             supabase
               .from("equipment_requests")
               .select(
                 "*, equipment(*), event(*), requester:requester_id(*), approver:approved_by(*), forwarded_user:forwarded_to(*)",
               )
-              .eq("forwarded_to", user?.id)
-              .order("created_at", { ascending: false }),
-          ])
+              .eq("forwarded_to", user.id),
+          )
 
-          if (userRequests.error) throw userRequests.error
-          if (ownerRequests.error) throw ownerRequests.error
-          if (forwardedRequests.error) throw forwardedRequests.error
+          const results = await Promise.all(queries)
 
-          // Combine and deduplicate requests
-          const allRequests = [
-            ...(userRequests.data || []),
-            ...(ownerRequests.data || []),
-            ...(forwardedRequests.data || []),
-          ]
+          // Check for errors
+          results.forEach((result, index) => {
+            if (result.error) {
+              console.error(`Error in query ${index + 1}:`, result.error)
+              throw result.error
+            }
+          })
+
+          // Combine all results and remove duplicates
+          const allRequests = [...(results[0].data || []), ...(results[1].data || []), ...(results[2].data || [])]
+
+          console.log("Raw requests from all queries:", allRequests.length)
+          console.log("User requests:", results[0].data?.length || 0)
+          console.log("Owner requests:", results[1].data?.length || 0)
+          console.log("Forwarded requests:", results[2].data?.length || 0)
+
+          // Remove duplicates based on ID
           const uniqueRequests = allRequests.filter(
             (request, index, array) => array.findIndex((r) => r.id === request.id) === index,
           )
+
+          console.log("Unique requests after deduplication:", uniqueRequests.length)
 
           setRequests(uniqueRequests)
           setFilteredRequests(uniqueRequests)
@@ -94,9 +122,7 @@ const RequestsPage = () => {
       }
     }
 
-    if (user) {
-      fetchRequests()
-    }
+    fetchRequests()
   }, [supabase, user])
 
   useEffect(() => {
@@ -125,7 +151,7 @@ const RequestsPage = () => {
       filtered = filtered.filter(
         (request) =>
           request.equipment?.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          request.event?.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          request.event?.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
           request.requester?.name.toLowerCase().includes(searchQuery.toLowerCase()),
       )
     }
@@ -360,11 +386,20 @@ const RequestsPage = () => {
     }
   }
 
+  // Debug info
+  console.log("Current user in render:", user)
+  console.log("Total requests:", requests.length)
+  console.log("Filtered requests:", filteredRequests.length)
+
   return (
     <div className="container mx-auto">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900">Equipment Requests</h1>
         <p className="text-gray-600 mt-2">Manage equipment requests and approvals</p>
+        {/* Debug info */}
+        <div className="mt-2 text-xs text-gray-500">
+          Debug: User ID: {user?.id}, Is Admin: {user?.is_admin ? "Yes" : "No"}, Total Requests: {requests.length}
+        </div>
       </div>
 
       <div className="mb-6 flex flex-col md:flex-row gap-4">
@@ -414,10 +449,16 @@ const RequestsPage = () => {
                           </Link>
                         </div>
                         <div className="text-sm text-gray-500">
-                          For event:{" "}
-                          <Link to="/calendar" className="hover:text-primary-600">
-                            {request.event?.title}
-                          </Link>
+                          {request.event?.title ? (
+                            <>
+                              For event:{" "}
+                              <Link to="/calendar" className="hover:text-primary-600">
+                                {request.event.title}
+                              </Link>
+                            </>
+                          ) : (
+                            "General use"
+                          )}
                         </div>
                       </div>
                     </div>
