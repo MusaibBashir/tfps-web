@@ -2,7 +2,18 @@
 
 import { useState, useEffect } from "react"
 import { Link } from "react-router-dom"
-import { ClipboardList, Search, CheckCircle, XCircle, Package, UserPlus, Send, ArrowRightLeft } from "lucide-react"
+import {
+  ClipboardList,
+  Search,
+  CheckCircle,
+  XCircle,
+  Package,
+  UserPlus,
+  Send,
+  ArrowRightLeft,
+  Clock,
+  User,
+} from "lucide-react"
 import { useSupabase } from "../contexts/SupabaseContext"
 import { useAuth } from "../contexts/AuthContext"
 import type { EquipmentRequest } from "../types"
@@ -20,11 +31,14 @@ const RequestsPage = () => {
   const [forwardingId, setForwardingId] = useState<string | null>(null)
   const [selectedForwardUser, setSelectedForwardUser] = useState<string>("")
   const [allUsers, setAllUsers] = useState<any[]>([])
+  const [hallUsers, setHallUsers] = useState<any[]>([])
   const [returningId, setReturningId] = useState<string | null>(null)
   const [returnToUser, setReturnToUser] = useState<string>("")
   const [returnCondition, setReturnCondition] = useState<"perfect" | "damaged">("perfect")
   const [damageNotes, setDamageNotes] = useState("")
   const [equipmentInPossession, setEquipmentInPossession] = useState<any[]>([])
+  const [showOtherUsers, setShowOtherUsers] = useState(false)
+  const [customUserSearch, setCustomUserSearch] = useState("")
 
   useEffect(() => {
     const fetchRequests = async () => {
@@ -116,7 +130,7 @@ const RequestsPage = () => {
     // Fetch all users for forwarding dropdown and return options
     const fetchUsers = async () => {
       try {
-        const { data, error } = await supabase.from("users").select("id, name, is_admin").order("name")
+        const { data, error } = await supabase.from("users").select("id, name, hostel, is_admin").order("name")
 
         if (error) throw error
         setAllUsers(data || [])
@@ -175,6 +189,13 @@ const RequestsPage = () => {
 
       if (error) throw error
 
+      // Auto-decline conflicting requests if this request has time bounds
+      if (request.start_time && request.end_time) {
+        await supabase.rpc("auto_decline_conflicts", {
+          p_approved_request_id: requestId,
+        })
+      }
+
       // Update equipment status to in_use
       await supabase
         .from("equipment")
@@ -188,19 +209,19 @@ const RequestsPage = () => {
         equipment_id: request.equipment_id,
         user_id: request.requester_id,
         checkout_time: new Date().toISOString(),
-        expected_return_time: request.events?.end_time,
+        expected_return_time: request.end_time,
       })
 
       // Forward all other pending requests for the same equipment to the approved user
       const { data: otherRequests } = await supabase
         .from("equipment_requests")
-        .select("id, requester_id")
+        .select("id, requester_id, start_time, end_time")
         .eq("equipment_id", request.equipment_id)
         .eq("status", "pending")
         .neq("id", requestId)
 
       if (otherRequests && otherRequests.length > 0) {
-        // Forward other requests to the user who got the equipment
+        // Forward non-conflicting requests to the user who got the equipment
         await supabase
           .from("equipment_requests")
           .update({
@@ -250,9 +271,46 @@ const RequestsPage = () => {
     }
   }
 
+  const getReturnOptions = (request: any) => {
+    const options = []
+
+    // Always include return to owner option
+    if (request.equipment?.owner_id) {
+      const owner = allUsers.find((u) => u.id === request.equipment.owner_id)
+      if (owner) {
+        options.push({ value: request.equipment.owner_id, label: `Return to Owner (${owner.name})` })
+      }
+    } else {
+      options.push({ value: "admin", label: "Return to Admin" })
+    }
+
+    // Get pending requests for this equipment that could receive it next
+    const pendingRequests = requests.filter(
+      (r) =>
+        r.equipment_id === request.equipment_id &&
+        r.status === "pending" &&
+        r.id !== request.id &&
+        (!r.start_time || !r.end_time || !request.end_time || new Date(r.start_time) >= new Date(request.end_time)),
+    )
+
+    pendingRequests.forEach((pendingReq) => {
+      if (pendingReq.requester) {
+        options.push({
+          value: pendingReq.requester.id,
+          label: `Transfer to ${pendingReq.requester.name} (Pending Request)`,
+        })
+      }
+    })
+
+    // Add option to transfer to any other user
+    options.push({ value: "other", label: "Transfer to Other User" })
+
+    return options
+  }
+
   const handleReturn = async (requestId: string) => {
-    if (returnToUser === "other" && !returnToUser) {
-      alert("Please select a user to return to")
+    if (returnToUser === "other" && !customUserSearch) {
+      alert("Please select a user to transfer to")
       return
     }
 
@@ -262,9 +320,10 @@ const RequestsPage = () => {
       if (!request) return
 
       const returnTime = new Date().toISOString()
+      const finalReturnUser = returnToUser === "other" ? customUserSearch : returnToUser
 
-      if (returnToUser === "owner" || returnToUser === request.equipment?.owner_id) {
-        // Returning to original owner - complete the cycle
+      if (finalReturnUser === request.equipment?.owner_id || finalReturnUser === "admin") {
+        // Returning to original owner/admin - complete the cycle
         await supabase
           .from("equipment_requests")
           .update({
@@ -288,9 +347,9 @@ const RequestsPage = () => {
         if (request.equipment?.owner_id && request.equipment.owner_id !== user?.id) {
           await supabase.from("equipment_requests").insert({
             equipment_id: request.equipment_id,
-            event_id: null, // No specific event for returns
+            event_id: null,
             requester_id: request.equipment.owner_id,
-            status: "approved", // Auto-approved return
+            status: "approved",
             approved_by: user?.id,
             current_holder_id: request.equipment.owner_id,
             notes: `Equipment returned by ${user?.name}. Please confirm receipt and condition.`,
@@ -323,7 +382,7 @@ const RequestsPage = () => {
             equipment_id: request.equipment_id,
             reported_by: user?.id,
             damage_description: damageNotes,
-            severity: "moderate", // Default severity
+            severity: "moderate",
           })
         }
 
@@ -339,7 +398,7 @@ const RequestsPage = () => {
           .neq("id", requestId)
       } else {
         // Transferring to another user
-        const newHolderId = returnToUser
+        const newHolderId = finalReturnUser
 
         // Update current request
         await supabase
@@ -415,6 +474,8 @@ const RequestsPage = () => {
       setReturnToUser("")
       setReturnCondition("perfect")
       setDamageNotes("")
+      setCustomUserSearch("")
+      setShowOtherUsers(false)
       await refreshRequests()
     } catch (error) {
       console.error("Error processing return:", error)
@@ -424,16 +485,17 @@ const RequestsPage = () => {
   }
 
   const handleReturnFromPossession = async (equipmentLog: any) => {
-    if (returnToUser === "other" && !returnToUser) {
-      alert("Please select a user to return to")
+    if (returnToUser === "other" && !customUserSearch) {
+      alert("Please select a user to transfer to")
       return
     }
 
     setProcessingId(equipmentLog.id)
     try {
       const returnTime = new Date().toISOString()
+      const finalReturnUser = returnToUser === "other" ? customUserSearch : returnToUser
 
-      if (returnToUser === "owner" || returnToUser === equipmentLog.equipment?.owner_id) {
+      if (finalReturnUser === equipmentLog.equipment?.owner_id || finalReturnUser === "admin") {
         // Returning to original owner
         await supabase
           .from("equipment")
@@ -475,7 +537,7 @@ const RequestsPage = () => {
         }
       } else {
         // Transfer to another user
-        const newHolderId = returnToUser
+        const newHolderId = finalReturnUser
 
         // Update current log
         await supabase
@@ -508,6 +570,8 @@ const RequestsPage = () => {
       setReturnToUser("")
       setReturnCondition("perfect")
       setDamageNotes("")
+      setCustomUserSearch("")
+      setShowOtherUsers(false)
       await refreshRequests()
     } catch (error) {
       console.error("Error processing return from possession:", error)
@@ -621,12 +685,21 @@ const RequestsPage = () => {
 
       setForwardingId(null)
       setSelectedForwardUser("")
+      setShowOtherUsers(false)
       await refreshRequests()
     } catch (error) {
       console.error("Error forwarding request:", error)
     } finally {
       setProcessingId(null)
     }
+  }
+
+  const getForwardingUsers = (request: any) => {
+    if (request.equipment?.ownership_type === "hall" && request.equipment?.hall) {
+      // Get users from the same hall
+      return allUsers.filter((u) => u.hostel === request.equipment.hall)
+    }
+    return []
   }
 
   const canApprove = (request: any) => {
@@ -636,7 +709,15 @@ const RequestsPage = () => {
     return false
   }
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status: string, autoDeclined?: boolean) => {
+    if (status === "rejected" && autoDeclined) {
+      return (
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+          Auto-Declined
+        </span>
+      )
+    }
+
     switch (status) {
       case "pending":
         return (
@@ -695,8 +776,13 @@ const RequestsPage = () => {
                   <div>
                     <span className="font-medium text-gray-900">{log.equipment?.name}</span>
                     <span className="text-sm text-gray-500 ml-2">
-                      Since {format(parseISO(log.checkout_time), "MMM d, yyyy")}
+                      Since {format(parseISO(log.checkout_time), "MMM d, yyyy HH:mm")}
                     </span>
+                    {log.expected_return_time && (
+                      <span className="text-xs text-gray-400 ml-2">
+                        Expected return: {format(parseISO(log.expected_return_time), "MMM d, HH:mm")}
+                      </span>
+                    )}
                   </div>
                   <div className="flex gap-2">
                     {returningId === `possession-${log.id}` ? (
@@ -705,18 +791,37 @@ const RequestsPage = () => {
                           <select
                             className="text-xs border border-gray-300 rounded px-2 py-1"
                             value={returnToUser}
-                            onChange={(e) => setReturnToUser(e.target.value)}
+                            onChange={(e) => {
+                              setReturnToUser(e.target.value)
+                              if (e.target.value !== "other") {
+                                setShowOtherUsers(false)
+                                setCustomUserSearch("")
+                              }
+                            }}
                           >
                             <option value="">Return to...</option>
-                            <option value="owner">Equipment Owner</option>
-                            {allUsers
-                              .filter((u) => u.id !== user.id)
-                              .map((u) => (
-                                <option key={u.id} value={u.id}>
-                                  {u.name}
-                                </option>
-                              ))}
+                            <option value={log.equipment?.owner_id || "admin"}>
+                              {log.equipment?.owner_id ? "Equipment Owner" : "Admin"}
+                            </option>
+                            <option value="other">Transfer to Other User</option>
                           </select>
+
+                          {returnToUser === "other" && (
+                            <select
+                              className="text-xs border border-gray-300 rounded px-2 py-1"
+                              value={customUserSearch}
+                              onChange={(e) => setCustomUserSearch(e.target.value)}
+                            >
+                              <option value="">Select user...</option>
+                              {allUsers
+                                .filter((u) => u.id !== user.id)
+                                .map((u) => (
+                                  <option key={u.id} value={u.id}>
+                                    {u.name}
+                                  </option>
+                                ))}
+                            </select>
+                          )}
 
                           <select
                             className="text-xs border border-gray-300 rounded px-2 py-1"
@@ -742,7 +847,10 @@ const RequestsPage = () => {
                           <button
                             onClick={() => handleReturnFromPossession(log)}
                             disabled={
-                              !returnToUser || !!processingId || (returnCondition === "damaged" && !damageNotes)
+                              !returnToUser ||
+                              (returnToUser === "other" && !customUserSearch) ||
+                              !!processingId ||
+                              (returnCondition === "damaged" && !damageNotes)
                             }
                             className="inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50"
                           >
@@ -755,6 +863,8 @@ const RequestsPage = () => {
                               setReturnToUser("")
                               setReturnCondition("perfect")
                               setDamageNotes("")
+                              setCustomUserSearch("")
+                              setShowOtherUsers(false)
                             }}
                             className="inline-flex items-center px-2.5 py-1.5 border border-gray-300 text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
                           >
@@ -825,6 +935,14 @@ const RequestsPage = () => {
                           <Link to={`/equipment/${request.equipment?.id}`} className="hover:text-primary-600">
                             {request.equipment?.name}
                           </Link>
+                          {/* Show equipment owner for student-owned equipment */}
+                          {request.equipment?.ownership_type === "student" &&
+                            request.equipment?.owner_id &&
+                            user?.is_admin && <span className="ml-2 text-xs text-blue-600">(Student-owned)</span>}
+                          {/* Show hall for hall-owned equipment */}
+                          {request.equipment?.ownership_type === "hall" && request.equipment?.hall && (
+                            <span className="ml-2 text-xs text-green-600">({request.equipment.hall})</span>
+                          )}
                         </div>
                         <div className="text-sm text-gray-500">
                           {request.events?.title ? (
@@ -837,6 +955,14 @@ const RequestsPage = () => {
                           ) : (
                             "General use"
                           )}
+                          {/* Show time range */}
+                          {request.start_time && request.end_time && (
+                            <span className="ml-2 text-xs text-gray-400">
+                              <Clock className="inline h-3 w-3 mr-1" />
+                              {format(parseISO(request.start_time), "MMM d, HH:mm")} -{" "}
+                              {format(parseISO(request.end_time), "HH:mm")}
+                            </span>
+                          )}
                         </div>
                         {request.current_holder && (
                           <div className="text-xs text-blue-600 mt-1">
@@ -844,27 +970,21 @@ const RequestsPage = () => {
                           </div>
                         )}
                         {request.notes && <div className="text-xs text-gray-500 mt-1">Note: {request.notes}</div>}
+                        {request.auto_declined && request.declined_reason && (
+                          <div className="text-xs text-orange-600 mt-1">{request.declined_reason}</div>
+                        )}
                       </div>
                     </div>
-                    <div className="ml-2 flex-shrink-0 flex">{getStatusBadge(request.status)}</div>
+                    <div className="ml-2 flex-shrink-0 flex">
+                      {getStatusBadge(request.status, request.auto_declined)}
+                    </div>
                   </div>
 
                   <div className="mt-2 sm:flex sm:justify-between">
                     <div className="sm:flex">
                       <div className="flex items-center text-sm text-gray-500">
                         <div className="flex-shrink-0 mr-1.5">
-                          <svg
-                            className="h-4 w-4 text-gray-400"
-                            xmlns="http://www.w3.org/2000/svg"
-                            viewBox="0 0 20 20"
-                            fill="currentColor"
-                          >
-                            <path
-                              fillRule="evenodd"
-                              d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"
-                              clipRule="evenodd"
-                            />
-                          </svg>
+                          <User className="h-4 w-4 text-gray-400" />
                         </div>
                         <Link to={`/members/${request.requester?.id}`} className="hover:text-primary-600">
                           {request.requester?.name}
@@ -888,7 +1008,7 @@ const RequestsPage = () => {
                       >
                         <path
                           fillRule="evenodd"
-                          d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 0 100-2H6z"
+                          d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z"
                           clipRule="evenodd"
                         />
                       </svg>
@@ -920,45 +1040,76 @@ const RequestsPage = () => {
                       </>
                     )}
 
-                    {/* Forward option for admins on hall equipment only */}
+                    {/* Forward option for admins on hall equipment */}
                     {request.status === "pending" &&
                       user?.is_admin &&
                       request.equipment?.ownership_type === "hall" &&
                       !request.forwarded_to && (
                         <>
                           {forwardingId === request.id ? (
-                            <div className="flex items-center gap-2">
-                              <select
-                                className="text-xs border border-gray-300 rounded px-2 py-1"
-                                value={selectedForwardUser}
-                                onChange={(e) => setSelectedForwardUser(e.target.value)}
-                              >
-                                <option value="">Select user...</option>
-                                {allUsers
-                                  .filter((u) => u.id !== user.id)
-                                  .map((u) => (
+                            <div className="flex flex-col gap-2">
+                              <div className="flex items-center gap-2">
+                                <select
+                                  className="text-xs border border-gray-300 rounded px-2 py-1"
+                                  value={selectedForwardUser}
+                                  onChange={(e) => {
+                                    setSelectedForwardUser(e.target.value)
+                                    if (e.target.value === "other") {
+                                      setShowOtherUsers(true)
+                                      setHallUsers(getForwardingUsers(request))
+                                    } else {
+                                      setShowOtherUsers(false)
+                                    }
+                                  }}
+                                >
+                                  <option value="">Select user...</option>
+                                  {getForwardingUsers(request).map((u) => (
                                     <option key={u.id} value={u.id}>
-                                      {u.name} {u.is_admin ? "(Admin)" : ""}
+                                      {u.name} ({u.hostel})
                                     </option>
                                   ))}
-                              </select>
-                              <button
-                                onClick={() => handleForward(request.id)}
-                                disabled={!selectedForwardUser || !!processingId}
-                                className="inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
-                              >
-                                <Send className="mr-1 h-3 w-3" />
-                                Forward
-                              </button>
-                              <button
-                                onClick={() => {
-                                  setForwardingId(null)
-                                  setSelectedForwardUser("")
-                                }}
-                                className="inline-flex items-center px-2.5 py-1.5 border border-gray-300 text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
-                              >
-                                Cancel
-                              </button>
+                                  <option value="other">Others...</option>
+                                </select>
+
+                                {showOtherUsers && (
+                                  <select
+                                    className="text-xs border border-gray-300 rounded px-2 py-1"
+                                    value={selectedForwardUser === "other" ? "" : selectedForwardUser}
+                                    onChange={(e) => setSelectedForwardUser(e.target.value)}
+                                  >
+                                    <option value="">Select from all users...</option>
+                                    {allUsers
+                                      .filter(
+                                        (u) =>
+                                          u.id !== user.id && !getForwardingUsers(request).find((hu) => hu.id === u.id),
+                                      )
+                                      .map((u) => (
+                                        <option key={u.id} value={u.id}>
+                                          {u.name} {u.is_admin ? "(Admin)" : ""}
+                                        </option>
+                                      ))}
+                                  </select>
+                                )}
+
+                                <button
+                                  onClick={() => handleForward(request.id)}
+                                  disabled={!selectedForwardUser || selectedForwardUser === "other" || !!processingId}
+                                  className="inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+                                >
+                                  <Send className="mr-1 h-3 w-3" />
+                                  Forward
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setForwardingId(null)
+                                    setSelectedForwardUser("")
+                                    setShowOtherUsers(false)
+                                  }}
+                                  className="inline-flex items-center px-2.5 py-1.5 border border-gray-300 text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
                             </div>
                           ) : (
                             <button
@@ -995,18 +1146,38 @@ const RequestsPage = () => {
                                 <select
                                   className="text-xs border border-gray-300 rounded px-2 py-1"
                                   value={returnToUser}
-                                  onChange={(e) => setReturnToUser(e.target.value)}
+                                  onChange={(e) => {
+                                    setReturnToUser(e.target.value)
+                                    if (e.target.value !== "other") {
+                                      setShowOtherUsers(false)
+                                      setCustomUserSearch("")
+                                    }
+                                  }}
                                 >
                                   <option value="">Return to...</option>
-                                  <option value="owner">Equipment Owner</option>
-                                  {allUsers
-                                    .filter((u) => u.id !== user.id)
-                                    .map((u) => (
-                                      <option key={u.id} value={u.id}>
-                                        {u.name}
-                                      </option>
-                                    ))}
+                                  {getReturnOptions(request).map((option) => (
+                                    <option key={option.value} value={option.value}>
+                                      {option.label}
+                                    </option>
+                                  ))}
                                 </select>
+
+                                {returnToUser === "other" && (
+                                  <select
+                                    className="text-xs border border-gray-300 rounded px-2 py-1"
+                                    value={customUserSearch}
+                                    onChange={(e) => setCustomUserSearch(e.target.value)}
+                                  >
+                                    <option value="">Select user...</option>
+                                    {allUsers
+                                      .filter((u) => u.id !== user.id)
+                                      .map((u) => (
+                                        <option key={u.id} value={u.id}>
+                                          {u.name}
+                                        </option>
+                                      ))}
+                                  </select>
+                                )}
 
                                 <select
                                   className="text-xs border border-gray-300 rounded px-2 py-1"
@@ -1032,7 +1203,10 @@ const RequestsPage = () => {
                                 <button
                                   onClick={() => handleReturn(request.id)}
                                   disabled={
-                                    !returnToUser || !!processingId || (returnCondition === "damaged" && !damageNotes)
+                                    !returnToUser ||
+                                    (returnToUser === "other" && !customUserSearch) ||
+                                    !!processingId ||
+                                    (returnCondition === "damaged" && !damageNotes)
                                   }
                                   className="inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50"
                                 >
@@ -1045,6 +1219,8 @@ const RequestsPage = () => {
                                     setReturnToUser("")
                                     setReturnCondition("perfect")
                                     setDamageNotes("")
+                                    setCustomUserSearch("")
+                                    setShowOtherUsers(false)
                                   }}
                                   className="inline-flex items-center px-2.5 py-1.5 border border-gray-300 text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
                                 >
