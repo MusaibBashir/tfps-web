@@ -33,7 +33,7 @@ const RequestsPage = () => {
         const { data: allRequestsData, error: allRequestsError } = await supabase
           .from("equipment_requests")
           .select(
-            "*, equipment(*), eventss(*), requester:requester_id(*), approver:approved_by(*), forwarded_user:forwarded_to(*)",
+            "*, equipment(*), events(*), requester:requester_id(*), approver:approved_by(*), forwarded_user:forwarded_to(*)",
           )
           .order("created_at", { ascending: false })
 
@@ -113,7 +113,7 @@ const RequestsPage = () => {
       filtered = filtered.filter(
         (request) =>
           request.equipment?.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          request.eventss?.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          request.?.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
           request.requester?.name.toLowerCase().includes(searchQuery.toLowerCase()),
       )
     }
@@ -136,7 +136,7 @@ const RequestsPage = () => {
         })
         .eq("id", requestId)
         .select(
-          "*, equipment(*), eventss(*), requester:requester_id(*), approver:approved_by(*), forwarded_user:forwarded_to(*)",
+          "*, equipment(*), events(*), requester:requester_id(*), approver:approved_by(*), forwarded_user:forwarded_to(*)",
         )
         .single()
 
@@ -162,7 +162,7 @@ const RequestsPage = () => {
         })
         .eq("id", requestId)
         .select(
-          "*, equipment(*), eventss(*), requester:requester_id(*), approver:approved_by(*), forwarded_user:forwarded_to(*)",
+          "*, equipment(*), events(*), requester:requester_id(*), approver:approved_by(*), forwarded_user:forwarded_to(*)",
         )
         .single()
 
@@ -368,7 +368,7 @@ const RequestsPage = () => {
 
       <div className="mb-6 flex flex-col md:flex-row gap-4">
         <div className="relative flex-grow">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-eventss-none">
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
             <Search className="h-5 w-5 text-gray-400" />
           </div>
           <input
