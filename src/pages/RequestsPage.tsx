@@ -18,6 +18,14 @@ import { useSupabase } from "../contexts/SupabaseContext"
 import { useAuth } from "../contexts/AuthContext"
 import type { EquipmentRequest } from "../types"
 import { format, parseISO } from "date-fns"
+import { toZonedTime } from "date-fns-tz"
+
+// Helper function to format time in IST with 12-hour format
+const formatTimeIST = (dateString: string, formatStr = "MMM d, yyyy h:mm a") => {
+  const date = parseISO(dateString)
+  const istDate = toZonedTime(date, "Asia/Kolkata")
+  return format(istDate, formatStr)
+}
 
 const RequestsPage = () => {
   const { supabase } = useSupabase()
@@ -110,7 +118,14 @@ const RequestsPage = () => {
             const canSeeForwarded = req.forwarded_to && req.forwarded_to === user.id
             const isOriginalApprover = req.approved_by === user.id && !req.forwarded_to
 
-            return isRequester || isOwner || canSeeForwarded || isCurrentHolder || isOriginalApprover
+            // EXCLUDE auto-generated return requests for owners
+            const isAutoReturnToOwner =
+              req.notes && req.notes.includes("Equipment returned by") && req.equipment?.owner_id === user.id
+
+            return (
+              (isRequester || isOwner || canSeeForwarded || isCurrentHolder || isOriginalApprover) &&
+              !isAutoReturnToOwner
+            )
           })
         }
 
@@ -196,15 +211,10 @@ const RequestsPage = () => {
         })
       }
 
-      // Update equipment status to in_use
-      await supabase
-        .from("equipment")
-        .update({
-          status: "in_use",
-        })
-        .eq("id", request.equipment_id)
+      // DO NOT update equipment status to in_use here - wait for "received" confirmation
+      // Equipment status will be updated when user clicks "Mark as Received"
 
-      // Create equipment log
+      // Create equipment log but don't mark as checked out yet
       await supabase.from("equipment_logs").insert({
         equipment_id: request.equipment_id,
         user_id: request.requester_id,
@@ -212,8 +222,45 @@ const RequestsPage = () => {
         expected_return_time: request.end_time,
       })
 
-      // DO NOT automatically forward non-conflicting requests
-      // They should remain as pending for the owner/admin to approve separately
+      // Forward non-conflicting pending requests to the approved user
+      const { data: otherPendingRequests } = await supabase
+        .from("equipment_requests")
+        .select("id, requester_id, start_time, end_time")
+        .eq("equipment_id", request.equipment_id)
+        .eq("status", "pending")
+        .neq("id", requestId)
+
+      if (otherPendingRequests && otherPendingRequests.length > 0) {
+        // Only forward non-conflicting requests
+        const nonConflictingRequests = otherPendingRequests.filter((otherReq) => {
+          if (!request.start_time || !request.end_time || !otherReq.start_time || !otherReq.end_time) {
+            return true // If no time bounds, consider non-conflicting
+          }
+
+          // Check if requests don't overlap
+          const requestStart = new Date(request.start_time)
+          const requestEnd = new Date(request.end_time)
+          const otherStart = new Date(otherReq.start_time)
+          const otherEnd = new Date(otherReq.end_time)
+
+          // Non-conflicting if other request starts after current request ends
+          return otherStart >= requestEnd || requestStart >= otherEnd
+        })
+
+        if (nonConflictingRequests.length > 0) {
+          await supabase
+            .from("equipment_requests")
+            .update({
+              forwarded_to: request.requester_id,
+              current_holder_id: request.requester_id,
+              notes: `Equipment approved for ${request.requester?.name}. Please coordinate with them for usage after ${request.end_time ? formatTimeIST(request.end_time, "MMM d, h:mm a") : "their usage"}.`,
+            })
+            .in(
+              "id",
+              nonConflictingRequests.map((req) => req.id),
+            )
+        }
+      }
 
       // Refresh requests
       await refreshRequests()
@@ -227,6 +274,9 @@ const RequestsPage = () => {
   const handleReceived = async (requestId: string) => {
     setProcessingId(requestId)
     try {
+      const request = requests.find((r) => r.id === requestId)
+      if (!request) return
+
       const { data, error } = await supabase
         .from("equipment_requests")
         .update({
@@ -243,6 +293,14 @@ const RequestsPage = () => {
         .single()
 
       if (error) throw error
+
+      // NOW update equipment status to in_use when user confirms receipt
+      await supabase
+        .from("equipment")
+        .update({
+          status: "in_use",
+        })
+        .eq("id", request.equipment_id)
 
       await refreshRequests()
     } catch (error) {
@@ -329,18 +387,8 @@ const RequestsPage = () => {
           })
           .eq("id", request.equipment_id)
 
-        // Create a "received" request for the owner ONLY if they are not the current user
-        if (request.equipment?.owner_id && request.equipment.owner_id !== user?.id) {
-          await supabase.from("equipment_requests").insert({
-            equipment_id: request.equipment_id,
-            event_id: null,
-            requester_id: request.equipment.owner_id,
-            status: "approved",
-            approved_by: user?.id,
-            current_holder_id: request.equipment.owner_id,
-            notes: `Equipment returned by ${user?.name}. Please confirm receipt and condition.`,
-          })
-        }
+        // DO NOT create a "received" request for the owner - they own the equipment
+        // The equipment is simply returned to available status
 
         // Update equipment log
         const { data: logData } = await supabase
@@ -470,18 +518,7 @@ const RequestsPage = () => {
           })
           .eq("id", equipmentLog.equipment_id)
 
-        // Create a "received" request for the owner so they can acknowledge receipt
-        if (equipmentLog.equipment?.owner_id && equipmentLog.equipment.owner_id !== user?.id) {
-          await supabase.from("equipment_requests").insert({
-            equipment_id: equipmentLog.equipment_id,
-            event_id: null,
-            requester_id: equipmentLog.equipment.owner_id,
-            status: "approved",
-            approved_by: user?.id,
-            current_holder_id: equipmentLog.equipment.owner_id,
-            notes: `Equipment returned by ${user?.name}. Please confirm receipt and condition.`,
-          })
-        }
+        // DO NOT create a "received" request for the owner
 
         // Update equipment log
         await supabase
@@ -584,7 +621,14 @@ const RequestsPage = () => {
               const canSeeForwarded = req.forwarded_to && req.forwarded_to === user.id
               const isOriginalApprover = req.approved_by === user.id && !req.forwarded_to
 
-              return isRequester || isOwner || canSeeForwarded || isCurrentHolder || isOriginalApprover
+              // EXCLUDE auto-generated return requests for owners
+              const isAutoReturnToOwner =
+                req.notes && req.notes.includes("Equipment returned by") && req.equipment?.owner_id === user.id
+
+              return (
+                (isRequester || isOwner || canSeeForwarded || isCurrentHolder || isOriginalApprover) &&
+                !isAutoReturnToOwner
+              )
             })
           }
 
@@ -740,12 +784,10 @@ const RequestsPage = () => {
                 <div key={log.id} className="flex items-center justify-between bg-white p-3 rounded-md">
                   <div>
                     <span className="font-medium text-gray-900">{log.equipment?.name}</span>
-                    <span className="text-sm text-gray-500 ml-2">
-                      Since {format(parseISO(log.checkout_time), "MMM d, yyyy HH:mm")}
-                    </span>
+                    <span className="text-sm text-gray-500 ml-2">Since {formatTimeIST(log.checkout_time)}</span>
                     {log.expected_return_time && (
                       <span className="text-xs text-gray-400 ml-2">
-                        Expected return: {format(parseISO(log.expected_return_time), "MMM d, HH:mm")}
+                        Expected return: {formatTimeIST(log.expected_return_time, "MMM d, h:mm a")}
                       </span>
                     )}
                   </div>
@@ -924,8 +966,8 @@ const RequestsPage = () => {
                           {request.start_time && request.end_time && (
                             <span className="ml-2 text-xs text-gray-400">
                               <Clock className="inline h-3 w-3 mr-1" />
-                              {format(parseISO(request.start_time), "MMM d, HH:mm")} -{" "}
-                              {format(parseISO(request.end_time), "HH:mm")}
+                              {formatTimeIST(request.start_time, "MMM d, h:mm a")} -{" "}
+                              {formatTimeIST(request.end_time, "h:mm a")}
                             </span>
                           )}
                         </div>
@@ -977,7 +1019,7 @@ const RequestsPage = () => {
                           clipRule="evenodd"
                         />
                       </svg>
-                      {format(parseISO(request.created_at), "MMM d, yyyy")}
+                      {formatTimeIST(request.created_at, "MMM d, yyyy")}
                     </div>
                   </div>
 
