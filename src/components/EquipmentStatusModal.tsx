@@ -90,6 +90,17 @@ const EquipmentStatusModal: React.FC<EquipmentStatusModalProps> = ({
         return
       }
 
+      // Check if equipment is damaged and user is trying to change from maintenance
+      if (
+        equipment.status === "maintenance" &&
+        status !== "maintenance" &&
+        !currentUser.is_admin &&
+        equipment.owner_id !== currentUser.id
+      ) {
+        setError("Only admins or equipment owners can change the status of damaged equipment")
+        return
+      }
+
       // Update equipment status
       const { data: updatedEquipment, error: equipmentError } = await supabase
         .from("equipment")
