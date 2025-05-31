@@ -275,14 +275,27 @@ const RequestsPage = () => {
           })
           .eq("id", requestId)
 
-        // Update equipment status
+        // Update equipment status - set to maintenance if damaged, available if perfect
         await supabase
           .from("equipment")
           .update({
-            status: "available",
+            status: returnCondition === "damaged" ? "maintenance" : "available",
             condition_notes: returnCondition === "damaged" ? damageNotes : null,
           })
           .eq("id", request.equipment_id)
+
+        // Create a "received" request for the owner so they can acknowledge receipt
+        if (request.equipment?.owner_id && request.equipment.owner_id !== user?.id) {
+          await supabase.from("equipment_requests").insert({
+            equipment_id: request.equipment_id,
+            event_id: null, // No specific event for returns
+            requester_id: request.equipment.owner_id,
+            status: "approved", // Auto-approved return
+            approved_by: user?.id,
+            current_holder_id: request.equipment.owner_id,
+            notes: `Equipment returned by ${user?.name}. Please confirm receipt and condition.`,
+          })
+        }
 
         // Update equipment log
         const { data: logData } = await supabase
@@ -425,10 +438,23 @@ const RequestsPage = () => {
         await supabase
           .from("equipment")
           .update({
-            status: "available",
+            status: returnCondition === "damaged" ? "maintenance" : "available",
             condition_notes: returnCondition === "damaged" ? damageNotes : null,
           })
           .eq("id", equipmentLog.equipment_id)
+
+        // Create a "received" request for the owner so they can acknowledge receipt
+        if (equipmentLog.equipment?.owner_id && equipmentLog.equipment.owner_id !== user?.id) {
+          await supabase.from("equipment_requests").insert({
+            equipment_id: equipmentLog.equipment_id,
+            event_id: null,
+            requester_id: equipmentLog.equipment.owner_id,
+            status: "approved",
+            approved_by: user?.id,
+            current_holder_id: equipmentLog.equipment.owner_id,
+            notes: `Equipment returned by ${user?.name}. Please confirm receipt and condition.`,
+          })
+        }
 
         // Update equipment log
         await supabase
