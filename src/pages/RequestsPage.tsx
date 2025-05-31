@@ -129,6 +129,10 @@ const RequestsPage = () => {
   const handleApprove = async (requestId: string) => {
     setProcessingId(requestId)
     try {
+      const request = requests.find((r) => r.id === requestId)
+      if (!request) return
+
+      // Update request status to approved
       const { data, error } = await supabase
         .from("equipment_requests")
         .update({
@@ -147,14 +151,89 @@ const RequestsPage = () => {
 
       if (error) throw error
 
+      // Update equipment status to in_use
+      await supabase
+        .from("equipment")
+        .update({
+          status: "in_use",
+        })
+        .eq("id", request.equipment_id)
+
+      // Create equipment log
+      await supabase.from("equipment_logs").insert({
+        equipment_id: request.equipment_id,
+        user_id: request.requester_id,
+        checkout_time: new Date().toISOString(),
+        expected_return_time: request.events?.end_time,
+      })
+
+      // Reject all other pending requests for the same equipment
+      const { data: otherRequests } = await supabase
+        .from("equipment_requests")
+        .select("id, requester_id")
+        .eq("equipment_id", request.equipment_id)
+        .eq("status", "pending")
+        .neq("id", requestId)
+
+      if (otherRequests && otherRequests.length > 0) {
+        // Update other requests to rejected with a note
+        await supabase
+          .from("equipment_requests")
+          .update({
+            status: "rejected",
+            approved_by: user?.id,
+            notes: `Equipment approved for another user. Contact ${request.requester?.name} if you need to coordinate usage.`,
+          })
+          .eq("equipment_id", request.equipment_id)
+          .eq("status", "pending")
+          .neq("id", requestId)
+      }
+
       // Manually attach event if needed
       if (data.event_id) {
         const { data: eventData } = await supabase.from("events").select("*").eq("id", data.event_id).single()
         data.events = eventData
       }
 
-      setRequests(requests.map((request) => (request.id === requestId ? data : request)))
-      setFilteredRequests(filteredRequests.map((request) => (request.id === requestId ? data : request)))
+      // Refresh all requests to show updated statuses
+      const { data: updatedRequests } = await supabase
+        .from("equipment_requests")
+        .select(`
+          *,
+          equipment(*),
+          requester:users!equipment_requests_requester_id_fkey(*),
+          approver:users!equipment_requests_approved_by_fkey(*),
+          forwarded_user:users!equipment_requests_forwarded_to_fkey(*)
+        `)
+        .order("created_at", { ascending: false })
+
+      if (updatedRequests) {
+        // Fetch events for updated requests
+        const eventIds = updatedRequests.filter((req) => req.event_id).map((req) => req.event_id)
+        if (eventIds.length > 0) {
+          const { data: eventsForRequests } = await supabase.from("events").select("*").in("id", eventIds)
+          const requestsWithEvents = updatedRequests.map((req) => ({
+            ...req,
+            events: req.event_id ? eventsForRequests?.find((e) => e.id === req.event_id) : null,
+          }))
+
+          // Filter for current user
+          let userRequests: any[] = []
+          if (user.is_admin) {
+            userRequests = requestsWithEvents
+          } else {
+            userRequests = requestsWithEvents.filter((req) => {
+              const isRequester = req.requester_id === user.id
+              const isOwner = req.equipment?.owner_id === user.id
+              const isForwarded = req.forwarded_to === user.id
+              return isRequester || isOwner || isForwarded
+            })
+          }
+
+          setRequests(userRequests)
+          setFilteredRequests(userRequests)
+        }
+      }
     } catch (error) {
       console.error("Error approving request:", error)
     } finally {
@@ -220,22 +299,6 @@ const RequestsPage = () => {
         .single()
 
       if (error) throw error
-
-      // Update equipment status
-      await supabase
-        .from("equipment")
-        .update({
-          status: "in_use",
-        })
-        .eq("id", request.equipment_id)
-
-      // Create equipment log
-      await supabase.from("equipment_logs").insert({
-        equipment_id: request.equipment_id,
-        user_id: request.requester_id,
-        checkout_time: new Date().toISOString(),
-        expected_return_time: request.events?.end_time,
-      })
 
       // Manually attach event if needed
       if (data.event_id) {
@@ -468,6 +531,7 @@ const RequestsPage = () => {
                             "General use"
                           )}
                         </div>
+                        {request.notes && <div className="text-xs text-gray-500 mt-1">Note: {request.notes}</div>}
                       </div>
                     </div>
                     <div className="ml-2 flex-shrink-0 flex">{getStatusBadge(request.status)}</div>
