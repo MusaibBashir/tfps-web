@@ -167,7 +167,7 @@ const RequestsPage = () => {
         expected_return_time: request.events?.end_time,
       })
 
-      // Reject all other pending requests for the same equipment
+      // Forward all other pending requests for the same equipment to the approved user
       const { data: otherRequests } = await supabase
         .from("equipment_requests")
         .select("id, requester_id")
@@ -176,13 +176,12 @@ const RequestsPage = () => {
         .neq("id", requestId)
 
       if (otherRequests && otherRequests.length > 0) {
-        // Update other requests to rejected with a note
+        // Forward other requests to the user who got the equipment
         await supabase
           .from("equipment_requests")
           .update({
-            status: "rejected",
-            approved_by: user?.id,
-            notes: `Equipment approved for another user. Contact ${request.requester?.name} if you need to coordinate usage.`,
+            forwarded_to: request.requester_id,
+            notes: `Equipment approved for ${request.requester?.name}. Please coordinate with them for usage.`,
           })
           .eq("equipment_id", request.equipment_id)
           .eq("status", "pending")
