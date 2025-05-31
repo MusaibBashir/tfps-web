@@ -34,6 +34,8 @@ const EventModal: React.FC<EventModalProps> = ({
   const [endTime, setEndTime] = useState('');
   const [selectedEquipment, setSelectedEquipment] = useState<string[]>([]);
   const [availableEquipment, setAvailableEquipment] = useState<Equipment[]>([]);
+  const [filteredEquipment, setFilteredEquipment] = useState<Equipment[]>([]);
+  const [equipmentSearch, setEquipmentSearch] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -77,6 +79,7 @@ const EventModal: React.FC<EventModalProps> = ({
           
         if (error) throw error;
         setAvailableEquipment(data || []);
+        setFilteredEquipment(data || []);
       } catch (error) {
         console.error('Error fetching equipment:', error);
       }
@@ -86,6 +89,16 @@ const EventModal: React.FC<EventModalProps> = ({
       fetchAvailableEquipment();
     }
   }, [supabase, isCreating]);
+
+  useEffect(() => {
+    // Filter equipment based on search query
+    const filtered = availableEquipment.filter(equipment =>
+      equipment.name.toLowerCase().includes(equipmentSearch.toLowerCase()) ||
+      equipment.type.toLowerCase().includes(equipmentSearch.toLowerCase()) ||
+      equipment.subtype?.toLowerCase().includes(equipmentSearch.toLowerCase())
+    );
+    setFilteredEquipment(filtered);
+  }, [equipmentSearch, availableEquipment]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -331,26 +344,45 @@ const EventModal: React.FC<EventModalProps> = ({
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Request Equipment (Optional)
                 </label>
+                
+                {/* Search input */}
+                <div className="relative mb-3">
+                  <input
+                    type="text"
+                    placeholder="Search equipment..."
+                    className="w-full pl-8 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm"
+                    value={equipmentSearch}
+                    onChange={(e) => setEquipmentSearch(e.target.value)}
+                  />
+                  <Package className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400" />
+                </div>
+
                 <div className="max-h-40 overflow-y-auto border border-gray-300 rounded-md p-2 space-y-2">
-                  {availableEquipment.map((equipment) => (
-                    <label key={equipment.id} className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
-                        checked={selectedEquipment.includes(equipment.id)}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setSelectedEquipment([...selectedEquipment, equipment.id]);
-                          } else {
-                            setSelectedEquipment(selectedEquipment.filter(id => id !== equipment.id));
-                          }
-                        }}
-                      />
-                      <span className="text-sm text-gray-700">
-                        {equipment.name} ({equipment.type})
-                      </span>
-                    </label>
-                  ))}
+                  {filteredEquipment.length > 0 ? (
+                    filteredEquipment.map((equipment) => (
+                      <label key={equipment.id} className="flex items-center space-x-2">
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+                          checked={selectedEquipment.includes(equipment.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedEquipment([...selectedEquipment, equipment.id]);
+                            } else {
+                              setSelectedEquipment(selectedEquipment.filter(id => id !== equipment.id));
+                            }
+                          }}
+                        />
+                        <span className="text-sm text-gray-700">
+                          {equipment.name} ({equipment.type}{equipment.subtype ? `, ${equipment.subtype}` : ''})
+                        </span>
+                      </label>
+                    ))
+                  ) : (
+                    <p className="text-sm text-gray-500 text-center py-2">
+                      No equipment found matching your search.
+                    </p>
+                  )}
                 </div>
                 {selectedEquipment.length > 0 && (
                   <p className="text-xs text-gray-500 mt-1">

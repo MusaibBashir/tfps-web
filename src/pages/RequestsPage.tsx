@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { ClipboardList, Filter, Search, CheckCircle, XCircle, Package, AlertCircle } from 'lucide-react';
+import { ClipboardList, Filter, Search, CheckCircle, XCircle, Package, AlertCircle, UserPlus, Send } from 'lucide-react';
 import { useSupabase } from '../contexts/SupabaseContext';
 import { useAuth } from '../contexts/AuthContext';
 import { EquipmentRequest } from '../types';
@@ -15,6 +15,9 @@ const RequestsPage = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [processingId, setProcessingId] = useState<string | null>(null);
+  const [forwardingId, setForwardingId] = useState<string | null>(null);
+  const [selectedForwardUser, setSelectedForwardUser] = useState<string>('');
+  const [allUsers, setAllUsers] = useState<any[]>([]);
 
   useEffect(() => {
     const fetchRequests = async () => {
@@ -23,7 +26,7 @@ const RequestsPage = () => {
           // Admin sees all requests
           const { data, error } = await supabase
             .from('equipment_requests')
-            .select('*, equipment(*), event(*), requester:requester_id(*), approver:approved_by(*)')
+            .select('*, equipment(*), event(*), requester:requester_id(*), approver:approved_by(*), forwarded_user:forwarded_to(*)')
             .order('created_at', { ascending: false });
             
           if (error) throw error;
@@ -32,28 +35,37 @@ const RequestsPage = () => {
             setFilteredRequests(data);
           }
         } else {
-          // Non-admin sees their own requests + requests for equipment they own
-          const [userRequests, ownerRequests] = await Promise.all([
+          // Non-admin sees their own requests + requests for equipment they own + requests forwarded to them
+          const [userRequests, ownerRequests, forwardedRequests] = await Promise.all([
             // Requests made by the user
             supabase
               .from('equipment_requests')
-              .select('*, equipment(*), event(*), requester:requester_id(*), approver:approved_by(*)')
+              .select('*, equipment(*), event(*), requester:requester_id(*), approver:approved_by(*), forwarded_user:forwarded_to(*)')
               .eq('requester_id', user?.id)
               .order('created_at', { ascending: false }),
             
-            // Requests for equipment owned by the user
+            // Requests for equipment owned by the user (student-owned equipment only)
             supabase
               .from('equipment_requests')
-              .select('*, equipment!inner(*), event(*), requester:requester_id(*), approver:approved_by(*)')
+              .select('*, equipment!inner(*), event(*), requester:requester_id(*), approver:approved_by(*), forwarded_user:forwarded_to(*)')
               .eq('equipment.owner_id', user?.id)
+              .neq('equipment.owner_id', null) // Only get equipment that actually has an owner
+              .order('created_at', { ascending: false }),
+            
+            // Requests forwarded to the user
+            supabase
+              .from('equipment_requests')
+              .select('*, equipment(*), event(*), requester:requester_id(*), approver:approved_by(*), forwarded_user:forwarded_to(*)')
+              .eq('forwarded_to', user?.id)
               .order('created_at', { ascending: false })
           ]);
           
           if (userRequests.error) throw userRequests.error;
           if (ownerRequests.error) throw ownerRequests.error;
+          if (forwardedRequests.error) throw forwardedRequests.error;
           
           // Combine and deduplicate requests
-          const allRequests = [...(userRequests.data || []), ...(ownerRequests.data || [])];
+          const allRequests = [...(userRequests.data || []), ...(ownerRequests.data || []), ...(forwardedRequests.data || [])];
           const uniqueRequests = allRequests.filter((request, index, array) => 
             array.findIndex(r => r.id === request.id) === index
           );
@@ -71,6 +83,27 @@ const RequestsPage = () => {
     if (user) {
       fetchRequests();
     }
+  }, [supabase, user]);
+
+  useEffect(() => {
+    // Fetch all users for forwarding dropdown (admins only)
+    const fetchUsers = async () => {
+      if (user?.is_admin) {
+        try {
+          const { data, error } = await supabase
+            .from('users')
+            .select('id, name, is_admin')
+            .order('name');
+            
+          if (error) throw error;
+          setAllUsers(data || []);
+        } catch (error) {
+          console.error('Error fetching users:', error);
+        }
+      }
+    };
+
+    fetchUsers();
   }, [supabase, user]);
 
   useEffect(() => {
@@ -102,7 +135,7 @@ const RequestsPage = () => {
           approved_by: user?.id
         })
         .eq('id', requestId)
-        .select('*, equipment(*), event(*), requester:requester_id(*), approver:approved_by(*)')
+        .select('*, equipment(*), event(*), requester:requester_id(*), approver:approved_by(*), forwarded_user:forwarded_to(*)')
         .single();
         
       if (error) throw error;
@@ -130,7 +163,7 @@ const RequestsPage = () => {
           approved_by: user?.id
         })
         .eq('id', requestId)
-        .select('*, equipment(*), event(*), requester:requester_id(*), approver:approved_by(*)')
+        .select('*, equipment(*), event(*), requester:requester_id(*), approver:approved_by(*), forwarded_user:forwarded_to(*)')
         .single();
         
       if (error) throw error;
@@ -192,6 +225,42 @@ const RequestsPage = () => {
       ));
     } catch (error) {
       console.error('Error marking as received:', error);
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  const handleForward = async (requestId: string) => {
+    if (!selectedForwardUser) {
+      alert('Please select a user to forward to');
+      return;
+    }
+    
+    setProcessingId(requestId);
+    try {
+      const { data, error } = await supabase
+        .from('equipment_requests')
+        .update({
+          forwarded_to: selectedForwardUser,
+          notes: `Forwarded by admin ${user?.name} to handle approval`
+        })
+        .eq('id', requestId)
+        .select('*, equipment(*), event(*), requester:requester_id(*), approver:approved_by(*)')
+        .single();
+        
+      if (error) throw error;
+      
+      setRequests(requests.map(request => 
+        request.id === requestId ? data : request
+      ));
+      setFilteredRequests(filteredRequests.map(request => 
+        request.id === requestId ? data : request
+      ));
+      
+      setForwardingId(null);
+      setSelectedForwardUser('');
+    } catch (error) {
+      console.error('Error forwarding request:', error);
     } finally {
       setProcessingId(null);
     }
@@ -364,15 +433,23 @@ const RequestsPage = () => {
                         </Link>
                       </div>
                       {request.approver && (
-                        <div className="mt-2 flex items-center text-sm text-gray-500 sm:mt-0 sm:ml-6">
-                          <div className="flex-shrink-0 mr-1.5">
-                            <svg className="h-4 w-4 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-6-3a2 2 0 11-4 0 2 2 0 014 0zm-2 4a5 5 0 00-4.546 2.916A5.986 5.986 0 0010 16a5.986 5.986 0 004.546-2.084A5 5 0 0010 11z" clipRule="evenodd" />
-                            </svg>
-                          </div>
-                          Processed by: {request.approver?.name}
-                        </div>
+                      <div className="mt-2 flex items-center text-sm text-gray-500 sm:mt-0 sm:ml-6">
+                      <div className="flex-shrink-0 mr-1.5">
+                      <svg className="h-4 w-4 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-6-3a2 2 0 11-4 0 2 2 0 014 0zm-2 4a5 5 0 00-4.546 2.916A5.986 5.986 0 0010 16a5.986 5.986 0 004.546-2.084A5 5 0 0010 11z" clipRule="evenodd" />
+                      </svg>
+                      </div>
+                      Processed by: {request.approver?.name}
+                      </div>
                       )}
+                       {request.forwarded_user && (
+                         <div className="mt-2 flex items-center text-sm text-blue-600 sm:mt-0 sm:ml-6">
+                           <div className="flex-shrink-0 mr-1.5">
+                             <UserPlus className="h-4 w-4 text-blue-500" />
+                           </div>
+                           Forwarded to: {request.forwarded_user?.name}
+                         </div>
+                       )}
                     </div>
                     <div className="mt-2 flex items-center text-sm text-gray-500 sm:mt-0">
                       <svg className="flex-shrink-0 mr-1.5 h-4 w-4 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
@@ -384,9 +461,9 @@ const RequestsPage = () => {
                   
                   {/* Action buttons based on status and user role */}
                   <div className="mt-4 flex flex-wrap gap-2">
-                    {/* Admin or equipment owner can approve/reject pending requests */}
+                    {/* Admin, equipment owner, or forwarded user can approve/reject pending requests */}
                     {request.status === 'pending' && (
-                      (user?.is_admin || user?.id === request.equipment?.owner_id) && (
+                    (user?.is_admin || (request.equipment?.owner_id && user?.id === request.equipment?.owner_id) || user?.id === request.forwarded_to) && (
                         <>
                           <button 
                             onClick={() => handleApprove(request.id)}
@@ -397,16 +474,64 @@ const RequestsPage = () => {
                             Approve
                           </button>
                           <button 
-                            onClick={() => handleReject(request.id)}
-                            disabled={!!processingId}
-                            className="inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50"
+                          onClick={() => handleReject(request.id)}
+                          disabled={!!processingId}
+                          className="inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50"
                           >
-                            <XCircle className="mr-1 h-4 w-4" />
-                            Reject
+                          <XCircle className="mr-1 h-4 w-4" />
+                          Reject
                           </button>
-                        </>
-                      )
-                    )}
+                          </>
+                          )
+                          )}
+                     
+                     {/* Forward option for admins on hall equipment */}
+                     {request.status === 'pending' && user?.is_admin && !request.equipment?.owner_id && !request.forwarded_to && (
+                       <>
+                         {forwardingId === request.id ? (
+                           <div className="flex items-center gap-2">
+                             <select
+                               className="text-xs border border-gray-300 rounded px-2 py-1"
+                               value={selectedForwardUser}
+                               onChange={(e) => setSelectedForwardUser(e.target.value)}
+                             >
+                               <option value="">Select user...</option>
+                               {allUsers.filter(u => u.id !== user.id).map(u => (
+                                 <option key={u.id} value={u.id}>
+                                   {u.name} {u.is_admin ? '(Admin)' : ''}
+                                 </option>
+                               ))}
+                             </select>
+                             <button
+                               onClick={() => handleForward(request.id)}
+                               disabled={!selectedForwardUser || !!processingId}
+                               className="inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+                             >
+                               <Send className="mr-1 h-3 w-3" />
+                               Forward
+                             </button>
+                             <button
+                               onClick={() => {
+                                 setForwardingId(null);
+                                 setSelectedForwardUser('');
+                               }}
+                               className="inline-flex items-center px-2.5 py-1.5 border border-gray-300 text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+                             >
+                               Cancel
+                             </button>
+                           </div>
+                         ) : (
+                           <button
+                             onClick={() => setForwardingId(request.id)}
+                             disabled={!!processingId}
+                             className="inline-flex items-center px-2.5 py-1.5 border border-gray-300 text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+                           >
+                             <UserPlus className="mr-1 h-4 w-4" />
+                             Forward to User
+                           </button>
+                         )}
+                       </>
+                     )}
                     
                     {/* Approver can mark as received when approved */}
                     {request.status === 'approved' && request.approved_by === user?.id && (
