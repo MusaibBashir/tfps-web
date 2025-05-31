@@ -33,7 +33,7 @@ const RequestsPage = () => {
         const { data: allRequestsData, error: allRequestsError } = await supabase
           .from("equipment_requests")
           .select(
-            "*, equipment(*), event(*), requester:requester_id(*), approver:approved_by(*), forwarded_user:forwarded_to(*)",
+            "*, equipment(*), eventss(*), requester:requester_id(*), approver:approved_by(*), forwarded_user:forwarded_to(*)",
           )
           .order("created_at", { ascending: false })
 
@@ -113,7 +113,7 @@ const RequestsPage = () => {
       filtered = filtered.filter(
         (request) =>
           request.equipment?.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          request.event?.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          request.eventss?.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
           request.requester?.name.toLowerCase().includes(searchQuery.toLowerCase()),
       )
     }
@@ -136,7 +136,7 @@ const RequestsPage = () => {
         })
         .eq("id", requestId)
         .select(
-          "*, equipment(*), event(*), requester:requester_id(*), approver:approved_by(*), forwarded_user:forwarded_to(*)",
+          "*, equipment(*), eventss(*), requester:requester_id(*), approver:approved_by(*), forwarded_user:forwarded_to(*)",
         )
         .single()
 
@@ -162,7 +162,7 @@ const RequestsPage = () => {
         })
         .eq("id", requestId)
         .select(
-          "*, equipment(*), event(*), requester:requester_id(*), approver:approved_by(*), forwarded_user:forwarded_to(*)",
+          "*, equipment(*), eventss(*), requester:requester_id(*), approver:approved_by(*), forwarded_user:forwarded_to(*)",
         )
         .single()
 
@@ -190,7 +190,7 @@ const RequestsPage = () => {
           status: "received",
         })
         .eq("id", requestId)
-        .select("*, equipment(*), event(*), requester:requester_id(*), approver:approved_by(*)")
+        .select("*, equipment(*), events(*), requester:requester_id(*), approver:approved_by(*)")
         .single()
 
       if (error) throw error
@@ -208,7 +208,7 @@ const RequestsPage = () => {
         equipment_id: request.equipment_id,
         user_id: request.requester_id,
         checkout_time: new Date().toISOString(),
-        expected_return_time: request.event?.end_time,
+        expected_return_time: request.events?.end_time,
       })
 
       setRequests(requests.map((r) => (r.id === requestId ? data : r)))
@@ -235,7 +235,7 @@ const RequestsPage = () => {
           notes: `Forwarded by admin ${user?.name} to handle approval`,
         })
         .eq("id", requestId)
-        .select("*, equipment(*), event(*), requester:requester_id(*), approver:approved_by(*), forwarded_user:forwarded_to(*)")
+        .select("*, equipment(*), events(*), requester:requester_id(*), approver:approved_by(*), forwarded_user:forwarded_to(*)")
         .single()
 
       if (error) throw error
@@ -265,7 +265,7 @@ const RequestsPage = () => {
           status: "returned",
         })
         .eq("id", requestId)
-        .select("*, equipment(*), event(*), requester:requester_id(*), approver:approved_by(*)")
+        .select("*, equipment(*), events(*), requester:requester_id(*), approver:approved_by(*)")
         .single()
 
       if (error) throw error
@@ -368,7 +368,7 @@ const RequestsPage = () => {
 
       <div className="mb-6 flex flex-col md:flex-row gap-4">
         <div className="relative flex-grow">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-eventss-none">
             <Search className="h-5 w-5 text-gray-400" />
           </div>
           <input
@@ -413,11 +413,11 @@ const RequestsPage = () => {
                           </Link>
                         </div>
                         <div className="text-sm text-gray-500">
-                          {request.event?.title ? (
+                          {request.events?.title ? (
                             <>
-                              For event:{" "}
+                              For events:{" "}
                               <Link to="/calendar" className="hover:text-primary-600">
-                                {request.event.title}
+                                {request.events.title}
                               </Link>
                             </>
                           ) : (
