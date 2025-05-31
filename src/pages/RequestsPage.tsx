@@ -189,7 +189,7 @@ const RequestsPage = () => {
 
       if (error) throw error
 
-      // Auto-decline conflicting requests if this request has time bounds
+      // Auto-decline ONLY conflicting requests if this request has time bounds
       if (request.start_time && request.end_time) {
         await supabase.rpc("auto_decline_conflicts", {
           p_approved_request_id: requestId,
@@ -212,27 +212,8 @@ const RequestsPage = () => {
         expected_return_time: request.end_time,
       })
 
-      // Forward all other pending requests for the same equipment to the approved user
-      const { data: otherRequests } = await supabase
-        .from("equipment_requests")
-        .select("id, requester_id, start_time, end_time")
-        .eq("equipment_id", request.equipment_id)
-        .eq("status", "pending")
-        .neq("id", requestId)
-
-      if (otherRequests && otherRequests.length > 0) {
-        // Forward non-conflicting requests to the user who got the equipment
-        await supabase
-          .from("equipment_requests")
-          .update({
-            forwarded_to: request.requester_id,
-            current_holder_id: request.requester_id,
-            notes: `Equipment approved for ${request.requester?.name}. Please coordinate with them for usage.`,
-          })
-          .eq("equipment_id", request.equipment_id)
-          .eq("status", "pending")
-          .neq("id", requestId)
-      }
+      // DO NOT automatically forward non-conflicting requests
+      // They should remain as pending for the owner/admin to approve separately
 
       // Refresh requests
       await refreshRequests()
@@ -274,36 +255,41 @@ const RequestsPage = () => {
   const getReturnOptions = (request: any) => {
     const options = []
 
-    // Always include return to owner option
-    if (request.equipment?.owner_id) {
+    // Only include return to owner option if current user is NOT the owner
+    if (request.equipment?.owner_id && request.equipment.owner_id !== user?.id) {
       const owner = allUsers.find((u) => u.id === request.equipment.owner_id)
       if (owner) {
         options.push({ value: request.equipment.owner_id, label: `Return to Owner (${owner.name})` })
       }
-    } else {
+    } else if (!request.equipment?.owner_id && !user?.is_admin) {
+      // For hall equipment, non-admin users can return to admin
       options.push({ value: "admin", label: "Return to Admin" })
     }
 
-    // Get pending requests for this equipment that could receive it next
-    const pendingRequests = requests.filter(
+    // Get pending AND approved requests for this equipment that could receive it next
+    // Only show approved requests as transfer options
+    const approvedRequests = requests.filter(
       (r) =>
         r.equipment_id === request.equipment_id &&
-        r.status === "pending" &&
+        r.status === "approved" &&
         r.id !== request.id &&
+        r.requester_id !== user?.id &&
         (!r.start_time || !r.end_time || !request.end_time || new Date(r.start_time) >= new Date(request.end_time)),
     )
 
-    pendingRequests.forEach((pendingReq) => {
-      if (pendingReq.requester) {
+    approvedRequests.forEach((approvedReq) => {
+      if (approvedReq.requester) {
         options.push({
-          value: pendingReq.requester.id,
-          label: `Transfer to ${pendingReq.requester.name} (Pending Request)`,
+          value: approvedReq.requester.id,
+          label: `Transfer to ${approvedReq.requester.name} (Approved Request)`,
         })
       }
     })
 
-    // Add option to transfer to any other user
-    options.push({ value: "other", label: "Transfer to Other User" })
+    // Add option to transfer to any other user (only if not owner)
+    if (request.equipment?.owner_id !== user?.id) {
+      options.push({ value: "other", label: "Transfer to Other User" })
+    }
 
     return options
   }
@@ -343,7 +329,7 @@ const RequestsPage = () => {
           })
           .eq("id", request.equipment_id)
 
-        // Create a "received" request for the owner so they can acknowledge receipt
+        // Create a "received" request for the owner ONLY if they are not the current user
         if (request.equipment?.owner_id && request.equipment.owner_id !== user?.id) {
           await supabase.from("equipment_requests").insert({
             equipment_id: request.equipment_id,
@@ -385,17 +371,6 @@ const RequestsPage = () => {
             severity: "moderate",
           })
         }
-
-        // Mark all related pending requests as returned if they were in the chain
-        await supabase
-          .from("equipment_requests")
-          .update({
-            status: "returned",
-            returned_time: returnTime,
-          })
-          .eq("equipment_id", request.equipment_id)
-          .in("status", ["pending", "received"])
-          .neq("id", requestId)
       } else {
         // Transferring to another user
         const newHolderId = finalReturnUser
@@ -446,16 +421,6 @@ const RequestsPage = () => {
           user_id: newHolderId,
           checkout_time: returnTime,
         })
-
-        // Update any pending requests for this equipment to show new current holder
-        await supabase
-          .from("equipment_requests")
-          .update({
-            current_holder_id: newHolderId,
-            notes: `Equipment transferred to new holder. Please coordinate with them.`,
-          })
-          .eq("equipment_id", request.equipment_id)
-          .eq("status", "pending")
 
         // Create a virtual request for the new holder so they can return it
         await supabase.from("equipment_requests").insert({
