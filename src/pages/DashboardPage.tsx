@@ -4,7 +4,7 @@ import type React from "react"
 
 import { useState, useEffect } from "react"
 import { Link } from "react-router-dom"
-import { CalendarDays, Package, ClipboardList } from "lucide-react"
+import { CalendarDays, Package, ClipboardList, AlertTriangle } from "lucide-react"
 import { useAuth } from "../contexts/AuthContext"
 import { useSupabase } from "../contexts/SupabaseContext"
 import type { Event, Equipment, EquipmentRequest } from "../types"
@@ -15,6 +15,7 @@ const DashboardPage = () => {
   const [events, setEvents] = useState<Event[]>([])
   const [equipment, setEquipment] = useState<Equipment[]>([])
   const [requests, setRequests] = useState<EquipmentRequest[]>([])
+  const [damageReports, setDamageReports] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -92,6 +93,25 @@ const DashboardPage = () => {
           setRequests([])
         }
 
+        // Fetch recent damage reports for equipment owner/admin
+        let damageQuery = supabase
+          .from("damage_reports")
+          .select(`
+            *,
+            equipment(*),
+            reporter:reported_by(*)
+          `)
+          .order("created_at", { ascending: false })
+          .limit(5)
+
+        if (!user?.is_admin) {
+          // Non-admin users only see damage reports for their equipment
+          damageQuery = damageQuery.eq("equipment.owner_id", user?.id)
+        }
+
+        const { data: damageData } = await damageQuery
+
+        setDamageReports(damageData || [])
         setEvents(eventsData || [])
         setEquipment(equipmentData || [])
       } catch (error) {
@@ -102,7 +122,7 @@ const DashboardPage = () => {
     }
 
     fetchDashboardData()
-  }, [supabase])
+  }, [supabase, user])
 
   if (!user) return null
 
@@ -112,6 +132,35 @@ const DashboardPage = () => {
         <h1 className="text-3xl font-bold text-gray-900">Welcome back, {user.name}</h1>
         <p className="text-gray-600 mt-2">Your photography club portal for managing equipment, events, and more.</p>
       </div>
+
+      {/* Damage Reports Alert */}
+      {damageReports.length > 0 && (
+        <div className="mb-8">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+            <div className="flex">
+              <AlertTriangle className="h-5 w-5 text-red-400" />
+              <div className="ml-3">
+                <h3 className="text-sm font-medium text-red-800">Recent Damage Reports</h3>
+                <div className="mt-2 text-sm text-red-700">
+                  <ul className="list-disc list-inside space-y-1">
+                    {damageReports.slice(0, 3).map((report) => (
+                      <li key={report.id}>
+                        <span className="font-medium">{report.equipment?.name}</span> - {report.damage_description}
+                        <span className="text-xs text-red-600 ml-2">
+                          Reported by {report.reporter?.name} on {new Date(report.created_at).toLocaleDateString()}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                  {damageReports.length > 3 && (
+                    <p className="mt-2 text-xs">And {damageReports.length - 3} more damage reports...</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
         <DashboardCard
