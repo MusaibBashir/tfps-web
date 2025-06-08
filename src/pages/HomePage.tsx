@@ -18,7 +18,7 @@ import {
 } from "lucide-react"
 import { useAuth } from "../contexts/AuthContext"
 import { useSupabase } from "../contexts/SupabaseContext"
-import type { Event } from "../types"
+import type { PublicEvent } from "../types"
 
 const HomePage = () => {
   const { user } = useAuth()
@@ -34,35 +34,36 @@ const HomePage = () => {
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitSuccess, setSubmitSuccess] = useState(false)
-  const [upcomingEvents, setUpcomingEvents] = useState<Event[]>([])
+  const [upcomingPublicEvents, setUpcomingPublicEvents] = useState<PublicEvent[]>([])
   const [registering, setRegistering] = useState<string | null>(null)
   const [registerForm, setRegisterForm] = useState({
     name: "",
     email: "",
     phone: "",
+    additional_info: "",
   })
   const [registerSuccess, setRegisterSuccess] = useState<string | null>(null)
   const [registerError, setRegisterError] = useState<string | null>(null)
 
   useEffect(() => {
-    // Fetch upcoming open events
-    const fetchEvents = async () => {
+    // Fetch upcoming public events
+    const fetchPublicEvents = async () => {
       try {
         const { data } = await supabase
-          .from("events")
+          .from("publicevents")
           .select("*")
-          .eq("is_open", true)
+          .eq("is_active", true)
           .gte("start_time", new Date().toISOString())
           .order("start_time")
           .limit(3)
 
-        setUpcomingEvents(data || [])
+        setUpcomingPublicEvents(data || [])
       } catch (error) {
-        console.error("Error fetching events:", error)
+        console.error("Error fetching public events:", error)
       }
     }
 
-    fetchEvents()
+    fetchPublicEvents()
   }, [supabase])
 
   const handleInquirySubmit = async (e: FormEvent) => {
@@ -92,16 +93,30 @@ const HomePage = () => {
     setInquiryForm((prev) => ({ ...prev, [name]: value }))
   }
 
-  const handleRegisterSubmit = async (e: FormEvent, eventId: string) => {
+  const handleRegisterSubmit = async (e: FormEvent, publicEventId: string) => {
     e.preventDefault()
     setRegisterError(null)
 
     try {
-      // In a real app, you would save this to a database
-      // For now, we'll just simulate a successful registration
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+      const { error } = await supabase.from("publicevent_registrations").insert({
+        publicevent_id: publicEventId,
+        name: registerForm.name,
+        email: registerForm.email,
+        phone: registerForm.phone || null,
+        additional_info: registerForm.additional_info || null,
+      })
 
-      setRegisterSuccess(eventId)
+      if (error) {
+        if (error.code === "23505") {
+          // Unique constraint violation
+          setRegisterError("You have already registered for this event.")
+        } else {
+          throw error
+        }
+        return
+      }
+
+      setRegisterSuccess(publicEventId)
       setRegistering(null)
 
       // Reset form
@@ -109,12 +124,13 @@ const HomePage = () => {
         name: "",
         email: "",
         phone: "",
+        additional_info: "",
       })
 
       // Clear success message after 3 seconds
       setTimeout(() => setRegisterSuccess(null), 3000)
     } catch (error) {
-      console.error("Error registering for event:", error)
+      console.error("Error registering for public event:", error)
       setRegisterError("Failed to register for event. Please try again.")
     }
   }
@@ -273,64 +289,77 @@ const HomePage = () => {
         </div>
       </section>
 
-      {/* Upcoming Events Section */}
+      {/* Upcoming Public Events Section */}
       <section className="py-16 bg-gray-50">
         <div className="container mx-auto px-4">
           <div className="text-center mb-12">
             <h3 className="text-3xl font-bold text-gray-900 mb-4">Upcoming Events</h3>
             <p className="text-gray-600 max-w-2xl mx-auto">
-              Join our upcoming events and workshops. Open events are available for everyone to participate.
+              Join our upcoming public events and workshops. These events are open for everyone to participate.
             </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {upcomingEvents.length > 0 ? (
-              upcomingEvents.map((event) => (
-                <div key={event.id} className="bg-white rounded-lg shadow-md overflow-hidden">
+            {upcomingPublicEvents.length > 0 ? (
+              upcomingPublicEvents.map((publicEvent) => (
+                <div key={publicEvent.id} className="bg-white rounded-lg shadow-md overflow-hidden">
                   <div className="p-6">
                     <div className="flex justify-between items-start">
                       <div>
-                        <h4 className="text-xl font-semibold text-gray-900">{event.title}</h4>
+                        <h4 className="text-xl font-semibold text-gray-900">{publicEvent.title}</h4>
                         <p className="text-sm text-gray-500 mt-1">
-                          {new Date(event.start_time).toLocaleDateString()} at{" "}
-                          {new Date(event.start_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                          {new Date(publicEvent.start_time).toLocaleDateString()} at{" "}
+                          {new Date(publicEvent.start_time).toLocaleTimeString([], {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
                         </p>
                       </div>
                       <span
                         className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          event.event_type === "shoot"
+                          publicEvent.event_type === "workshop"
                             ? "bg-blue-100 text-blue-800"
-                            : event.event_type === "screening"
+                            : publicEvent.event_type === "screening"
                               ? "bg-purple-100 text-purple-800"
-                              : "bg-gray-100 text-gray-800"
+                              : publicEvent.event_type === "exhibition"
+                                ? "bg-green-100 text-green-800"
+                                : publicEvent.event_type === "competition"
+                                  ? "bg-orange-100 text-orange-800"
+                                  : "bg-gray-100 text-gray-800"
                         }`}
                       >
-                        {event.event_type.charAt(0).toUpperCase() + event.event_type.slice(1)}
+                        {publicEvent.event_type.charAt(0).toUpperCase() + publicEvent.event_type.slice(1)}
                       </span>
                     </div>
 
-                    {event.location && (
+                    {publicEvent.location && (
                       <div className="flex items-center mt-3 text-sm text-gray-500">
                         <MapPin className="h-4 w-4 mr-1" />
-                        {event.location}
+                        {publicEvent.location}
                       </div>
                     )}
 
-                    {event.description && <p className="mt-4 text-sm text-gray-600">{event.description}</p>}
+                    {publicEvent.description && <p className="mt-4 text-sm text-gray-600">{publicEvent.description}</p>}
+
+                    {publicEvent.max_participants && (
+                      <p className="mt-2 text-xs text-gray-500">
+                        Limited to {publicEvent.max_participants} participants
+                      </p>
+                    )}
 
                     <div className="mt-6">
-                      {registerSuccess === event.id ? (
+                      {registerSuccess === publicEvent.id ? (
                         <div className="bg-green-50 border border-green-200 rounded-lg p-3">
                           <p className="text-sm text-green-800">
                             Registration successful! We'll contact you with more details.
                           </p>
                         </div>
-                      ) : registering === event.id ? (
-                        <form onSubmit={(e) => handleRegisterSubmit(e, event.id)} className="space-y-3">
+                      ) : registering === publicEvent.id ? (
+                        <form onSubmit={(e) => handleRegisterSubmit(e, publicEvent.id)} className="space-y-3">
                           <div>
                             <input
                               type="text"
-                              placeholder="Your Name"
+                              placeholder="Your Name *"
                               className="input text-sm"
                               value={registerForm.name}
                               onChange={(e) => setRegisterForm({ ...registerForm, name: e.target.value })}
@@ -340,7 +369,7 @@ const HomePage = () => {
                           <div>
                             <input
                               type="email"
-                              placeholder="Your Email"
+                              placeholder="Your Email *"
                               className="input text-sm"
                               value={registerForm.email}
                               onChange={(e) => setRegisterForm({ ...registerForm, email: e.target.value })}
@@ -356,6 +385,15 @@ const HomePage = () => {
                               onChange={(e) => setRegisterForm({ ...registerForm, phone: e.target.value })}
                             />
                           </div>
+                          <div>
+                            <textarea
+                              placeholder="Additional information (Optional)"
+                              className="input text-sm"
+                              rows={2}
+                              value={registerForm.additional_info}
+                              onChange={(e) => setRegisterForm({ ...registerForm, additional_info: e.target.value })}
+                            />
+                          </div>
                           {registerError && <p className="text-xs text-red-600">{registerError}</p>}
                           <div className="flex gap-2">
                             <button type="submit" className="btn btn-primary text-sm py-1 px-3 flex-1">
@@ -363,7 +401,10 @@ const HomePage = () => {
                             </button>
                             <button
                               type="button"
-                              onClick={() => setRegistering(null)}
+                              onClick={() => {
+                                setRegistering(null)
+                                setRegisterError(null)
+                              }}
                               className="btn btn-outline text-sm py-1 px-3"
                             >
                               Cancel
@@ -371,8 +412,17 @@ const HomePage = () => {
                           </div>
                         </form>
                       ) : (
-                        <button onClick={() => setRegistering(event.id)} className="btn btn-primary w-full">
-                          Register for Event
+                        <button
+                          onClick={() => setRegistering(publicEvent.id)}
+                          className="btn btn-primary w-full"
+                          disabled={
+                            publicEvent.registration_deadline &&
+                            new Date() > new Date(publicEvent.registration_deadline)
+                          }
+                        >
+                          {publicEvent.registration_deadline && new Date() > new Date(publicEvent.registration_deadline)
+                            ? "Registration Closed"
+                            : "Register for Event"}
                         </button>
                       )}
                     </div>
