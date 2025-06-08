@@ -17,7 +17,7 @@ import {
 import { useSupabase } from "../contexts/SupabaseContext"
 import { useAuth } from "../contexts/AuthContext"
 import type { EquipmentRequest } from "../types"
-import { format, parseISO } from "date-fns"
+import { formatToIST } from "../utils/timezone"
 
 const RequestsPage = () => {
   const { supabase } = useSupabase()
@@ -38,7 +38,6 @@ const RequestsPage = () => {
   const [damageNotes, setDamageNotes] = useState("")
   const [equipmentInPossession, setEquipmentInPossession] = useState<any[]>([])
   const [showOtherUsers, setShowOtherUsers] = useState(false)
-  const [customUserSearch, setCustomUserSearch] = useState("")
 
   useEffect(() => {
     const fetchRequests = async () => {
@@ -211,9 +210,6 @@ const RequestsPage = () => {
         checkout_time: new Date().toISOString(),
         expected_return_time: request.end_time,
       })
-
-      // DO NOT automatically forward non-conflicting requests
-      // They should remain as pending for the owner/admin to approve separately
 
       // Refresh requests
       await refreshRequests()
@@ -694,11 +690,11 @@ const RequestsPage = () => {
                   <div>
                     <span className="font-medium text-gray-900">{log.equipment?.name}</span>
                     <span className="text-sm text-gray-500 ml-2">
-                      Since {format(parseISO(log.checkout_time), "MMM d, yyyy HH:mm")}
+                      Since {formatToIST(log.checkout_time, "MMM d, yyyy HH:mm")}
                     </span>
                     {log.expected_return_time && (
                       <span className="text-xs text-gray-400 ml-2">
-                        Expected return: {format(parseISO(log.expected_return_time), "MMM d, HH:mm")}
+                        Expected return: {formatToIST(log.expected_return_time, "MMM d, HH:mm")}
                       </span>
                     )}
                   </div>
@@ -850,8 +846,8 @@ const RequestsPage = () => {
                           {request.start_time && request.end_time && (
                             <span className="ml-2 text-xs text-gray-400">
                               <Clock className="inline h-3 w-3 mr-1" />
-                              {format(parseISO(request.start_time), "MMM d, HH:mm")} -{" "}
-                              {format(parseISO(request.end_time), "HH:mm")}
+                              {formatToIST(request.start_time, "MMM d, HH:mm")} -{" "}
+                              {formatToIST(request.end_time, "HH:mm")}
                             </span>
                           )}
                         </div>
@@ -903,7 +899,7 @@ const RequestsPage = () => {
                           clipRule="evenodd"
                         />
                       </svg>
-                      {format(parseISO(request.created_at), "MMM d, yyyy")}
+                      {formatToIST(request.created_at, "MMM d, yyyy")}
                     </div>
                   </div>
 
