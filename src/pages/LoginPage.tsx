@@ -1,35 +1,37 @@
-import { useState, FormEvent } from 'react';
-import { Camera } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
+"use client"
+
+import { useState, type FormEvent } from "react"
+import { Camera } from "lucide-react"
+import { useNavigate } from "react-router-dom"
+import { useAuth } from "../contexts/AuthContext"
 
 const LoginPage = () => {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const { login } = useAuth();
-  const navigate = useNavigate();
+  const [username, setUsername] = useState("")
+  const [password, setPassword] = useState("")
+  const [error, setError] = useState<string | null>(null)
+  const [isLoading, setIsLoading] = useState(false)
+  const { login } = useAuth()
+  const navigate = useNavigate()
 
   const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault();
-    setError(null);
-    setIsLoading(true);
-    
+    e.preventDefault()
+    setError(null)
+    setIsLoading(true)
+
     try {
-      const { error } = await login(username, password);
+      const { error } = await login(username, password)
       if (error) {
-        setError(error);
+        setError(error)
       } else {
-        navigate('/');
+        navigate("/dashboard") // Changed from '/' to '/dashboard'
       }
     } catch (err) {
-      setError('An unexpected error occurred');
-      console.error(err);
+      setError("An unexpected error occurred")
+      console.error(err)
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
-  };
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
@@ -40,12 +42,8 @@ const LoginPage = () => {
               <Camera className="h-10 w-10 text-white" />
             </div>
           </div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            TFPS
-          </h2>
-          <p className="mt-2 text-center text-sm text-gray-600">
-            Technology Film and Photography Society
-          </p>
+          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">TFPS</h2>
+          <p className="mt-2 text-center text-sm text-gray-600">Technology Film and Photography Society</p>
         </div>
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           <div className="rounded-md shadow-sm -space-y-px">
@@ -106,7 +104,7 @@ const LoginPage = () => {
         </form>
       </div>
     </div>
-  );
-};
+  )
+}
 
 export default LoginPage
