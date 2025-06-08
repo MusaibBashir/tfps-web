@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, type FormEvent } from "react"
-import { User, Lock, Camera, Save, AlertCircle } from "lucide-react"
+import { User, Lock, Camera, Save, AlertCircle, Film, Instagram, ExternalLink } from "lucide-react"
 import { useAuth } from "../contexts/AuthContext"
 import { useSupabase } from "../contexts/SupabaseContext"
 import type { Equipment } from "../types"
@@ -22,6 +22,9 @@ const ProfilePage = () => {
     hostel: user?.hostel || "",
     year: user?.year || 1,
     domain: user?.domain || "Photography",
+    favorite_movie: user?.favorite_movie || "",
+    instagram_link: user?.instagram_link || "",
+    letterboxd_link: user?.letterboxd_link || "",
   })
 
   // Password form state
@@ -49,6 +52,9 @@ const ProfilePage = () => {
         hostel: user.hostel,
         year: user.year,
         domain: user.domain,
+        favorite_movie: user.favorite_movie || "",
+        instagram_link: user.instagram_link || "",
+        letterboxd_link: user.letterboxd_link || "",
       })
       fetchUserEquipment()
     }
@@ -94,6 +100,20 @@ const ProfilePage = () => {
         }
       }
 
+      // Validate Instagram link format if provided
+      if (profileForm.instagram_link && !profileForm.instagram_link.includes("instagram.com")) {
+        if (!profileForm.instagram_link.startsWith("http")) {
+          profileForm.instagram_link = `https://instagram.com/${profileForm.instagram_link.replace("@", "")}`
+        }
+      }
+
+      // Validate Letterboxd link format if provided
+      if (profileForm.letterboxd_link && !profileForm.letterboxd_link.includes("letterboxd.com")) {
+        if (!profileForm.letterboxd_link.startsWith("http")) {
+          profileForm.letterboxd_link = `https://letterboxd.com/${profileForm.letterboxd_link}`
+        }
+      }
+
       const { error } = await supabase
         .from("users")
         .update({
@@ -102,6 +122,9 @@ const ProfilePage = () => {
           hostel: profileForm.hostel,
           year: profileForm.year,
           domain: profileForm.domain,
+          favorite_movie: profileForm.favorite_movie || null,
+          instagram_link: profileForm.instagram_link || null,
+          letterboxd_link: profileForm.letterboxd_link || null,
         })
         .eq("id", user?.id)
 
@@ -369,7 +392,7 @@ const ProfilePage = () => {
                     <option value={5}>5th Year</option>
                   </select>
                 </div>
-                <div className="sm:col-span-2">
+                <div>
                   <label htmlFor="domain" className="block text-sm font-medium text-gray-700 mb-1">
                     Domain
                   </label>
@@ -388,7 +411,64 @@ const ProfilePage = () => {
                     <option value="Other">Other</option>
                   </select>
                 </div>
+                <div>
+                  <label htmlFor="favorite_movie" className="block text-sm font-medium text-gray-700 mb-1">
+                    Favorite Movie
+                  </label>
+                  <div className="flex items-center">
+                    <Film className="h-4 w-4 text-gray-400 mr-2" />
+                    <input
+                      type="text"
+                      id="favorite_movie"
+                      className="input"
+                      value={profileForm.favorite_movie}
+                      onChange={(e) => setProfileForm((prev) => ({ ...prev, favorite_movie: e.target.value }))}
+                      placeholder="e.g., The Godfather"
+                    />
+                  </div>
+                </div>
               </div>
+
+              <div className="border-t border-gray-200 pt-6">
+                <h3 className="text-md font-medium text-gray-900 mb-4">Social Media Links</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  <div>
+                    <label htmlFor="instagram_link" className="block text-sm font-medium text-gray-700 mb-1">
+                      Instagram Profile
+                    </label>
+                    <div className="flex items-center">
+                      <Instagram className="h-4 w-4 text-pink-500 mr-2" />
+                      <input
+                        type="text"
+                        id="instagram_link"
+                        className="input"
+                        value={profileForm.instagram_link}
+                        onChange={(e) => setProfileForm((prev) => ({ ...prev, instagram_link: e.target.value }))}
+                        placeholder="@username or full URL"
+                      />
+                    </div>
+                    <p className="mt-1 text-xs text-gray-500">Enter your Instagram username or full profile URL</p>
+                  </div>
+                  <div>
+                    <label htmlFor="letterboxd_link" className="block text-sm font-medium text-gray-700 mb-1">
+                      Letterboxd Profile
+                    </label>
+                    <div className="flex items-center">
+                      <ExternalLink className="h-4 w-4 text-green-600 mr-2" />
+                      <input
+                        type="text"
+                        id="letterboxd_link"
+                        className="input"
+                        value={profileForm.letterboxd_link}
+                        onChange={(e) => setProfileForm((prev) => ({ ...prev, letterboxd_link: e.target.value }))}
+                        placeholder="username or full URL"
+                      />
+                    </div>
+                    <p className="mt-1 text-xs text-gray-500">Enter your Letterboxd username or full profile URL</p>
+                  </div>
+                </div>
+              </div>
+
               <div className="flex justify-end">
                 <button type="submit" disabled={loading} className="btn btn-primary flex items-center">
                   <Save className="mr-2 h-4 w-4" />
@@ -579,8 +659,8 @@ const ProfilePage = () => {
                           {item.name}
                         </td>
                         <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                          {item.type.charAt(0).toUpperCase() + item.type.slice(1)}
-                          {item.subtype && ` - ${item.subtype}`}
+                          {item.type}
+                          {item.subtype && <span className="text-xs text-gray-400 ml-1">({item.subtype})</span>}
                         </td>
                         <td className="whitespace-nowrap px-3 py-4 text-sm">
                           <span
@@ -592,8 +672,11 @@ const ProfilePage = () => {
                                   : "bg-red-100 text-red-800"
                             }`}
                           >
-                            {item.status.replace("_", " ").charAt(0).toUpperCase() +
-                              item.status.replace("_", " ").slice(1)}
+                            {item.status === "available"
+                              ? "Available"
+                              : item.status === "in_use"
+                                ? "In Use"
+                                : "Maintenance"}
                           </span>
                         </td>
                         <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
@@ -612,10 +695,8 @@ const ProfilePage = () => {
             ) : (
               <div className="text-center py-8 bg-gray-50 rounded-lg">
                 <Camera className="mx-auto h-12 w-12 text-gray-400" />
-                <h3 className="mt-2 text-sm font-medium text-gray-900">No equipment</h3>
-                <p className="mt-1 text-sm text-gray-500">
-                  You haven't added any equipment yet. Use the form above to add your first item.
-                </p>
+                <h3 className="mt-2 text-sm font-medium text-gray-900">No equipment added</h3>
+                <p className="mt-1 text-sm text-gray-500">Add your personal equipment to share with the community.</p>
               </div>
             )}
           </div>
