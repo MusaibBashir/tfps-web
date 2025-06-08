@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect } from "react"
-import { Routes, Route, Navigate, useNavigate } from "react-router-dom"
+import { Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom"
 import { useAuth } from "./contexts/AuthContext"
 import LoginPage from "./pages/LoginPage"
 import DashboardPage from "./pages/DashboardPage"
@@ -19,12 +19,20 @@ import ProfilePage from "./pages/ProfilePage"
 function App() {
   const { user, loading } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
 
   useEffect(() => {
-    if (!loading && !user) {
+    // Only redirect to login if user is trying to access protected routes without authentication
+    if (
+      !loading &&
+      !user &&
+      location.pathname !== "/home" &&
+      location.pathname !== "/login" &&
+      location.pathname !== "/"
+    ) {
       navigate("/login")
     }
-  }, [user, loading, navigate])
+  }, [user, loading, navigate, location.pathname])
 
   if (loading) {
     return (
@@ -36,11 +44,14 @@ function App() {
 
   return (
     <Routes>
+      {/* Public routes */}
+      <Route path="/" element={<HomePage />} />
       <Route path="/home" element={<HomePage />} />
       <Route path="/login" element={<LoginPage />} />
 
+      {/* Protected routes */}
       <Route element={<Layout />}>
-        <Route path="/" element={<DashboardPage />} />
+        <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/members" element={<MembersPage />} />
         <Route path="/members/:id" element={<MemberDetailPage />} />
@@ -51,7 +62,8 @@ function App() {
         <Route path="/admin" element={<AdminPage />} />
       </Route>
 
-      <Route path="*" element={<Navigate to={user ? "/" : "/home"} replace />} />
+      {/* Fallback route */}
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )
 }
