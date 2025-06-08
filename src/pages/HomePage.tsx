@@ -2,13 +2,27 @@
 
 import type React from "react"
 
-import { useState, type FormEvent } from "react"
+import { useState, useEffect, type FormEvent } from "react"
 import { Link, useNavigate } from "react-router-dom"
-import { Camera, Users, Calendar, Package, Mail, Phone, MapPin, ChevronRight } from "lucide-react"
+import {
+  Camera,
+  Users,
+  Calendar,
+  Package,
+  Mail,
+  Phone,
+  MapPin,
+  ChevronRight,
+  Instagram,
+  ExternalLink,
+} from "lucide-react"
 import { useAuth } from "../contexts/AuthContext"
+import { useSupabase } from "../contexts/SupabaseContext"
+import type { Event } from "../types"
 
 const HomePage = () => {
   const { user } = useAuth()
+  const { supabase } = useSupabase()
   const navigate = useNavigate()
   const [inquiryForm, setInquiryForm] = useState({
     name: "",
@@ -20,6 +34,36 @@ const HomePage = () => {
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitSuccess, setSubmitSuccess] = useState(false)
+  const [upcomingEvents, setUpcomingEvents] = useState<Event[]>([])
+  const [registering, setRegistering] = useState<string | null>(null)
+  const [registerForm, setRegisterForm] = useState({
+    name: "",
+    email: "",
+    phone: "",
+  })
+  const [registerSuccess, setRegisterSuccess] = useState<string | null>(null)
+  const [registerError, setRegisterError] = useState<string | null>(null)
+
+  useEffect(() => {
+    // Fetch upcoming open events
+    const fetchEvents = async () => {
+      try {
+        const { data } = await supabase
+          .from("events")
+          .select("*")
+          .eq("is_open", true)
+          .gte("start_time", new Date().toISOString())
+          .order("start_time")
+          .limit(3)
+
+        setUpcomingEvents(data || [])
+      } catch (error) {
+        console.error("Error fetching events:", error)
+      }
+    }
+
+    fetchEvents()
+  }, [supabase])
 
   const handleInquirySubmit = async (e: FormEvent) => {
     e.preventDefault()
@@ -48,11 +92,95 @@ const HomePage = () => {
     setInquiryForm((prev) => ({ ...prev, [name]: value }))
   }
 
+  const handleRegisterSubmit = async (e: FormEvent, eventId: string) => {
+    e.preventDefault()
+    setRegisterError(null)
+
+    try {
+      // In a real app, you would save this to a database
+      // For now, we'll just simulate a successful registration
+      await new Promise((resolve) => setTimeout(resolve, 1000))
+
+      setRegisterSuccess(eventId)
+      setRegistering(null)
+
+      // Reset form
+      setRegisterForm({
+        name: "",
+        email: "",
+        phone: "",
+      })
+
+      // Clear success message after 3 seconds
+      setTimeout(() => setRegisterSuccess(null), 3000)
+    } catch (error) {
+      console.error("Error registering for event:", error)
+      setRegisterError("Failed to register for event. Please try again.")
+    }
+  }
+
   // If user is logged in, redirect to dashboard
   if (user) {
     navigate("/")
     return null
   }
+
+  // Sample recent works data
+  const recentWorks = [
+    {
+      id: 1,
+      title: "Campus Life Documentary",
+      image: "https://images.unsplash.com/photo-1604122230703-9e7b4b3e6613?w=800&auto=format&fit=crop",
+      category: "Film",
+      description: "A documentary showcasing the vibrant campus life and student activities.",
+    },
+    {
+      id: 2,
+      title: "Annual Photography Exhibition",
+      image: "https://images.unsplash.com/photo-1552168324-d612d77725e3?w=800&auto=format&fit=crop",
+      category: "Photography",
+      description: "Collection of the best photographs from our annual exhibition.",
+    },
+    {
+      id: 3,
+      title: "Nature Through The Lens",
+      image: "https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=800&auto=format&fit=crop",
+      category: "Photography",
+      description: "A series capturing the beauty of nature around our campus.",
+    },
+    {
+      id: 4,
+      title: "Short Film Festival Winners",
+      image: "https://images.unsplash.com/photo-1485846234645-a62644f84728?w=800&auto=format&fit=crop",
+      category: "Film",
+      description: "Award-winning short films from our student film festival.",
+    },
+  ]
+
+  // Sample Instagram posts
+  const instagramPosts = [
+    {
+      id: "post1",
+      image: "https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?w=400&auto=format&fit=crop",
+      caption: "Behind the scenes at our latest shoot! #TFPS #Photography",
+      likes: 124,
+      date: "2 days ago",
+    },
+    {
+      id: "post2",
+      image: "https://images.unsplash.com/photo-1496559249665-c7e2874707ea?w=400&auto=format&fit=crop",
+      caption: "Congratulations to our photography contest winners! #TFPS #Contest",
+      likes: 89,
+      date: "5 days ago",
+    },
+    {
+      id: "post3",
+      image: "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=400&auto=format&fit=crop",
+      caption: "New equipment just arrived! Can't wait to try it out. #TFPS #NewGear",
+      likes: 156,
+      date: "1 week ago",
+    },
+  ]
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -102,6 +230,168 @@ const HomePage = () => {
         </div>
       </section>
 
+      {/* Recent Works Section */}
+      <section className="py-16 bg-white">
+        <div className="container mx-auto px-4">
+          <div className="text-center mb-12">
+            <h3 className="text-3xl font-bold text-gray-900 mb-4">Recent Works</h3>
+            <p className="text-gray-600 max-w-2xl mx-auto">
+              Explore the latest projects and creative works from our talented community members.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {recentWorks.map((work) => (
+              <div key={work.id} className="bg-white rounded-lg shadow-md overflow-hidden group">
+                <div className="h-48 overflow-hidden">
+                  <img
+                    src={work.image || "/placeholder.svg"}
+                    alt={work.title}
+                    className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                  />
+                </div>
+                <div className="p-4">
+                  <span className="text-xs font-semibold text-primary-600 uppercase tracking-wider">
+                    {work.category}
+                  </span>
+                  <h4 className="text-lg font-semibold text-gray-900 mt-1">{work.title}</h4>
+                  <p className="text-sm text-gray-600 mt-2">{work.description}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="text-center mt-10">
+            <a
+              href="#"
+              className="inline-flex items-center text-primary-600 font-medium hover:text-primary-800 transition-colors"
+            >
+              View All Works
+              <ChevronRight className="ml-1 h-4 w-4" />
+            </a>
+          </div>
+        </div>
+      </section>
+
+      {/* Upcoming Events Section */}
+      <section className="py-16 bg-gray-50">
+        <div className="container mx-auto px-4">
+          <div className="text-center mb-12">
+            <h3 className="text-3xl font-bold text-gray-900 mb-4">Upcoming Events</h3>
+            <p className="text-gray-600 max-w-2xl mx-auto">
+              Join our upcoming events and workshops. Open events are available for everyone to participate.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {upcomingEvents.length > 0 ? (
+              upcomingEvents.map((event) => (
+                <div key={event.id} className="bg-white rounded-lg shadow-md overflow-hidden">
+                  <div className="p-6">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h4 className="text-xl font-semibold text-gray-900">{event.title}</h4>
+                        <p className="text-sm text-gray-500 mt-1">
+                          {new Date(event.start_time).toLocaleDateString()} at{" "}
+                          {new Date(event.start_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                        </p>
+                      </div>
+                      <span
+                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          event.event_type === "shoot"
+                            ? "bg-blue-100 text-blue-800"
+                            : event.event_type === "screening"
+                              ? "bg-purple-100 text-purple-800"
+                              : "bg-gray-100 text-gray-800"
+                        }`}
+                      >
+                        {event.event_type.charAt(0).toUpperCase() + event.event_type.slice(1)}
+                      </span>
+                    </div>
+
+                    {event.location && (
+                      <div className="flex items-center mt-3 text-sm text-gray-500">
+                        <MapPin className="h-4 w-4 mr-1" />
+                        {event.location}
+                      </div>
+                    )}
+
+                    {event.description && <p className="mt-4 text-sm text-gray-600">{event.description}</p>}
+
+                    <div className="mt-6">
+                      {registerSuccess === event.id ? (
+                        <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                          <p className="text-sm text-green-800">
+                            Registration successful! We'll contact you with more details.
+                          </p>
+                        </div>
+                      ) : registering === event.id ? (
+                        <form onSubmit={(e) => handleRegisterSubmit(e, event.id)} className="space-y-3">
+                          <div>
+                            <input
+                              type="text"
+                              placeholder="Your Name"
+                              className="input text-sm"
+                              value={registerForm.name}
+                              onChange={(e) => setRegisterForm({ ...registerForm, name: e.target.value })}
+                              required
+                            />
+                          </div>
+                          <div>
+                            <input
+                              type="email"
+                              placeholder="Your Email"
+                              className="input text-sm"
+                              value={registerForm.email}
+                              onChange={(e) => setRegisterForm({ ...registerForm, email: e.target.value })}
+                              required
+                            />
+                          </div>
+                          <div>
+                            <input
+                              type="tel"
+                              placeholder="Your Phone (Optional)"
+                              className="input text-sm"
+                              value={registerForm.phone}
+                              onChange={(e) => setRegisterForm({ ...registerForm, phone: e.target.value })}
+                            />
+                          </div>
+                          {registerError && <p className="text-xs text-red-600">{registerError}</p>}
+                          <div className="flex gap-2">
+                            <button type="submit" className="btn btn-primary text-sm py-1 px-3 flex-1">
+                              Register
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setRegistering(null)}
+                              className="btn btn-outline text-sm py-1 px-3"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </form>
+                      ) : (
+                        <button onClick={() => setRegistering(event.id)} className="btn btn-primary w-full">
+                          Register for Event
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="col-span-1 md:col-span-3 text-center py-12">
+                <Calendar className="h-12 w-12 text-gray-400 mx-auto" />
+                <h4 className="mt-4 text-lg font-medium text-gray-900">No upcoming events</h4>
+                <p className="mt-2 text-gray-500">
+                  Check back later for new events or contact us for more information.
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      </section>
+
       {/* Features Section */}
       <section id="about" className="py-16 bg-white">
         <div className="container mx-auto px-4">
@@ -134,6 +424,56 @@ const HomePage = () => {
               title="Project Management"
               description="Organize and manage your creative projects with our integrated tools."
             />
+          </div>
+        </div>
+      </section>
+
+      {/* Instagram Feed Section */}
+      <section className="py-16 bg-gray-50">
+        <div className="container mx-auto px-4">
+          <div className="text-center mb-12">
+            <h3 className="text-3xl font-bold text-gray-900 mb-4">Follow Us on Instagram</h3>
+            <p className="text-gray-600 max-w-2xl mx-auto">
+              Stay updated with our latest activities, events, and creative works.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {instagramPosts.map((post) => (
+              <div key={post.id} className="bg-white rounded-lg shadow-md overflow-hidden">
+                <div className="h-64 overflow-hidden">
+                  <img
+                    src={post.image || "/placeholder.svg"}
+                    alt="Instagram post"
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+                <div className="p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center">
+                      <Instagram className="h-4 w-4 text-pink-600 mr-1" />
+                      <span className="text-xs font-medium text-gray-900">@tfps_official</span>
+                    </div>
+                    <span className="text-xs text-gray-500">{post.date}</span>
+                  </div>
+                  <p className="text-sm text-gray-600">{post.caption}</p>
+                  <div className="mt-3 text-xs text-gray-500">{post.likes} likes</div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="text-center mt-10">
+            <a
+              href="https://instagram.com/tfps_official"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center text-pink-600 font-medium hover:text-pink-800 transition-colors"
+            >
+              <Instagram className="mr-2 h-5 w-5" />
+              Follow us on Instagram
+              <ExternalLink className="ml-1 h-3 w-3" />
+            </a>
           </div>
         </div>
       </section>
@@ -388,6 +728,26 @@ const HomePage = () => {
                 <div>Email: contact@tfps.edu</div>
                 <div>Phone: +91 98765 43210</div>
                 <div>Location: Student Activity Center</div>
+              </div>
+              <div className="mt-4 flex space-x-4">
+                <a href="#" className="text-gray-400 hover:text-white">
+                  <Instagram className="h-5 w-5" />
+                </a>
+                <a href="#" className="text-gray-400 hover:text-white">
+                  <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M22.675 0h-21.35c-.732 0-1.325.593-1.325 1.325v21.351c0 .731.593 1.324 1.325 1.324h11.495v-9.294h-3.128v-3.622h3.128v-2.671c0-3.1 1.893-4.788 4.659-4.788 1.325 0 2.463.099 2.795.143v3.24l-1.918.001c-1.504 0-1.795.715-1.795 1.763v2.313h3.587l-.467 3.622h-3.12v9.293h6.116c.73 0 1.323-.593 1.323-1.325v-21.35c0-.732-.593-1.325-1.325-1.325z" />
+                  </svg>
+                </a>
+                <a href="#" className="text-gray-400 hover:text-white">
+                  <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M23.953 4.57a10 10 0 01-2.825.775 4.958 4.958 0 002.163-2.723 10.054 10.054 0 01-3.127 1.195 4.92 4.92 0 00-8.384 4.482C7.69 8.095 4.067 6.13 1.64 3.162a4.822 4.822 0 00-.666 2.475c0 1.71.87 3.213 2.188 4.096a4.904 4.904 0 01-2.228-.616v.06a4.923 4.923 0 003.946 4.827 4.996 4.996 0 01-2.212.085 4.936 4.936 0 004.604 3.417 9.867 9.867 0 01-6.102 2.105c-.39 0-.779-.023-1.17-.067a13.995 13.995 0 007.557 2.209c9.053 0 13.998-7.496 13.998-13.985 0-.21 0-.42-.015-.63A9.935 9.935 0 0024 4.59z" />
+                  </svg>
+                </a>
+                <a href="#" className="text-gray-400 hover:text-white">
+                  <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M12 0c-6.627 0-12 5.373-12 12s5.373 12 12 12 12-5.373 12-12-5.373-12-12-12zm-2 16h-2v-6h2v6zm-1-6.891c-.607 0-1.1-.496-1.1-1.109 0-.612.492-1.109 1.1-1.109s1.1.497 1.1 1.109c0 .613-.493 1.109-1.1 1.109zm8 6.891h-1.998v-2.861c0-1.881-2.002-1.722-2.002 0v2.861h-2v-6h2v1.093c.872-1.616 4-1.736 4 1.548v3.359z" />
+                  </svg>
+                </a>
               </div>
             </div>
           </div>
