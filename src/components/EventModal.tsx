@@ -6,7 +6,8 @@ import { useState, useEffect } from "react"
 import { X, Package, Users, UserPlus } from "lucide-react"
 import { useSupabase } from "../contexts/SupabaseContext"
 import type { Event, Equipment, EventParticipant } from "../types"
-import { format, parseISO } from "date-fns"
+import { formatToIST, convertLocalToUTC, convertUTCToLocal, getCurrentIST } from "../utils/timezone"
+import { format } from "date-fns"
 
 interface EventModalProps {
   event: Event | null
@@ -16,28 +17,6 @@ interface EventModalProps {
   isCreating: boolean
   currentUserId: string
   isAdmin: boolean
-}
-
-// Helper function to convert IST datetime string to local date/time inputs
-const parseISTDateTime = (isoString: string) => {
-  // Parse the ISO string and treat it as IST
-  const date = new Date(isoString)
-  
-  // Create a new date object that represents the IST time as local time
-  // This prevents timezone conversion
-  const istDate = new Date(date.getTime() + (date.getTimezoneOffset() * 60000))
-  
-  return {
-    date: format(istDate, "yyyy-MM-dd"),
-    time: format(istDate, "HH:mm")
-  }
-}
-
-// Helper function to create IST datetime string from local date/time inputs
-const createISTDateTime = (dateStr: string, timeStr: string) => {
-  // Create datetime string in IST format
-  // This treats the input as IST time directly
-  return `${dateStr}T${timeStr}:00+05:30`
 }
 
 const EventModal: React.FC<EventModalProps> = ({
@@ -78,9 +57,9 @@ const EventModal: React.FC<EventModalProps> = ({
       setIsEventOpen(event.is_open || false)
       setMaxParticipants(event.max_participants)
 
-      // Parse IST datetime strings
-      const startDateTime = parseISTDateTime(event.start_time)
-      const endDateTime = parseISTDateTime(event.end_time)
+      // Convert UTC times to IST for form inputs
+      const startDateTime = convertUTCToLocal(event.start_time)
+      const endDateTime = convertUTCToLocal(event.end_time)
 
       setStartDate(startDateTime.date)
       setStartTime(startDateTime.time)
@@ -90,10 +69,10 @@ const EventModal: React.FC<EventModalProps> = ({
       // Fetch participants for existing event
       fetchParticipants(event.id)
     } else {
-      // Default values for new event
-      const now = new Date()
+      // Default values for new event - use current IST time
+      const now = getCurrentIST()
       const endTime = new Date(now.getTime() + 2 * 60 * 60 * 1000) // Add 2 hours
-      
+
       setTitle("")
       setDescription("")
       setLocation("")
@@ -160,9 +139,9 @@ const EventModal: React.FC<EventModalProps> = ({
     setError(null)
 
     try {
-      // Create IST datetime strings
-      const startDateTime = createISTDateTime(startDate, startTime)
-      const endDateTime = createISTDateTime(endDate, endTime)
+      // Convert IST datetime inputs to UTC for storage
+      const startDateTime = convertLocalToUTC(startDate, startTime)
+      const endDateTime = convertLocalToUTC(endDate, endTime)
 
       const eventData = {
         title,
@@ -471,7 +450,7 @@ const EventModal: React.FC<EventModalProps> = ({
                           <span className="ml-2 px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full">Creator</span>
                         )}
                       </div>
-                      <span className="text-gray-500">{format(parseISO(participant.joined_at), "MMM d")}</span>
+                      <span className="text-gray-500">{formatToIST(participant.joined_at, "MMM d")}</span>
                     </div>
                   ))}
                 </div>
