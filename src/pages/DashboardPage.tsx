@@ -4,9 +4,11 @@ import type React from "react"
 
 import { useState, useEffect } from "react"
 import { Link } from "react-router-dom"
-import { Users, Calendar, Package, ClipboardList, TrendingUp, Clock, CheckCircle, AlertCircle } from "lucide-react"
+import { Users, Calendar, Package, ClipboardList, MapPin, Clock, UserPlus, Edit3 } from "lucide-react"
 import { useAuth } from "../contexts/AuthContext"
 import { useSupabase } from "../contexts/SupabaseContext"
+import type { Event } from "../types"
+import { formatToIST, formatDateToIST } from "../utils/timezone"
 
 const DashboardPage = () => {
   const { user } = useAuth()
@@ -19,6 +21,7 @@ const DashboardPage = () => {
     myActiveRequests: 0,
     myPendingRequests: 0,
   })
+  const [upcomingEvents, setUpcomingEvents] = useState<Event[]>([])
   const [recentActivity, setRecentActivity] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -50,6 +53,20 @@ const DashboardPage = () => {
           .eq("status", "pending"),
       ])
 
+      // Fetch upcoming events with creator info
+      const upcomingEventsResult = await supabase
+        .from("events")
+        .select(
+          `
+          *,
+          creator:created_by (id, name),
+          event_participants (user_id)
+        `,
+        )
+        .gte("start_time", new Date().toISOString())
+        .order("start_time", { ascending: true })
+        .limit(6)
+
       // Fetch recent activity
       const activityResult = await supabase
         .from("equipment_requests")
@@ -72,6 +89,7 @@ const DashboardPage = () => {
         myPendingRequests: myPendingResult.count || 0,
       })
 
+      setUpcomingEvents(upcomingEventsResult.data || [])
       setRecentActivity(activityResult.data || [])
     } catch (error) {
       console.error("Error fetching dashboard data:", error)
@@ -80,14 +98,58 @@ const DashboardPage = () => {
     }
   }
 
+  const handleJoinEvent = async (eventId: string) => {
+    try {
+      const { error } = await supabase.from("event_participants").insert({
+        event_id: eventId,
+        user_id: user?.id,
+      })
+
+      if (error && error.code !== "23505") {
+        // 23505 is unique constraint violation (already joined)
+        throw error
+      }
+
+      // Refresh events to show updated participant count
+      fetchDashboardData()
+    } catch (error) {
+      console.error("Error joining event:", error)
+    }
+  }
+
+  const handleLeaveEvent = async (eventId: string) => {
+    try {
+      const { error } = await supabase
+        .from("event_participants")
+        .delete()
+        .eq("event_id", eventId)
+        .eq("user_id", user?.id)
+
+      if (error) throw error
+
+      // Refresh events to show updated participant count
+      fetchDashboardData()
+    } catch (error) {
+      console.error("Error leaving event:", error)
+    }
+  }
+
+  const isUserJoined = (event: Event) => {
+    return event.event_participants?.some((p: any) => p.user_id === user?.id) || false
+  }
+
+  const canEditEvent = (event: Event) => {
+    return event.created_by === user?.id || user?.is_admin
+  }
+
   const getStatusIcon = (status: string) => {
     switch (status) {
       case "approved":
-        return <CheckCircle size={16} className="text-green-500" />
+        return <div className="w-2 h-2 bg-green-500 rounded-full"></div>
       case "declined":
-        return <AlertCircle size={16} className="text-red-500" />
+        return <div className="w-2 h-2 bg-red-500 rounded-full"></div>
       default:
-        return <Clock size={16} className="text-yellow-500" />
+        return <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
     }
   }
 
@@ -165,93 +227,167 @@ const DashboardPage = () => {
         />
       </div>
 
-      {/* Personal Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-6">
-        <div className="dashboard-card p-4 sm:p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg sm:text-xl font-semibold text-gray-800">My Equipment Status</h3>
-            <TrendingUp size={20} className="text-primary-500" />
-          </div>
-          <div className="space-y-3">
-            <div className="flex justify-between items-center">
-              <span className="text-sm sm:text-base text-gray-600">Active Requests</span>
-              <span className="text-lg sm:text-xl font-bold text-green-600">{stats.myActiveRequests}</span>
+      {/* Main Content Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8">
+        {/* Upcoming Events - Takes 2 columns */}
+        <div className="lg:col-span-2">
+          <div className="dashboard-card p-4 sm:p-6">
+            <div className="flex items-center justify-between mb-4 sm:mb-6">
+              <h3 className="text-lg sm:text-xl font-semibold text-gray-800">Upcoming Events</h3>
+              <Link to="/calendar" className="text-sm text-primary-600 hover:text-primary-800 font-medium">
+                View All →
+              </Link>
             </div>
-            <div className="flex justify-between items-center">
-              <span className="text-sm sm:text-base text-gray-600">Pending Requests</span>
-              <span className="text-lg sm:text-xl font-bold text-yellow-600">{stats.myPendingRequests}</span>
-            </div>
-          </div>
-        </div>
 
-        <div className="dashboard-card p-4 sm:p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg sm:text-xl font-semibold text-gray-800">Quick Actions</h3>
-          </div>
-          <div className="grid grid-cols-2 gap-2 sm:gap-3">
-            <Link
-              to="/equipment"
-              className="btn btn-primary text-xs sm:text-sm py-2 px-3 text-center hover:scale-105 transition-transform"
-            >
-              Browse Equipment
-            </Link>
-            <Link
-              to="/calendar"
-              className="btn btn-secondary text-xs sm:text-sm py-2 px-3 text-center hover:scale-105 transition-transform"
-            >
-              View Calendar
-            </Link>
-            <Link
-              to="/requests"
-              className="btn btn-outline text-xs sm:text-sm py-2 px-3 text-center hover:scale-105 transition-transform"
-            >
-              My Requests
-            </Link>
-            <Link
-              to="/profile"
-              className="btn btn-outline text-xs sm:text-sm py-2 px-3 text-center hover:scale-105 transition-transform"
-            >
-              Edit Profile
-            </Link>
-          </div>
-        </div>
-      </div>
-
-      {/* Recent Activity */}
-      <div className="dashboard-card p-4 sm:p-6">
-        <h3 className="text-lg sm:text-xl font-semibold text-gray-800 mb-4 sm:mb-6">Recent Activity</h3>
-        {recentActivity.length > 0 ? (
-          <div className="space-y-3 sm:space-y-4">
-            {recentActivity.map((activity) => (
-              <div
-                key={activity.id}
-                className="flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
-              >
-                <div className="flex items-start sm:items-center gap-3 mb-2 sm:mb-0">
-                  {getStatusIcon(activity.status)}
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm sm:text-base font-medium text-gray-800 truncate">
-                      {activity.equipment?.name}
-                    </p>
-                    <p className="text-xs sm:text-sm text-gray-600">Requested by {activity.requester?.name}</p>
-                  </div>
-                </div>
-                <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
-                  <span
-                    className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(
-                      activity.status,
-                    )}`}
+            {upcomingEvents.length > 0 ? (
+              <div className="space-y-4">
+                {upcomingEvents.map((event) => (
+                  <div
+                    key={event.id}
+                    className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
                   >
-                    {activity.status.charAt(0).toUpperCase() + activity.status.slice(1)}
-                  </span>
-                  <span className="text-xs text-gray-500">{new Date(activity.created_at).toLocaleDateString()}</span>
-                </div>
+                    <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-2">
+                          <h4 className="font-semibold text-gray-900 truncate">{event.title}</h4>
+                          <span
+                            className={`px-2 py-1 text-xs font-medium rounded-full ${
+                              event.event_type === "shoot"
+                                ? "bg-blue-100 text-blue-800"
+                                : event.event_type === "screening"
+                                  ? "bg-purple-100 text-purple-800"
+                                  : "bg-gray-100 text-gray-800"
+                            }`}
+                          >
+                            {event.event_type}
+                          </span>
+                        </div>
+
+                        <div className="space-y-1 text-sm text-gray-600">
+                          <div className="flex items-center gap-2">
+                            <Clock size={14} />
+                            <span>
+                              {formatDateToIST(event.start_time, "MMM d, yyyy")} at{" "}
+                              {formatToIST(event.start_time, "h:mm a")}
+                            </span>
+                          </div>
+                          {event.location && (
+                            <div className="flex items-center gap-2">
+                              <MapPin size={14} />
+                              <span>{event.location}</span>
+                            </div>
+                          )}
+                          <div className="flex items-center gap-2">
+                            <Users size={14} />
+                            <span>
+                              {event.event_participants?.length || 0} participant
+                              {(event.event_participants?.length || 0) !== 1 ? "s" : ""}
+                            </span>
+                          </div>
+                        </div>
+
+                        {event.description && (
+                          <p className="text-sm text-gray-600 mt-2 line-clamp-2">{event.description}</p>
+                        )}
+                      </div>
+
+                      <div className="flex flex-col gap-2 sm:flex-shrink-0">
+                        {canEditEvent(event) ? (
+                          <Link
+                            to={`/calendar?edit=${event.id}`}
+                            className="btn btn-outline text-xs px-3 py-1 flex items-center gap-1"
+                          >
+                            <Edit3 size={12} />
+                            Edit
+                          </Link>
+                        ) : isUserJoined(event) ? (
+                          <button
+                            onClick={() => handleLeaveEvent(event.id)}
+                            className="btn btn-secondary text-xs px-3 py-1"
+                          >
+                            Leave
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => handleJoinEvent(event.id)}
+                            className="btn btn-primary text-xs px-3 py-1 flex items-center gap-1"
+                          >
+                            <UserPlus size={12} />
+                            Join
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
+            ) : (
+              <div className="text-center py-8">
+                <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <h4 className="text-lg font-medium text-gray-900 mb-2">No upcoming events</h4>
+                <p className="text-gray-600 mb-4">There are no events scheduled in the near future.</p>
+                <Link to="/calendar" className="btn btn-primary">
+                  Create Event
+                </Link>
+              </div>
+            )}
           </div>
-        ) : (
-          <p className="text-gray-500 text-center py-8 text-sm sm:text-base">No recent activity</p>
-        )}
+        </div>
+
+        {/* My Status - Takes 1 column */}
+        <div className="space-y-6">
+          {/* Personal Stats */}
+          <div className="dashboard-card p-4 sm:p-6">
+            <h3 className="text-lg font-semibold text-gray-800 mb-4">My Equipment Status</h3>
+            <div className="space-y-3">
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-gray-600">Active Requests</span>
+                <span className="text-lg font-bold text-green-600">{stats.myActiveRequests}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-gray-600">Pending Requests</span>
+                <span className="text-lg font-bold text-yellow-600">{stats.myPendingRequests}</span>
+              </div>
+              <div className="pt-3 border-t">
+                <Link to="/requests" className="btn btn-primary w-full text-sm">
+                  View My Requests
+                </Link>
+              </div>
+            </div>
+          </div>
+
+          {/* Recent Activity */}
+          <div className="dashboard-card p-4 sm:p-6">
+            <h3 className="text-lg font-semibold text-gray-800 mb-4">Recent Activity</h3>
+            {recentActivity.length > 0 ? (
+              <div className="space-y-3">
+                {recentActivity.slice(0, 4).map((activity) => (
+                  <div key={activity.id} className="flex items-start gap-3 p-2 rounded-lg hover:bg-gray-50">
+                    <div className="mt-2">{getStatusIcon(activity.status)}</div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-800 truncate">{activity.equipment?.name}</p>
+                      <p className="text-xs text-gray-600">by {activity.requester?.name}</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span
+                          className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(
+                            activity.status,
+                          )}`}
+                        >
+                          {activity.status}
+                        </span>
+                        <span className="text-xs text-gray-500">
+                          {new Date(activity.created_at).toLocaleDateString()}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-gray-500 text-center py-4 text-sm">No recent activity</p>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   )
