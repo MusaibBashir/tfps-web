@@ -167,20 +167,22 @@ const RequestsPage = () => {
       const request = requests.find((r) => r.id === requestId)
       if (!request) return
 
-      // Check if there's already someone who has the equipment (received status)
+      // Find the current holder (someone with "received" status for this equipment)
       const currentHolderRequest = requests.find(
         (r) => r.equipment_id === request.equipment_id && r.status === "received" && r.id !== requestId,
       )
 
       if (currentHolderRequest) {
         // Equipment is currently with someone - forward the request to them
+        const currentHolderName = currentHolderRequest.requester?.name || "current user"
+
         await supabase
           .from("equipment_requests")
           .update({
             status: "approved",
             approved_by: user?.id,
             forwarded_to: currentHolderRequest.current_holder_id || currentHolderRequest.requester_id,
-            notes: `Approved and forwarded to current holder ${currentHolderRequest.requester?.name || "current user"}. Please coordinate handover.`,
+            notes: `Handover request sent to ${currentHolderName}`,
           })
           .eq("id", requestId)
       } else {
@@ -298,27 +300,21 @@ const RequestsPage = () => {
       options.push({ value: "admin", label: "Return to Admin" })
     }
 
-    // Get OTHER approved requests for this equipment that could receive it next
-    const approvedRequests = requests.filter(
+    // Get OTHER approved requests for this equipment that are forwarded to current user
+    const handoverRequests = requests.filter(
       (r) =>
         r.equipment_id === request.equipment_id &&
         r.status === "approved" &&
-        r.id !== request.id &&
-        r.requester_id !== user?.id,
+        r.forwarded_to === user?.id &&
+        r.id !== request.id,
     )
 
-    const nonConflictingRequests = approvedRequests.filter((approvedReq) => {
-      if (!request.start_time || !request.end_time || !approvedReq.start_time || !approvedReq.end_time) {
-        return true
-      }
-      return new Date(approvedReq.start_time) >= new Date(request.end_time)
-    })
-
-    nonConflictingRequests.forEach((approvedReq) => {
-      if (approvedReq.requester) {
+    handoverRequests.forEach((handoverReq) => {
+      if (handoverReq.requester) {
         options.push({
-          value: approvedReq.requester.id,
-          label: `Transfer to ${approvedReq.requester.name} (Approved Request)`,
+          value: handoverReq.requester.id,
+          label: `Handover to ${handoverReq.requester.name}`,
+          requestId: handoverReq.id,
         })
       }
     })
@@ -334,6 +330,10 @@ const RequestsPage = () => {
 
       const returnTime = new Date().toISOString()
       const finalReturnUser = returnToUser
+
+      // Find the option that was selected
+      const returnOptions = getReturnOptions(request)
+      const selectedOption = returnOptions.find((opt) => opt.value === finalReturnUser)
 
       if (finalReturnUser === request.equipment?.owner_id || finalReturnUser === "admin") {
         // Returning to original owner/admin - complete the cycle
@@ -376,16 +376,17 @@ const RequestsPage = () => {
             .eq("id", logData.id)
         }
 
-        // Auto-close any other approved requests for this equipment
+        // Update any approved/forwarded requests to show "Give equipment" option for owner
         await supabase
           .from("equipment_requests")
           .update({
-            status: "returned",
-            returned_time: returnTime,
-            notes: `Auto-closed: Equipment returned to owner by ${user?.name}`,
+            status: "approved",
+            forwarded_to: null,
+            notes: `Equipment returned to owner. Ready to give to requester.`,
           })
           .eq("equipment_id", request.equipment_id)
           .eq("status", "approved")
+          .not("forwarded_to", "is", null)
           .neq("id", requestId)
 
         // Create damage report if damaged
@@ -397,31 +398,32 @@ const RequestsPage = () => {
             severity: "moderate",
           })
         }
-      } else {
-        // Transferring to another user with approved request
+      } else if (selectedOption && selectedOption.requestId) {
+        // Handover to another user with approved request
         const newHolderId = finalReturnUser
+        const handoverRequestId = selectedOption.requestId
 
-        // Update current request to returned
+        // Update current request to returned with handover note
         await supabase
           .from("equipment_requests")
           .update({
             status: "returned",
             returned_time: returnTime,
-            notes: `Transferred to ${allUsers.find((u) => u.id === newHolderId)?.name}`,
+            notes: `Handed over to ${allUsers.find((u) => u.id === newHolderId)?.name}`,
           })
           .eq("id", requestId)
 
-        // Update the approved request to received status
+        // Update the handover request to received status
         await supabase
           .from("equipment_requests")
           .update({
             status: "received",
             received_time: returnTime,
             current_holder_id: newHolderId,
+            forwarded_to: null,
+            notes: `Equipment received via handover from ${user?.name}`,
           })
-          .eq("equipment_id", request.equipment_id)
-          .eq("requester_id", newHolderId)
-          .eq("status", "approved")
+          .eq("id", handoverRequestId)
 
         // Create transfer record
         await supabase.from("equipment_transfers").insert({
@@ -429,10 +431,10 @@ const RequestsPage = () => {
           from_user_id: request.current_holder_id || request.requester_id,
           to_user_id: newHolderId,
           transfer_time: returnTime,
-          notes: `Transferred via equipment request system`,
+          notes: `Handover via equipment request system`,
         })
 
-        // Update equipment log for current holder
+        // Update equipment log for current holder (end their usage)
         const { data: logData } = await supabase
           .from("equipment_logs")
           .select("*")
@@ -454,7 +456,7 @@ const RequestsPage = () => {
             .eq("id", logData.id)
         }
 
-        // Create new log for new holder
+        // Create new log for new holder (start their usage)
         await supabase.from("equipment_logs").insert({
           equipment_id: request.equipment_id,
           user_id: newHolderId,
@@ -469,6 +471,49 @@ const RequestsPage = () => {
       await refreshRequests()
     } catch (error) {
       console.error("Error processing return:", error)
+    } finally {
+      setProcessingId(null)
+    }
+  }
+
+  const handleGiveEquipment = async (requestId: string) => {
+    setProcessingId(requestId)
+    try {
+      const request = requests.find((r) => r.id === requestId)
+      if (!request) return
+
+      const giveTime = new Date().toISOString()
+
+      // Update request to received status
+      await supabase
+        .from("equipment_requests")
+        .update({
+          status: "received",
+          received_time: giveTime,
+          current_holder_id: request.requester_id,
+          notes: `Equipment given by owner`,
+        })
+        .eq("id", requestId)
+
+      // Update equipment status to in_use
+      await supabase
+        .from("equipment")
+        .update({
+          status: "in_use",
+        })
+        .eq("id", request.equipment_id)
+
+      // Create equipment log
+      await supabase.from("equipment_logs").insert({
+        equipment_id: request.equipment_id,
+        user_id: request.requester_id,
+        checkout_time: giveTime,
+        expected_return_time: request.end_time,
+      })
+
+      await refreshRequests()
+    } catch (error) {
+      console.error("Error giving equipment:", error)
     } finally {
       setProcessingId(null)
     }
@@ -496,16 +541,17 @@ const RequestsPage = () => {
         })
         .eq("id", equipmentLog.id)
 
-      // Auto-close any approved requests for this equipment
+      // Update any approved/forwarded requests to show "Give equipment" option for owner
       await supabase
         .from("equipment_requests")
         .update({
-          status: "returned",
-          returned_time: returnTime,
-          notes: `Auto-closed: Equipment returned to owner by ${user?.name}`,
+          status: "approved",
+          forwarded_to: null,
+          notes: `Equipment returned to owner. Ready to give to requester.`,
         })
         .eq("equipment_id", equipmentLog.equipment_id)
-        .in("status", ["approved", "received"])
+        .eq("status", "approved")
+        .not("forwarded_to", "is", null)
 
       // Create damage report if damaged
       if (returnCondition === "damaged" && damageNotes) {
@@ -688,7 +734,7 @@ const RequestsPage = () => {
       case "received":
         return (
           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-            Received
+            In Use
           </span>
         )
       case "returned":
@@ -719,77 +765,110 @@ const RequestsPage = () => {
           <h2 className="text-xl font-semibold text-gray-900 mb-4">Equipment in Your Possession</h2>
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
             <div className="space-y-3">
-              {equipmentInPossession.map((log) => (
-                <div key={log.id} className="flex items-center justify-between bg-white p-3 rounded-md">
-                  <div>
-                    <span className="font-medium text-gray-900">{log.equipment?.name}</span>
-                    <span className="text-sm text-gray-500 ml-2">
-                      Since {formatToIST(log.checkout_time, "MMM d, yyyy HH:mm")} IST
-                    </span>
-                    {log.expected_return_time && (
-                      <span className="text-xs text-gray-400 ml-2">
-                        Expected return: {formatToIST(log.expected_return_time, "MMM d, HH:mm")} IST
+              {equipmentInPossession.map((log) => {
+                // Check if there are any handover requests for this equipment
+                const handoverRequests = requests.filter(
+                  (r) => r.equipment_id === log.equipment_id && r.status === "approved" && r.forwarded_to === user?.id,
+                )
+
+                return (
+                  <div key={log.id} className="flex items-center justify-between bg-white p-3 rounded-md">
+                    <div>
+                      <span className="font-medium text-gray-900">{log.equipment?.name}</span>
+                      <span className="text-sm text-gray-500 ml-2">
+                        Since {formatToIST(log.checkout_time, "MMM d, yyyy HH:mm")} IST
                       </span>
-                    )}
-                  </div>
-                  <div className="flex gap-2">
-                    {returningId === `possession-${log.id}` ? (
-                      <div className="flex flex-col gap-2">
-                        <div className="flex items-center gap-2">
-                          <select
-                            className="text-xs border border-gray-300 rounded px-2 py-1"
-                            value={returnCondition}
-                            onChange={(e) => setReturnCondition(e.target.value as "perfect" | "damaged")}
-                          >
-                            <option value="perfect">Perfect Condition</option>
-                            <option value="damaged">Damaged</option>
-                          </select>
+                      {log.expected_return_time && (
+                        <span className="text-xs text-gray-400 ml-2">
+                          Expected return: {formatToIST(log.expected_return_time, "MMM d, HH:mm")} IST
+                        </span>
+                      )}
+                      {handoverRequests.length > 0 && (
+                        <div className="text-xs text-blue-600 mt-1">
+                          {handoverRequests.length} handover request(s) pending
                         </div>
+                      )}
+                    </div>
+                    <div className="flex gap-2">
+                      {returningId === `possession-${log.id}` ? (
+                        <div className="flex flex-col gap-2">
+                          <div className="flex items-center gap-2">
+                            <select
+                              className="text-xs border border-gray-300 rounded px-2 py-1"
+                              value={returnToUser}
+                              onChange={(e) => setReturnToUser(e.target.value)}
+                            >
+                              <option value="">Choose action...</option>
+                              <option value={log.equipment?.owner_id || "admin"}>
+                                Return to {log.equipment?.owner_id ? "Owner" : "Admin"}
+                              </option>
+                              {handoverRequests.map((req) => (
+                                <option key={req.id} value={req.requester_id}>
+                                  Handover to {req.requester?.name}
+                                </option>
+                              ))}
+                            </select>
 
-                        {returnCondition === "damaged" && (
-                          <textarea
-                            className="text-xs border border-gray-300 rounded px-2 py-1 w-full"
-                            placeholder="Describe the damage..."
-                            value={damageNotes}
-                            onChange={(e) => setDamageNotes(e.target.value)}
-                            rows={2}
-                          />
-                        )}
+                            <select
+                              className="text-xs border border-gray-300 rounded px-2 py-1"
+                              value={returnCondition}
+                              onChange={(e) => setReturnCondition(e.target.value as "perfect" | "damaged")}
+                            >
+                              <option value="perfect">Perfect Condition</option>
+                              <option value="damaged">Damaged</option>
+                            </select>
+                          </div>
 
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => handleReturnFromPossession(log)}
-                            disabled={!!processingId || (returnCondition === "damaged" && !damageNotes)}
-                            className="inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50"
-                          >
-                            <ArrowRightLeft className="mr-1 h-3 w-3" />
-                            Return to Owner
-                          </button>
-                          <button
-                            onClick={() => {
-                              setReturningId(null)
-                              setReturnCondition("perfect")
-                              setDamageNotes("")
-                            }}
-                            className="inline-flex items-center px-2.5 py-1.5 border border-gray-300 text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
-                          >
-                            Cancel
-                          </button>
+                          {returnCondition === "damaged" && (
+                            <textarea
+                              className="text-xs border border-gray-300 rounded px-2 py-1 w-full"
+                              placeholder="Describe the damage..."
+                              value={damageNotes}
+                              onChange={(e) => setDamageNotes(e.target.value)}
+                              rows={2}
+                            />
+                          )}
+
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => handleReturnFromPossession(log)}
+                              disabled={
+                                !!processingId || !returnToUser || (returnCondition === "damaged" && !damageNotes)
+                              }
+                              className="inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50"
+                            >
+                              <ArrowRightLeft className="mr-1 h-3 w-3" />
+                              {returnToUser === log.equipment?.owner_id || returnToUser === "admin"
+                                ? "Return"
+                                : "Handover"}
+                            </button>
+                            <button
+                              onClick={() => {
+                                setReturningId(null)
+                                setReturnToUser("")
+                                setReturnCondition("perfect")
+                                setDamageNotes("")
+                              }}
+                              className="inline-flex items-center px-2.5 py-1.5 border border-gray-300 text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+                            >
+                              Cancel
+                            </button>
+                          </div>
                         </div>
-                      </div>
-                    ) : (
-                      <button
-                        onClick={() => setReturningId(`possession-${log.id}`)}
-                        disabled={!!processingId}
-                        className="inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50"
-                      >
-                        <ArrowRightLeft className="mr-1 h-4 w-4" />
-                        Return Equipment
-                      </button>
-                    )}
+                      ) : (
+                        <button
+                          onClick={() => setReturningId(`possession-${log.id}`)}
+                          disabled={!!processingId}
+                          className="inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50"
+                        >
+                          <ArrowRightLeft className="mr-1 h-4 w-4" />
+                          {handoverRequests.length > 0 ? "Return/Handover" : "Return Equipment"}
+                        </button>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           </div>
         </div>
@@ -814,7 +893,7 @@ const RequestsPage = () => {
             <option value="pending">Pending</option>
             <option value="approved">Approved</option>
             <option value="rejected">Rejected</option>
-            <option value="received">Received</option>
+            <option value="received">In Use</option>
             <option value="returned">Returned</option>
           </select>
         </div>
@@ -833,6 +912,13 @@ const RequestsPage = () => {
                 request.status === "received" &&
                 (request.current_holder_id === user?.id || request.requester_id === user?.id) &&
                 returnOptions.length > 0
+
+              // Check if this is an approved request that owner can give equipment to
+              const canGiveEquipment =
+                request.status === "approved" &&
+                !request.forwarded_to &&
+                request.equipment?.owner_id === user?.id &&
+                request.equipment?.status === "available"
 
               return (
                 <li key={request.id}>
@@ -875,7 +961,7 @@ const RequestsPage = () => {
                           </div>
                           {request.current_holder && (
                             <div className="text-xs text-blue-600 mt-1">
-                              Currently with: {request.current_holder?.name}
+                              Equipment in use with: {request.current_holder?.name}
                             </div>
                           )}
                           {request.notes && <div className="text-xs text-gray-500 mt-1">Note: {request.notes}</div>}
@@ -947,6 +1033,18 @@ const RequestsPage = () => {
                             Reject
                           </button>
                         </>
+                      )}
+
+                      {/* Give Equipment button for owner when equipment is available */}
+                      {canGiveEquipment && (
+                        <button
+                          onClick={() => handleGiveEquipment(request.id)}
+                          disabled={!!processingId}
+                          className="inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50"
+                        >
+                          <Package className="mr-1 h-4 w-4" />
+                          Give Equipment
+                        </button>
                       )}
 
                       {/* Forward option for admins on hall equipment */}
@@ -1035,7 +1133,7 @@ const RequestsPage = () => {
                         )}
 
                       {/* Received button for approved requests (requester only) */}
-                      {request.status === "approved" && request.requester_id === user?.id && (
+                      {request.status === "approved" && request.requester_id === user?.id && !request.forwarded_to && (
                         <button
                           onClick={() => handleReceived(request.id)}
                           disabled={!!processingId}
@@ -1057,7 +1155,7 @@ const RequestsPage = () => {
                                   value={returnToUser}
                                   onChange={(e) => setReturnToUser(e.target.value)}
                                 >
-                                  <option value="">Return to...</option>
+                                  <option value="">Choose action...</option>
                                   {returnOptions.map((option) => (
                                     <option key={option.value} value={option.value}>
                                       {option.label}
@@ -1094,7 +1192,9 @@ const RequestsPage = () => {
                                   className="inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50"
                                 >
                                   <ArrowRightLeft className="mr-1 h-3 w-3" />
-                                  Return
+                                  {returnToUser === request.equipment?.owner_id || returnToUser === "admin"
+                                    ? "Return"
+                                    : "Handover"}
                                 </button>
                                 <button
                                   onClick={() => {
@@ -1116,7 +1216,7 @@ const RequestsPage = () => {
                               className="inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50"
                             >
                               <ArrowRightLeft className="mr-1 h-4 w-4" />
-                              Return Equipment
+                              Return/Handover
                             </button>
                           )}
                         </>
