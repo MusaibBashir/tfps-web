@@ -690,11 +690,11 @@ const RequestsPage = () => {
                   <div>
                     <span className="font-medium text-gray-900">{log.equipment?.name}</span>
                     <span className="text-sm text-gray-500 ml-2">
-                      Since {formatToIST(log.checkout_time, "MMM d, yyyy HH:mm")}
+                      Since {formatToIST(log.checkout_time, "MMM d, yyyy HH:mm")} IST
                     </span>
                     {log.expected_return_time && (
                       <span className="text-xs text-gray-400 ml-2">
-                        Expected return: {formatToIST(log.expected_return_time, "MMM d, HH:mm")}
+                        Expected return: {formatToIST(log.expected_return_time, "MMM d, HH:mm")} IST
                       </span>
                     )}
                   </div>
@@ -847,7 +847,7 @@ const RequestsPage = () => {
                             <span className="ml-2 text-xs text-gray-400">
                               <Clock className="inline h-3 w-3 mr-1" />
                               {formatToIST(request.start_time, "MMM d, HH:mm")} -{" "}
-                              {formatToIST(request.end_time, "HH:mm")}
+                              {formatToIST(request.end_time, "HH:mm")} IST
                             </span>
                           )}
                         </div>
@@ -899,7 +899,7 @@ const RequestsPage = () => {
                           clipRule="evenodd"
                         />
                       </svg>
-                      {formatToIST(request.created_at, "MMM d, yyyy")}
+                      {formatToIST(request.created_at, "MMM d, yyyy")} IST
                     </div>
                   </div>
 
