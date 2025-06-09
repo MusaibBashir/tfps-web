@@ -7,6 +7,7 @@ import { X, AlertTriangle, Clock } from "lucide-react"
 import { useSupabase } from "../contexts/SupabaseContext"
 import type { Equipment, User, Event, TimeConflict } from "../types"
 import { format } from "date-fns"
+import { convertUTCToLocal } from "../utils/timezone"
 
 interface RequestEquipmentModalProps {
   equipment: Equipment
@@ -122,10 +123,13 @@ const RequestEquipmentModal: React.FC<RequestEquipmentModalProps> = ({ equipment
     if (selectedEvent) {
       const event = events.find((e) => e.id === selectedEvent)
       if (event) {
-        const startDate = new Date(event.start_time)
-        const endDate = new Date(event.end_time)
-        setStartTime(startDate.toISOString().slice(0, 16))
-        setEndTime(endDate.toISOString().slice(0, 16))
+        // Convert UTC times to IST for display in datetime-local inputs
+        const { date: startDate, time: startTime } = convertUTCToLocal(event.start_time)
+        const { date: endDate, time: endTime } = convertUTCToLocal(event.end_time)
+
+        // Combine date and time for datetime-local input format
+        setStartTime(`${startDate}T${startTime}`)
+        setEndTime(`${endDate}T${endTime}`)
       }
     }
   }, [selectedEvent, events])
