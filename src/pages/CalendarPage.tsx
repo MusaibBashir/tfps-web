@@ -1,14 +1,13 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { startOfMonth, endOfMonth, eachDayOfInterval, getDay, isSameDay, addMonths, subMonths } from "date-fns"
+import { startOfMonth, endOfMonth, eachDayOfInterval, getDay, addMonths, subMonths } from "date-fns"
 import { ChevronLeft, ChevronRight, Plus, Calendar } from "lucide-react"
 import { useSupabase } from "../contexts/SupabaseContext"
 import { useAuth } from "../contexts/AuthContext"
 import type { Event } from "../types"
 import EventModal from "../components/EventModal"
-import { formatToIST, formatDateToIST, getCurrentIST } from "../utils/timezone"
-import { utcToZonedTime } from "date-fns-tz"
+import { formatToIST, formatDateToIST, getCurrentIST, isSameDayIST } from "../utils/timezone"
 
 const CalendarPage = () => {
   const { supabase } = useSupabase()
@@ -56,8 +55,8 @@ const CalendarPage = () => {
   const getEventsForDay = (day: Date) => {
     return events.filter((event) => {
       // Convert UTC event time to IST for comparison
-      const eventDate = utcToZonedTime(new Date(event.start_time), "Asia/Kolkata")
-      return isSameDay(eventDate, day)
+      const eventDate = new Date(event.start_time)
+      return isSameDayIST(eventDate, day)
     })
   }
 

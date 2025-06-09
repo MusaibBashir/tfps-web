@@ -1,222 +1,309 @@
 "use client"
 
 import type React from "react"
-import { useState, useEffect } from "react"
-import { Dialog, Transition } from "@headlessui/react"
-import { Fragment } from "react"
-import { useMutation, useQueryClient } from "react-query"
-import { createEvent, updateEvent } from "../api/events"
-import type { Event } from "../types/Event"
+import { useState, useEffect, type FormEvent } from "react"
+import { X } from "lucide-react"
+import { useSupabase } from "../contexts/SupabaseContext"
+import type { Event } from "../types"
 import { convertLocalToUTC, convertUTCToLocal } from "../utils/timezone"
 
 interface EventModalProps {
+  event: Event | null
   isOpen: boolean
-  setIsOpen: (open: boolean) => void
-  event?: Event
+  onClose: () => void
+  onSave: (savedEvent: Event) => void
+  isCreating: boolean
+  currentUserId: string
+  isAdmin: boolean
 }
 
-const EventModal: React.FC<EventModalProps> = ({ isOpen, setIsOpen, event }) => {
+const EventModal: React.FC<EventModalProps> = ({
+  event,
+  isOpen,
+  onClose,
+  onSave,
+  isCreating,
+  currentUserId,
+  isAdmin,
+}) => {
+  const { supabase } = useSupabase()
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [formData, setFormData] = useState({
     title: "",
     description: "",
+    location: "",
+    event_type: "shoot" as "shoot" | "screening" | "other",
     date: "",
     time: "",
-    location: "",
-    is_public: false,
-  })
-
-  const queryClient = useQueryClient()
-
-  const createEventMutation = useMutation(createEvent, {
-    onSuccess: () => {
-      queryClient.invalidateQueries("events")
-      closeModal()
-    },
-  })
-
-  const updateEventMutation = useMutation(updateEvent, {
-    onSuccess: () => {
-      queryClient.invalidateQueries("events")
-      closeModal()
-    },
+    endDate: "",
+    endTime: "",
   })
 
   useEffect(() => {
     if (event) {
       const { date, time } = convertUTCToLocal(event.start_time)
+      const { date: endDate, time: endTime } = convertUTCToLocal(event.end_time)
+
       setFormData({
         title: event.title,
         description: event.description || "",
+        location: event.location || "",
+        event_type: event.event_type,
         date: date,
         time: time,
-        location: event.location || "",
-        is_public: event.is_public || false,
+        endDate: endDate,
+        endTime: endTime,
       })
     } else {
+      // Set default values for new event
+      const now = new Date()
+      const defaultDate = now.toISOString().split("T")[0]
+      const defaultTime = now.toTimeString().slice(0, 5)
+
       setFormData({
         title: "",
         description: "",
-        date: "",
-        time: "",
         location: "",
-        is_public: false,
+        event_type: "shoot",
+        date: defaultDate,
+        time: defaultTime,
+        endDate: defaultDate,
+        endTime: defaultTime,
       })
     }
-  }, [event])
+    setError(null)
+  }, [event, isOpen])
 
-  const closeModal = () => {
-    setIsOpen(false)
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    const { name, value } = e.target
+    setFormData((prev) => ({ ...prev, [name]: value }))
   }
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value, type, checked } = e.target
-    setFormData({
-      ...formData,
-      [name]: type === "checkbox" ? checked : value,
-    })
-  }
-
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
+    setLoading(true)
+    setError(null)
 
-    if (event) {
+    try {
+      if (!formData.title.trim()) {
+        setError("Event title is required")
+        return
+      }
+
+      if (!formData.date || !formData.time) {
+        setError("Start date and time are required")
+        return
+      }
+
+      if (!formData.endDate || !formData.endTime) {
+        setError("End date and time are required")
+        return
+      }
+
       const startTime = convertLocalToUTC(formData.date, formData.time)
+      const endTime = convertLocalToUTC(formData.endDate, formData.endTime)
 
-      updateEventMutation.mutate({
-        id: event.id,
-        title: formData.title,
-        description: formData.description,
-        start_time: startTime,
-        location: formData.location,
-        is_public: formData.is_public,
-      })
-    } else {
-      const startTime = convertLocalToUTC(formData.date, formData.time)
+      if (new Date(startTime) >= new Date(endTime)) {
+        setError("End time must be after start time")
+        return
+      }
 
-      createEventMutation.mutate({
-        title: formData.title,
-        description: formData.description,
+      const eventData = {
+        title: formData.title.trim(),
+        description: formData.description.trim() || null,
+        location: formData.location.trim() || null,
+        event_type: formData.event_type,
         start_time: startTime,
-        location: formData.location,
-        is_public: formData.is_public,
-      })
+        end_time: endTime,
+        created_by: currentUserId,
+        is_approved: isAdmin, // Auto-approve if admin
+        approved_by: isAdmin ? currentUserId : null,
+      }
+
+      if (event) {
+        // Update existing event
+        const { data, error } = await supabase
+          .from("events")
+          .update(eventData)
+          .eq("id", event.id)
+          .select("*, creator:created_by(*), approver:approved_by(*)")
+          .single()
+
+        if (error) throw error
+        onSave(data)
+      } else {
+        // Create new event
+        const { data, error } = await supabase
+          .from("events")
+          .insert(eventData)
+          .select("*, creator:created_by(*), approver:approved_by(*)")
+          .single()
+
+        if (error) throw error
+        onSave(data)
+      }
+    } catch (error: any) {
+      console.error("Error saving event:", error)
+      setError(error.message || "Failed to save event. Please try again.")
+    } finally {
+      setLoading(false)
     }
   }
+
+  if (!isOpen) return null
 
   return (
-    <Transition appear show={isOpen} as={Fragment}>
-      <Dialog as="div" className="relative z-10" onClose={closeModal}>
-        <Transition.Child
-          as={Fragment}
-          enter="ease-out duration-300"
-          enterFrom="opacity-0"
-          enterTo="opacity-100"
-          leave="ease-in duration-200"
-          leaveFrom="opacity-100"
-          leaveTo="opacity-0"
-        >
-          <div className="fixed inset-0 bg-black bg-opacity-25" />
-        </Transition.Child>
-
-        <div className="fixed inset-0 overflow-y-auto">
-          <div className="flex min-h-full items-center justify-center p-4 text-center">
-            <Transition.Child
-              as={Fragment}
-              enter="ease-out duration-300"
-              enterFrom="opacity-0 scale-95"
-              enterTo="opacity-100 scale-100"
-              leave="ease-in duration-200"
-              leaveFrom="opacity-100 scale-100"
-              leaveTo="opacity-0 scale-95"
-            >
-              <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
-                <Dialog.Title as="h3" className="text-lg font-medium leading-6 text-gray-900">
-                  {event ? "Edit Event" : "Create New Event"}
-                </Dialog.Title>
-                <form onSubmit={handleSubmit} className="mt-4">
-                  <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
-                    <input
-                      type="text"
-                      name="title"
-                      value={formData.title}
-                      onChange={handleChange}
-                      className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                    />
-                  </div>
-                  <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                    <textarea
-                      name="description"
-                      value={formData.description}
-                      onChange={handleChange}
-                      className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                    />
-                  </div>
-                  <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
-                    <input
-                      type="date"
-                      name="date"
-                      value={formData.date}
-                      onChange={handleChange}
-                      className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                    />
-                  </div>
-                  <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Time (IST)</label>
-                    <input
-                      type="time"
-                      name="time"
-                      value={formData.time}
-                      onChange={handleChange}
-                      className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                    />
-                  </div>
-                  <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
-                    <input
-                      type="text"
-                      name="location"
-                      value={formData.location}
-                      onChange={handleChange}
-                      className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                    />
-                  </div>
-                  <div className="mb-4">
-                    <label className="inline-flex items-center">
-                      <input
-                        type="checkbox"
-                        name="is_public"
-                        checked={formData.is_public}
-                        onChange={handleChange}
-                        className="form-checkbox h-5 w-5 text-indigo-600"
-                      />
-                      <span className="ml-2 text-gray-700">Public Event</span>
-                    </label>
-                  </div>
-                  <div className="mt-6">
-                    <button
-                      type="submit"
-                      className="inline-flex justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
-                    >
-                      {event ? "Update Event" : "Create Event"}
-                    </button>
-                    <button
-                      type="button"
-                      className="ml-3 inline-flex justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
-                      onClick={closeModal}
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </form>
-              </Dialog.Panel>
-            </Transition.Child>
-          </div>
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-md animate-fade-in max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between p-4 border-b">
+          <h2 className="text-lg font-semibold text-gray-900">{isCreating ? "Create New Event" : "Edit Event"}</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-500">
+            <X className="h-5 w-5" />
+          </button>
         </div>
-      </Dialog>
-    </Transition>
+
+        <form onSubmit={handleSubmit}>
+          <div className="p-4 space-y-4">
+            <div>
+              <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">
+                Event Title <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                id="title"
+                name="title"
+                required
+                className="input"
+                value={formData.title}
+                onChange={handleChange}
+                placeholder="Enter event title"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="event_type" className="block text-sm font-medium text-gray-700 mb-1">
+                Event Type
+              </label>
+              <select
+                id="event_type"
+                name="event_type"
+                className="select"
+                value={formData.event_type}
+                onChange={handleChange}
+              >
+                <option value="shoot">Shoot</option>
+                <option value="screening">Screening</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label htmlFor="date" className="block text-sm font-medium text-gray-700 mb-1">
+                  Start Date <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="date"
+                  id="date"
+                  name="date"
+                  required
+                  className="input"
+                  value={formData.date}
+                  onChange={handleChange}
+                />
+              </div>
+              <div>
+                <label htmlFor="time" className="block text-sm font-medium text-gray-700 mb-1">
+                  Start Time (IST) <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="time"
+                  id="time"
+                  name="time"
+                  required
+                  className="input"
+                  value={formData.time}
+                  onChange={handleChange}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label htmlFor="endDate" className="block text-sm font-medium text-gray-700 mb-1">
+                  End Date <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="date"
+                  id="endDate"
+                  name="endDate"
+                  required
+                  className="input"
+                  value={formData.endDate}
+                  onChange={handleChange}
+                />
+              </div>
+              <div>
+                <label htmlFor="endTime" className="block text-sm font-medium text-gray-700 mb-1">
+                  End Time (IST) <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="time"
+                  id="endTime"
+                  name="endTime"
+                  required
+                  className="input"
+                  value={formData.endTime}
+                  onChange={handleChange}
+                />
+              </div>
+            </div>
+
+            <div>
+              <label htmlFor="location" className="block text-sm font-medium text-gray-700 mb-1">
+                Location
+              </label>
+              <input
+                type="text"
+                id="location"
+                name="location"
+                className="input"
+                value={formData.location}
+                onChange={handleChange}
+                placeholder="Enter event location"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
+                Description
+              </label>
+              <textarea
+                id="description"
+                name="description"
+                rows={3}
+                className="input"
+                value={formData.description}
+                onChange={handleChange}
+                placeholder="Enter event description"
+              />
+            </div>
+
+            {error && <div className="bg-red-50 text-red-700 p-3 rounded-md text-sm">{error}</div>}
+          </div>
+
+          <div className="px-4 py-3 bg-gray-50 flex justify-end space-x-3 rounded-b-lg">
+            <button type="button" onClick={onClose} className="btn btn-outline" disabled={loading}>
+              Cancel
+            </button>
+            <button type="submit" className="btn btn-primary" disabled={loading}>
+              {loading ? "Saving..." : isCreating ? "Create Event" : "Update Event"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
   )
 }
 
