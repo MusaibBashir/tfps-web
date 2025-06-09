@@ -167,38 +167,51 @@ const RequestsPage = () => {
       const request = requests.find((r) => r.id === requestId)
       if (!request) return
 
-      // Check if there's already an approved/received request for this equipment
-      const existingActiveRequests = requests.filter(
-        (r) =>
-          r.equipment_id === request.equipment_id &&
-          (r.status === "approved" || r.status === "received") &&
-          r.id !== requestId,
+      // Check if there's already someone who has the equipment (received status)
+      const currentHolderRequest = requests.find(
+        (r) => r.equipment_id === request.equipment_id && r.status === "received" && r.id !== requestId,
       )
 
-      // Update request status to approved
-      const { data, error } = await supabase
-        .from("equipment_requests")
-        .update({
-          status: "approved",
-          approved_by: user?.id,
-          current_holder_id: request.requester_id,
-        })
-        .eq("id", requestId)
-        .select(`
-          *,
-          equipment(*),
-          requester:users!equipment_requests_requester_id_fkey(*),
-          approver:users!equipment_requests_approved_by_fkey(*),
-          forwarded_user:users!equipment_requests_forwarded_to_fkey(*),
-          current_holder:users!equipment_requests_current_holder_id_fkey(*)
-        `)
-        .single()
+      if (currentHolderRequest) {
+        // Equipment is currently with someone - forward the request to them
+        await supabase
+          .from("equipment_requests")
+          .update({
+            status: "approved",
+            approved_by: user?.id,
+            forwarded_to: currentHolderRequest.current_holder_id || currentHolderRequest.requester_id,
+            notes: `Approved and forwarded to current holder ${currentHolderRequest.requester?.name || "current user"}. Please coordinate handover.`,
+          })
+          .eq("id", requestId)
+      } else {
+        // No one has the equipment currently - approve normally
+        await supabase
+          .from("equipment_requests")
+          .update({
+            status: "approved",
+            approved_by: user?.id,
+            current_holder_id: request.requester_id,
+          })
+          .eq("id", requestId)
 
-      if (error) throw error
+        // Update equipment status to in_use and create log
+        await supabase
+          .from("equipment")
+          .update({
+            status: "in_use",
+          })
+          .eq("id", request.equipment_id)
+
+        await supabase.from("equipment_logs").insert({
+          equipment_id: request.equipment_id,
+          user_id: request.requester_id,
+          checkout_time: new Date().toISOString(),
+          expected_return_time: request.end_time,
+        })
+      }
 
       // Auto-decline ONLY conflicting requests if this request has time bounds
       if (request.start_time && request.end_time) {
-        // Get all pending requests for the same equipment
         const { data: pendingRequests } = await supabase
           .from("equipment_requests")
           .select("*")
@@ -206,7 +219,6 @@ const RequestsPage = () => {
           .eq("status", "pending")
           .neq("id", requestId)
 
-        // Filter for actual time conflicts
         const conflictingRequests =
           pendingRequests?.filter((pendingReq) => {
             if (!pendingReq.start_time || !pendingReq.end_time) return false
@@ -216,11 +228,9 @@ const RequestsPage = () => {
             const pendingStart = new Date(pendingReq.start_time)
             const pendingEnd = new Date(pendingReq.end_time)
 
-            // Check for overlap: requests conflict if one starts before the other ends
             return reqStart < pendingEnd && reqEnd > pendingStart
           }) || []
 
-        // Decline only conflicting requests
         if (conflictingRequests.length > 0) {
           await supabase
             .from("equipment_requests")
@@ -237,26 +247,6 @@ const RequestsPage = () => {
         }
       }
 
-      // Only update equipment status and create log if this is the FIRST approved request
-      if (existingActiveRequests.length === 0) {
-        // Update equipment status to in_use
-        await supabase
-          .from("equipment")
-          .update({
-            status: "in_use",
-          })
-          .eq("id", request.equipment_id)
-
-        // Create equipment log only for the first approved request
-        await supabase.from("equipment_logs").insert({
-          equipment_id: request.equipment_id,
-          user_id: request.requester_id,
-          checkout_time: new Date().toISOString(),
-          expected_return_time: request.end_time,
-        })
-      }
-
-      // Refresh requests
       await refreshRequests()
     } catch (error) {
       console.error("Error approving request:", error)
@@ -268,20 +258,6 @@ const RequestsPage = () => {
   const handleReceived = async (requestId: string) => {
     setProcessingId(requestId)
     try {
-      const request = requests.find((r) => r.id === requestId)
-      if (!request) return
-
-      // Check if there's already someone who has received this equipment
-      const existingReceivedRequests = requests.filter(
-        (r) => r.equipment_id === request.equipment_id && r.status === "received" && r.id !== requestId,
-      )
-
-      // Only allow receiving if no one else has already received it
-      if (existingReceivedRequests.length > 0) {
-        alert("Someone else has already received this equipment. Please wait for them to return it.")
-        return
-      }
-
       const { data, error } = await supabase
         .from("equipment_requests")
         .update({
@@ -289,16 +265,8 @@ const RequestsPage = () => {
           received_time: new Date().toISOString(),
         })
         .eq("id", requestId)
-        .select(`
-          *,
-          equipment(*),
-          requester:users!equipment_requests_requester_id_fkey(*),
-          current_holder:users!equipment_requests_current_holder_id_fkey(*)
-        `)
-        .single()
 
       if (error) throw error
-
       await refreshRequests()
     } catch (error) {
       console.error("Error marking as received:", error)
@@ -315,24 +283,22 @@ const RequestsPage = () => {
     const isAdmin = user?.is_admin
     const isHallEquipment = request.equipment?.ownership_type === "hall"
 
-    // If user is the owner, they shouldn't see any return options (they already have the equipment)
+    // If user is the owner, they shouldn't see any return options
     if (isOwner) {
       return []
     }
 
-    // For non-owners, show return to owner option
+    // Always show return to owner option for non-owners
     if (request.equipment?.owner_id) {
       const owner = allUsers.find((u) => u.id === request.equipment.owner_id)
       if (owner) {
         options.push({ value: request.equipment.owner_id, label: `Return to Owner (${owner.name})` })
       }
     } else if (isHallEquipment && !isAdmin) {
-      // For hall equipment, non-admin users can return to admin
       options.push({ value: "admin", label: "Return to Admin" })
     }
 
     // Get OTHER approved requests for this equipment that could receive it next
-    // Only show approved requests that don't have time conflicts and are not currently received
     const approvedRequests = requests.filter(
       (r) =>
         r.equipment_id === request.equipment_id &&
@@ -341,15 +307,10 @@ const RequestsPage = () => {
         r.requester_id !== user?.id,
     )
 
-    // Filter out time conflicts - only show if the approved request starts after current request ends
-    // or if either request doesn't have time bounds
     const nonConflictingRequests = approvedRequests.filter((approvedReq) => {
-      // If either request doesn't have time bounds, allow transfer
       if (!request.start_time || !request.end_time || !approvedReq.start_time || !approvedReq.end_time) {
         return true
       }
-
-      // Check if approved request starts after current request ends
       return new Date(approvedReq.start_time) >= new Date(request.end_time)
     })
 
@@ -386,7 +347,7 @@ const RequestsPage = () => {
           })
           .eq("id", requestId)
 
-        // Update equipment status - set to maintenance if damaged, available if perfect
+        // Update equipment status directly - no owner confirmation needed
         await supabase
           .from("equipment")
           .update({
@@ -394,19 +355,6 @@ const RequestsPage = () => {
             condition_notes: returnCondition === "damaged" ? damageNotes : null,
           })
           .eq("id", request.equipment_id)
-
-        // Create a "received" request for the owner ONLY if they are not the current user
-        if (request.equipment?.owner_id && request.equipment.owner_id !== user?.id) {
-          await supabase.from("equipment_requests").insert({
-            equipment_id: request.equipment_id,
-            event_id: null,
-            requester_id: request.equipment.owner_id,
-            status: "approved",
-            approved_by: user?.id,
-            current_holder_id: request.equipment.owner_id,
-            notes: `Equipment returned by ${user?.name}. Please confirm receipt and condition.`,
-          })
-        }
 
         // Update equipment log
         const { data: logData } = await supabase
@@ -428,6 +376,18 @@ const RequestsPage = () => {
             .eq("id", logData.id)
         }
 
+        // Auto-close any other approved requests for this equipment
+        await supabase
+          .from("equipment_requests")
+          .update({
+            status: "returned",
+            returned_time: returnTime,
+            notes: `Auto-closed: Equipment returned to owner by ${user?.name}`,
+          })
+          .eq("equipment_id", request.equipment_id)
+          .eq("status", "approved")
+          .neq("id", requestId)
+
         // Create damage report if damaged
         if (returnCondition === "damaged" && damageNotes) {
           await supabase.from("damage_reports").insert({
@@ -447,6 +407,7 @@ const RequestsPage = () => {
           .update({
             status: "returned",
             returned_time: returnTime,
+            notes: `Transferred to ${allUsers.find((u) => u.id === newHolderId)?.name}`,
           })
           .eq("id", requestId)
 
@@ -499,8 +460,6 @@ const RequestsPage = () => {
           user_id: newHolderId,
           checkout_time: returnTime,
         })
-
-        // Equipment stays in "in_use" status since it's being transferred, not returned to owner
       }
 
       setReturningId(null)
@@ -519,49 +478,43 @@ const RequestsPage = () => {
     setProcessingId(equipmentLog.id)
     try {
       const returnTime = new Date().toISOString()
-      const finalReturnUser = returnToUser
 
-      // Only allow returning to owner or admin
-      if (finalReturnUser === equipmentLog.equipment?.owner_id || finalReturnUser === "admin") {
-        // Returning to original owner
-        await supabase
-          .from("equipment")
-          .update({
-            status: returnCondition === "damaged" ? "maintenance" : "available",
-            condition_notes: returnCondition === "damaged" ? damageNotes : null,
-          })
-          .eq("id", equipmentLog.equipment_id)
+      // Always return to owner/admin - no confirmation needed
+      await supabase
+        .from("equipment")
+        .update({
+          status: returnCondition === "damaged" ? "maintenance" : "available",
+          condition_notes: returnCondition === "damaged" ? damageNotes : null,
+        })
+        .eq("id", equipmentLog.equipment_id)
 
-        // Create a "received" request for the owner so they can acknowledge receipt
-        if (equipmentLog.equipment?.owner_id && equipmentLog.equipment.owner_id !== user?.id) {
-          await supabase.from("equipment_requests").insert({
-            equipment_id: equipmentLog.equipment_id,
-            event_id: null,
-            requester_id: equipmentLog.equipment.owner_id,
-            status: "approved",
-            approved_by: user?.id,
-            current_holder_id: equipmentLog.equipment.owner_id,
-            notes: `Equipment returned by ${user?.name}. Please confirm receipt and condition.`,
-          })
-        }
+      // Update equipment log
+      await supabase
+        .from("equipment_logs")
+        .update({
+          return_time: returnTime,
+        })
+        .eq("id", equipmentLog.id)
 
-        // Update equipment log
-        await supabase
-          .from("equipment_logs")
-          .update({
-            return_time: returnTime,
-          })
-          .eq("id", equipmentLog.id)
+      // Auto-close any approved requests for this equipment
+      await supabase
+        .from("equipment_requests")
+        .update({
+          status: "returned",
+          returned_time: returnTime,
+          notes: `Auto-closed: Equipment returned to owner by ${user?.name}`,
+        })
+        .eq("equipment_id", equipmentLog.equipment_id)
+        .in("status", ["approved", "received"])
 
-        // Create damage report if damaged
-        if (returnCondition === "damaged" && damageNotes) {
-          await supabase.from("damage_reports").insert({
-            equipment_id: equipmentLog.equipment_id,
-            reported_by: user?.id,
-            damage_description: damageNotes,
-            severity: "moderate",
-          })
-        }
+      // Create damage report if damaged
+      if (returnCondition === "damaged" && damageNotes) {
+        await supabase.from("damage_reports").insert({
+          equipment_id: equipmentLog.equipment_id,
+          reported_by: user?.id,
+          damage_description: damageNotes,
+          severity: "moderate",
+        })
       }
 
       setReturningId(null)
@@ -692,7 +645,6 @@ const RequestsPage = () => {
 
   const getForwardingUsers = (request: any) => {
     if (request.equipment?.ownership_type === "hall" && request.equipment?.hall) {
-      // Get users from the same hall
       return allUsers.filter((u) => u.hostel === request.equipment.hall)
     }
     return []
@@ -786,19 +738,6 @@ const RequestsPage = () => {
                         <div className="flex items-center gap-2">
                           <select
                             className="text-xs border border-gray-300 rounded px-2 py-1"
-                            value={returnToUser}
-                            onChange={(e) => {
-                              setReturnToUser(e.target.value)
-                            }}
-                          >
-                            <option value="">Return to...</option>
-                            <option value={log.equipment?.owner_id || "admin"}>
-                              {log.equipment?.owner_id ? "Equipment Owner" : "Admin"}
-                            </option>
-                          </select>
-
-                          <select
-                            className="text-xs border border-gray-300 rounded px-2 py-1"
                             value={returnCondition}
                             onChange={(e) => setReturnCondition(e.target.value as "perfect" | "damaged")}
                           >
@@ -820,18 +759,15 @@ const RequestsPage = () => {
                         <div className="flex gap-2">
                           <button
                             onClick={() => handleReturnFromPossession(log)}
-                            disabled={
-                              !returnToUser || !!processingId || (returnCondition === "damaged" && !damageNotes)
-                            }
+                            disabled={!!processingId || (returnCondition === "damaged" && !damageNotes)}
                             className="inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50"
                           >
                             <ArrowRightLeft className="mr-1 h-3 w-3" />
-                            Return
+                            Return to Owner
                           </button>
                           <button
                             onClick={() => {
                               setReturningId(null)
-                              setReturnToUser("")
                               setReturnCondition("perfect")
                               setDamageNotes("")
                             }}
@@ -911,11 +847,9 @@ const RequestsPage = () => {
                             <Link to={`/equipment/${request.equipment?.id}`} className="hover:text-primary-600">
                               {request.equipment?.name}
                             </Link>
-                            {/* Show equipment owner for student-owned equipment */}
                             {request.equipment?.ownership_type === "student" &&
                               request.equipment?.owner_id &&
                               user?.is_admin && <span className="ml-2 text-xs text-blue-600">(Student-owned)</span>}
-                            {/* Show hall for hall-owned equipment */}
                             {request.equipment?.ownership_type === "hall" && request.equipment?.hall && (
                               <span className="ml-2 text-xs text-green-600">({request.equipment.hall})</span>
                             )}
@@ -931,7 +865,6 @@ const RequestsPage = () => {
                             ) : (
                               "General use"
                             )}
-                            {/* Show time range */}
                             {request.start_time && request.end_time && (
                               <span className="ml-2 text-xs text-gray-400">
                                 <Clock className="inline h-3 w-3 mr-1" />
@@ -1113,7 +1046,7 @@ const RequestsPage = () => {
                         </button>
                       )}
 
-                      {/* Return button for received requests (current holder) - only show if there are return options */}
+                      {/* Return button for received requests */}
                       {showReturnButton && (
                         <>
                           {returningId === request.id ? (
@@ -1122,9 +1055,7 @@ const RequestsPage = () => {
                                 <select
                                   className="text-xs border border-gray-300 rounded px-2 py-1"
                                   value={returnToUser}
-                                  onChange={(e) => {
-                                    setReturnToUser(e.target.value)
-                                  }}
+                                  onChange={(e) => setReturnToUser(e.target.value)}
                                 >
                                   <option value="">Return to...</option>
                                   {returnOptions.map((option) => (
