@@ -113,8 +113,16 @@ const RequestsPage = () => {
           })
         }
 
-        setRequests(userRequests)
-        setFilteredRequests(userRequests)
+        // After setting requests, fix any missing forwards
+        if (userRequests.length > 0) {
+          setRequests(userRequests)
+          setFilteredRequests(userRequests)
+
+          // Fix missing forwards after a short delay
+          setTimeout(() => {
+            fixMissingForwards()
+          }, 1000)
+        }
       } catch (error) {
         console.error("Error fetching requests:", error)
       } finally {
@@ -167,15 +175,20 @@ const RequestsPage = () => {
       const request = requests.find((r) => r.id === requestId)
       if (!request) return
 
-      // Find the current holder (someone with "received" status for this equipment)
-      const currentHolderRequest = requests.find(
-        (r) => r.equipment_id === request.equipment_id && r.status === "received" && r.id !== requestId,
-      )
+      // Check if equipment is currently in use by looking at equipment_logs
+      const { data: currentLog } = await supabase
+        .from("equipment_logs")
+        .select("*, user:user_id(*)")
+        .eq("equipment_id", request.equipment_id)
+        .is("return_time", null)
+        .order("checkout_time", { ascending: false })
+        .limit(1)
+        .single()
 
-      if (currentHolderRequest) {
-        // Equipment is currently with someone - forward the request to them
-        const currentHolderName = currentHolderRequest.requester?.name || "current user"
-        const currentHolderId = currentHolderRequest.current_holder_id || currentHolderRequest.requester_id
+      if (currentLog && currentLog.user_id !== request.requester_id) {
+        // Equipment is currently with someone else - forward the request to them
+        const currentHolderName = currentLog.user?.name || "current user"
+        const currentHolderId = currentLog.user_id
 
         await supabase
           .from("equipment_requests")
@@ -702,6 +715,42 @@ const RequestsPage = () => {
     }
   }
 
+  const fixMissingForwards = async () => {
+    try {
+      // Find approved requests that should be forwarded but aren't
+      const approvedRequests = requests.filter(
+        (r) => r.status === "approved" && !r.forwarded_to && !r.received_time && r.current_holder_id !== r.requester_id,
+      )
+
+      for (const request of approvedRequests) {
+        // Check if equipment is currently in use
+        const { data: currentLog } = await supabase
+          .from("equipment_logs")
+          .select("*, user:user_id(*)")
+          .eq("equipment_id", request.equipment_id)
+          .is("return_time", null)
+          .order("checkout_time", { ascending: false })
+          .limit(1)
+          .single()
+
+        if (currentLog && currentLog.user_id !== request.requester_id) {
+          // This request should be forwarded to the current holder
+          await supabase
+            .from("equipment_requests")
+            .update({
+              forwarded_to: currentLog.user_id,
+              notes: `Auto-forwarded to current equipment holder: ${currentLog.user?.name}`,
+            })
+            .eq("id", request.id)
+        }
+      }
+
+      await refreshRequests()
+    } catch (error) {
+      console.error("Error fixing missing forwards:", error)
+    }
+  }
+
   const handleReject = async (requestId: string) => {
     setProcessingId(requestId)
     try {
@@ -833,6 +882,18 @@ const RequestsPage = () => {
                   (r) => r.equipment_id === log.equipment_id && r.status === "approved" && r.forwarded_to === user?.id,
                 )
 
+                // Also check for approved requests that should be forwarded but aren't yet
+                const pendingHandovers = requests.filter(
+                  (r) =>
+                    r.equipment_id === log.equipment_id &&
+                    r.status === "approved" &&
+                    r.requester_id !== user?.id &&
+                    !r.forwarded_to &&
+                    r.current_holder_id !== r.requester_id,
+                )
+
+                const allHandoverRequests = [...handoverRequests, ...pendingHandovers]
+
                 console.log("Debug - Possession handover check:", {
                   equipmentId: log.equipment_id,
                   userId: user?.id,
@@ -852,10 +913,10 @@ const RequestsPage = () => {
                           Expected return: {formatToIST(log.expected_return_time, "MMM d, HH:mm")} IST
                         </span>
                       )}
-                      {handoverRequests.length > 0 && (
+                      {allHandoverRequests.length > 0 && (
                         <div className="text-xs text-blue-600 mt-1">
-                          {handoverRequests.length} handover request(s) pending:{" "}
-                          {handoverRequests.map((r) => r.requester?.name).join(", ")}
+                          {allHandoverRequests.length} handover request(s) pending:{" "}
+                          {allHandoverRequests.map((r) => r.requester?.name).join(", ")}
                         </div>
                       )}
                     </div>
@@ -932,7 +993,7 @@ const RequestsPage = () => {
                           className="inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50"
                         >
                           <ArrowRightLeft className="mr-1 h-4 w-4" />
-                          {handoverRequests.length > 0 ? "Return/Handover" : "Return Equipment"}
+                          {allHandoverRequests.length > 0 ? "Return/Handover" : "Return Equipment"}
                         </button>
                       )}
                     </div>
