@@ -22,48 +22,70 @@ function App() {
   const location = useLocation()
 
   useEffect(() => {
-    // Only redirect to login if user is trying to access protected routes without authentication
-    if (
-      !loading &&
-      !user &&
-      location.pathname !== "/home" &&
-      location.pathname !== "/login" &&
-      location.pathname !== "/"
-    ) {
-      navigate("/login")
+    if (loading) return // Don't do anything while loading
+
+    const isPublicRoute = location.pathname === "/" || location.pathname === "/login"
+    const isProtectedRoute = !isPublicRoute
+
+    // If user is not authenticated and trying to access protected routes
+    if (!user && isProtectedRoute) {
+      navigate("/", { replace: true })
+      return
+    }
+
+    // If user is authenticated and on public routes, redirect to dashboard
+    if (user && isPublicRoute) {
+      navigate("/dashboard", { replace: true })
+      return
     }
   }, [user, loading, navigate, location.pathname])
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-600"></div>
+      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-amber-50 to-orange-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-amber-600 mx-auto mb-4"></div>
+          <p className="text-amber-700 font-medium">Loading TFPS...</p>
+        </div>
       </div>
     )
   }
 
   return (
     <Routes>
-      {/* Public routes */}
-      <Route path="/" element={<HomePage />} />
-      <Route path="/home" element={<HomePage />} />
-      <Route path="/login" element={<LoginPage />} />
+      {/* Public routes - only accessible when not logged in */}
+      {!user && (
+        <>
+          <Route path="/\" element={<HomePage />} />
+          <Route path="/login" element={<LoginPage />} />
+        </>
+      )}
 
-      {/* Protected routes */}
-      <Route element={<Layout />}>
-        <Route path="/dashboard" element={<DashboardPage />} />
-        <Route path="/profile" element={<ProfilePage />} />
-        <Route path="/members" element={<MembersPage />} />
-        <Route path="/members/:id" element={<MemberDetailPage />} />
-        <Route path="/calendar" element={<CalendarPage />} />
-        <Route path="/equipment" element={<EquipmentPage />} />
-        <Route path="/equipment/:id" element={<EquipmentDetailPage />} />
-        <Route path="/requests" element={<RequestsPage />} />
-        <Route path="/admin" element={<AdminPage />} />
-      </Route>
+      {/* Protected routes - only accessible when logged in */}
+      {user && (
+        <Route element={<Layout />}>
+          <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/members" element={<MembersPage />} />
+          <Route path="/members/:id" element={<MemberDetailPage />} />
+          <Route path="/calendar" element={<CalendarPage />} />
+          <Route path="/equipment" element={<EquipmentPage />} />
+          <Route path="/equipment/:id" element={<EquipmentDetailPage />} />
+          <Route path="/requests" element={<RequestsPage />} />
+          <Route path="/admin" element={<AdminPage />} />
+        </Route>
+      )}
 
       {/* Fallback route */}
-      <Route path="*" element={<Navigate to="/" replace />} />
+      <Route 
+        path="*" 
+        element={
+          <Navigate 
+            to={user ? "/dashboard" : "/"} 
+            replace 
+          />
+        } 
+      />
     </Routes>
   )
 }
