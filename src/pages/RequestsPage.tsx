@@ -175,13 +175,14 @@ const RequestsPage = () => {
       if (currentHolderRequest) {
         // Equipment is currently with someone - forward the request to them
         const currentHolderName = currentHolderRequest.requester?.name || "current user"
+        const currentHolderId = currentHolderRequest.current_holder_id || currentHolderRequest.requester_id
 
         await supabase
           .from("equipment_requests")
           .update({
             status: "approved",
             approved_by: user?.id,
-            forwarded_to: currentHolderRequest.current_holder_id || currentHolderRequest.requester_id,
+            forwarded_to: currentHolderId,
             notes: `Handover request sent to ${currentHolderName}`,
           })
           .eq("id", requestId)
@@ -210,43 +211,6 @@ const RequestsPage = () => {
           checkout_time: new Date().toISOString(),
           expected_return_time: request.end_time,
         })
-      }
-
-      // Auto-decline ONLY conflicting requests if this request has time bounds
-      if (request.start_time && request.end_time) {
-        const { data: pendingRequests } = await supabase
-          .from("equipment_requests")
-          .select("*")
-          .eq("equipment_id", request.equipment_id)
-          .eq("status", "pending")
-          .neq("id", requestId)
-
-        const conflictingRequests =
-          pendingRequests?.filter((pendingReq) => {
-            if (!pendingReq.start_time || !pendingReq.end_time) return false
-
-            const reqStart = new Date(request.start_time!)
-            const reqEnd = new Date(request.end_time!)
-            const pendingStart = new Date(pendingReq.start_time)
-            const pendingEnd = new Date(pendingReq.end_time)
-
-            return reqStart < pendingEnd && reqEnd > pendingStart
-          }) || []
-
-        if (conflictingRequests.length > 0) {
-          await supabase
-            .from("equipment_requests")
-            .update({
-              status: "rejected",
-              auto_declined: true,
-              declined_reason: `Auto-declined due to time conflict with approved request by ${request.requester?.name}`,
-              approved_by: user?.id,
-            })
-            .in(
-              "id",
-              conflictingRequests.map((r) => r.id),
-            )
-        }
       }
 
       await refreshRequests()
@@ -300,7 +264,7 @@ const RequestsPage = () => {
       options.push({ value: "admin", label: "Return to Admin" })
     }
 
-    // Get OTHER approved requests for this equipment that are forwarded to current user
+    // Get handover requests - requests that are approved and forwarded to current user
     const handoverRequests = requests.filter(
       (r) =>
         r.equipment_id === request.equipment_id &&
@@ -461,6 +425,7 @@ const RequestsPage = () => {
           equipment_id: request.equipment_id,
           user_id: newHolderId,
           checkout_time: returnTime,
+          expected_return_time: requests.find((r) => r.id === handoverRequestId)?.end_time,
         })
       }
 
@@ -766,7 +731,7 @@ const RequestsPage = () => {
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
             <div className="space-y-3">
               {equipmentInPossession.map((log) => {
-                // Check if there are any handover requests for this equipment
+                // Check if there are any handover requests for this equipment (forwarded to current user)
                 const handoverRequests = requests.filter(
                   (r) => r.equipment_id === log.equipment_id && r.status === "approved" && r.forwarded_to === user?.id,
                 )
