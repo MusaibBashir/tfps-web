@@ -167,9 +167,12 @@ const RequestsPage = () => {
       const request = requests.find((r) => r.id === requestId)
       if (!request) return
 
-      // Check if this is the first approved request for this equipment
-      const existingApprovedRequests = requests.filter(
-        (r) => r.equipment_id === request.equipment_id && r.status === "approved" && r.id !== requestId,
+      // Check if there's already an approved/received request for this equipment
+      const existingActiveRequests = requests.filter(
+        (r) =>
+          r.equipment_id === request.equipment_id &&
+          (r.status === "approved" || r.status === "received") &&
+          r.id !== requestId,
       )
 
       // Update request status to approved
@@ -234,8 +237,8 @@ const RequestsPage = () => {
         }
       }
 
-      // If this is the first approved request, update equipment status and create log
-      if (existingApprovedRequests.length === 0) {
+      // Only update equipment status and create log if this is the FIRST approved request
+      if (existingActiveRequests.length === 0) {
         // Update equipment status to in_use
         await supabase
           .from("equipment")
@@ -244,7 +247,7 @@ const RequestsPage = () => {
           })
           .eq("id", request.equipment_id)
 
-        // Create equipment log
+        // Create equipment log only for the first approved request
         await supabase.from("equipment_logs").insert({
           equipment_id: request.equipment_id,
           user_id: request.requester_id,
@@ -265,6 +268,20 @@ const RequestsPage = () => {
   const handleReceived = async (requestId: string) => {
     setProcessingId(requestId)
     try {
+      const request = requests.find((r) => r.id === requestId)
+      if (!request) return
+
+      // Check if there's already someone who has received this equipment
+      const existingReceivedRequests = requests.filter(
+        (r) => r.equipment_id === request.equipment_id && r.status === "received" && r.id !== requestId,
+      )
+
+      // Only allow receiving if no one else has already received it
+      if (existingReceivedRequests.length > 0) {
+        alert("Someone else has already received this equipment. Please wait for them to return it.")
+        return
+      }
+
       const { data, error } = await supabase
         .from("equipment_requests")
         .update({
@@ -314,7 +331,7 @@ const RequestsPage = () => {
       options.push({ value: "admin", label: "Return to Admin" })
     }
 
-    // Get approved requests for this equipment that could receive it next
+    // Get OTHER approved requests for this equipment that could receive it next
     // Only show approved requests that don't have time conflicts and are not currently received
     const approvedRequests = requests.filter(
       (r) =>
@@ -424,7 +441,7 @@ const RequestsPage = () => {
         // Transferring to another user with approved request
         const newHolderId = finalReturnUser
 
-        // Update current request
+        // Update current request to returned
         await supabase
           .from("equipment_requests")
           .update({
@@ -482,6 +499,8 @@ const RequestsPage = () => {
           user_id: newHolderId,
           checkout_time: returnTime,
         })
+
+        // Equipment stays in "in_use" status since it's being transferred, not returned to owner
       }
 
       setReturningId(null)
