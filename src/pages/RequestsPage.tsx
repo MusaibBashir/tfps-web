@@ -167,6 +167,11 @@ const RequestsPage = () => {
       const request = requests.find((r) => r.id === requestId)
       if (!request) return
 
+      // Check if this is the first approved request for this equipment
+      const existingApprovedRequests = requests.filter(
+        (r) => r.equipment_id === request.equipment_id && r.status === "approved" && r.id !== requestId,
+      )
+
       // Update request status to approved
       const { data, error } = await supabase
         .from("equipment_requests")
@@ -229,21 +234,24 @@ const RequestsPage = () => {
         }
       }
 
-      // Update equipment status to in_use
-      await supabase
-        .from("equipment")
-        .update({
-          status: "in_use",
-        })
-        .eq("id", request.equipment_id)
+      // If this is the first approved request, update equipment status and create log
+      if (existingApprovedRequests.length === 0) {
+        // Update equipment status to in_use
+        await supabase
+          .from("equipment")
+          .update({
+            status: "in_use",
+          })
+          .eq("id", request.equipment_id)
 
-      // Create equipment log
-      await supabase.from("equipment_logs").insert({
-        equipment_id: request.equipment_id,
-        user_id: request.requester_id,
-        checkout_time: new Date().toISOString(),
-        expected_return_time: request.end_time,
-      })
+        // Create equipment log
+        await supabase.from("equipment_logs").insert({
+          equipment_id: request.equipment_id,
+          user_id: request.requester_id,
+          checkout_time: new Date().toISOString(),
+          expected_return_time: request.end_time,
+        })
+      }
 
       // Refresh requests
       await refreshRequests()
@@ -285,19 +293,29 @@ const RequestsPage = () => {
   const getReturnOptions = (request: any) => {
     const options = []
 
-    // Only include return to owner option if current user is NOT the owner
-    if (request.equipment?.owner_id && request.equipment.owner_id !== user?.id) {
+    // Check if current user is the equipment owner
+    const isOwner = request.equipment?.owner_id === user?.id
+    const isAdmin = user?.is_admin
+    const isHallEquipment = request.equipment?.ownership_type === "hall"
+
+    // If user is the owner, they shouldn't see any return options (they already have the equipment)
+    if (isOwner) {
+      return []
+    }
+
+    // For non-owners, show return to owner option
+    if (request.equipment?.owner_id) {
       const owner = allUsers.find((u) => u.id === request.equipment.owner_id)
       if (owner) {
         options.push({ value: request.equipment.owner_id, label: `Return to Owner (${owner.name})` })
       }
-    } else if (!request.equipment?.owner_id && !user?.is_admin) {
+    } else if (isHallEquipment && !isAdmin) {
       // For hall equipment, non-admin users can return to admin
       options.push({ value: "admin", label: "Return to Admin" })
     }
 
     // Get approved requests for this equipment that could receive it next
-    // Only show approved requests that don't have time conflicts
+    // Only show approved requests that don't have time conflicts and are not currently received
     const approvedRequests = requests.filter(
       (r) =>
         r.equipment_id === request.equipment_id &&
@@ -415,6 +433,18 @@ const RequestsPage = () => {
           })
           .eq("id", requestId)
 
+        // Update the approved request to received status
+        await supabase
+          .from("equipment_requests")
+          .update({
+            status: "received",
+            received_time: returnTime,
+            current_holder_id: newHolderId,
+          })
+          .eq("equipment_id", request.equipment_id)
+          .eq("requester_id", newHolderId)
+          .eq("status", "approved")
+
         // Create transfer record
         await supabase.from("equipment_transfers").insert({
           equipment_id: request.equipment_id,
@@ -451,18 +481,6 @@ const RequestsPage = () => {
           equipment_id: request.equipment_id,
           user_id: newHolderId,
           checkout_time: returnTime,
-        })
-
-        // Create a virtual request for the new holder so they can return it
-        await supabase.from("equipment_requests").insert({
-          equipment_id: request.equipment_id,
-          event_id: request.event_id,
-          requester_id: newHolderId,
-          status: "received",
-          approved_by: user?.id,
-          current_holder_id: newHolderId,
-          received_time: returnTime,
-          notes: `Equipment transferred from ${user?.name}. Please return when done.`,
         })
       }
 
@@ -854,223 +872,230 @@ const RequestsPage = () => {
       ) : filteredRequests.length > 0 ? (
         <div className="bg-white shadow overflow-hidden sm:rounded-md">
           <ul className="divide-y divide-gray-200">
-            {filteredRequests.map((request) => (
-              <li key={request.id}>
-                <div className="px-4 py-4 sm:px-6 hover:bg-gray-50">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center">
-                      <div className="flex-shrink-0">
-                        <Package className="h-6 w-6 text-gray-400" />
-                      </div>
-                      <div className="ml-4">
-                        <div className="text-sm font-medium text-gray-900">
-                          <Link to={`/equipment/${request.equipment?.id}`} className="hover:text-primary-600">
-                            {request.equipment?.name}
-                          </Link>
-                          {/* Show equipment owner for student-owned equipment */}
-                          {request.equipment?.ownership_type === "student" &&
-                            request.equipment?.owner_id &&
-                            user?.is_admin && <span className="ml-2 text-xs text-blue-600">(Student-owned)</span>}
-                          {/* Show hall for hall-owned equipment */}
-                          {request.equipment?.ownership_type === "hall" && request.equipment?.hall && (
-                            <span className="ml-2 text-xs text-green-600">({request.equipment.hall})</span>
-                          )}
+            {filteredRequests.map((request) => {
+              const returnOptions = getReturnOptions(request)
+              const showReturnButton =
+                request.status === "received" &&
+                (request.current_holder_id === user?.id || request.requester_id === user?.id) &&
+                returnOptions.length > 0
+
+              return (
+                <li key={request.id}>
+                  <div className="px-4 py-4 sm:px-6 hover:bg-gray-50">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center">
+                        <div className="flex-shrink-0">
+                          <Package className="h-6 w-6 text-gray-400" />
                         </div>
-                        <div className="text-sm text-gray-500">
-                          {request.events?.title ? (
-                            <>
-                              For event:{" "}
-                              <Link to="/calendar" className="hover:text-primary-600">
-                                {request.events.title}
-                              </Link>
-                            </>
-                          ) : (
-                            "General use"
-                          )}
-                          {/* Show time range */}
-                          {request.start_time && request.end_time && (
-                            <span className="ml-2 text-xs text-gray-400">
-                              <Clock className="inline h-3 w-3 mr-1" />
-                              {formatToIST(request.start_time, "MMM d, HH:mm")} -{" "}
-                              {formatToIST(request.end_time, "HH:mm")} IST
-                            </span>
-                          )}
-                        </div>
-                        {request.current_holder && (
-                          <div className="text-xs text-blue-600 mt-1">
-                            Currently with: {request.current_holder?.name}
+                        <div className="ml-4">
+                          <div className="text-sm font-medium text-gray-900">
+                            <Link to={`/equipment/${request.equipment?.id}`} className="hover:text-primary-600">
+                              {request.equipment?.name}
+                            </Link>
+                            {/* Show equipment owner for student-owned equipment */}
+                            {request.equipment?.ownership_type === "student" &&
+                              request.equipment?.owner_id &&
+                              user?.is_admin && <span className="ml-2 text-xs text-blue-600">(Student-owned)</span>}
+                            {/* Show hall for hall-owned equipment */}
+                            {request.equipment?.ownership_type === "hall" && request.equipment?.hall && (
+                              <span className="ml-2 text-xs text-green-600">({request.equipment.hall})</span>
+                            )}
                           </div>
-                        )}
-                        {request.notes && <div className="text-xs text-gray-500 mt-1">Note: {request.notes}</div>}
-                        {request.auto_declined && request.declined_reason && (
-                          <div className="text-xs text-orange-600 mt-1">{request.declined_reason}</div>
-                        )}
-                      </div>
-                    </div>
-                    <div className="ml-2 flex-shrink-0 flex">
-                      {getStatusBadge(request.status, request.auto_declined)}
-                    </div>
-                  </div>
-
-                  <div className="mt-2 sm:flex sm:justify-between">
-                    <div className="sm:flex">
-                      <div className="flex items-center text-sm text-gray-500">
-                        <div className="flex-shrink-0 mr-1.5">
-                          <User className="h-4 w-4 text-gray-400" />
-                        </div>
-                        <Link to={`/members/${request.requester?.id}`} className="hover:text-primary-600">
-                          {request.requester?.name}
-                        </Link>
-                      </div>
-                      {request.forwarded_user && (
-                        <div className="mt-2 flex items-center text-sm text-blue-600 sm:mt-0 sm:ml-6">
-                          <div className="flex-shrink-0 mr-1.5">
-                            <UserPlus className="h-4 w-4 text-blue-500" />
+                          <div className="text-sm text-gray-500">
+                            {request.events?.title ? (
+                              <>
+                                For event:{" "}
+                                <Link to="/calendar" className="hover:text-primary-600">
+                                  {request.events.title}
+                                </Link>
+                              </>
+                            ) : (
+                              "General use"
+                            )}
+                            {/* Show time range */}
+                            {request.start_time && request.end_time && (
+                              <span className="ml-2 text-xs text-gray-400">
+                                <Clock className="inline h-3 w-3 mr-1" />
+                                {formatToIST(request.start_time, "MMM d, HH:mm")} -{" "}
+                                {formatToIST(request.end_time, "HH:mm")} IST
+                              </span>
+                            )}
                           </div>
-                          Forwarded to: {request.forwarded_user?.name}
-                        </div>
-                      )}
-                    </div>
-                    <div className="mt-2 flex items-center text-sm text-gray-500 sm:mt-0">
-                      <svg
-                        className="flex-shrink-0 mr-1.5 h-4 w-4 text-gray-400"
-                        xmlns="http://www.w3.org/2000/svg"
-                        viewBox="0 0 20 20"
-                        fill="currentColor"
-                      >
-                        <path
-                          fillRule="evenodd"
-                          d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z"
-                          clipRule="evenodd"
-                        />
-                      </svg>
-                      {formatToIST(request.created_at, "MMM d, yyyy")} IST
-                    </div>
-                  </div>
-
-                  {/* Action buttons based on status and user role */}
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    {/* Approve/Reject for pending requests */}
-                    {request.status === "pending" && canApprove(request) && (
-                      <>
-                        <button
-                          onClick={() => handleApprove(request.id)}
-                          disabled={!!processingId}
-                          className="inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50"
-                        >
-                          <CheckCircle className="mr-1 h-4 w-4" />
-                          Approve
-                        </button>
-                        <button
-                          onClick={() => handleReject(request.id)}
-                          disabled={!!processingId}
-                          className="inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50"
-                        >
-                          <XCircle className="mr-1 h-4 w-4" />
-                          Reject
-                        </button>
-                      </>
-                    )}
-
-                    {/* Forward option for admins on hall equipment */}
-                    {request.status === "pending" &&
-                      user?.is_admin &&
-                      request.equipment?.ownership_type === "hall" &&
-                      !request.forwarded_to && (
-                        <>
-                          {forwardingId === request.id ? (
-                            <div className="flex flex-col gap-2">
-                              <div className="flex items-center gap-2">
-                                <select
-                                  className="text-xs border border-gray-300 rounded px-2 py-1"
-                                  value={selectedForwardUser}
-                                  onChange={(e) => {
-                                    setSelectedForwardUser(e.target.value)
-                                    if (e.target.value === "other") {
-                                      setShowOtherUsers(true)
-                                      setHallUsers(getForwardingUsers(request))
-                                    } else {
-                                      setShowOtherUsers(false)
-                                    }
-                                  }}
-                                >
-                                  <option value="">Select user...</option>
-                                  {getForwardingUsers(request).map((u) => (
-                                    <option key={u.id} value={u.id}>
-                                      {u.name} ({u.hostel})
-                                    </option>
-                                  ))}
-                                  <option value="other">Others...</option>
-                                </select>
-
-                                {showOtherUsers && (
-                                  <select
-                                    className="text-xs border border-gray-300 rounded px-2 py-1"
-                                    value={selectedForwardUser === "other" ? "" : selectedForwardUser}
-                                    onChange={(e) => setSelectedForwardUser(e.target.value)}
-                                  >
-                                    <option value="">Select from all users...</option>
-                                    {allUsers
-                                      .filter(
-                                        (u) =>
-                                          u.id !== user.id && !getForwardingUsers(request).find((hu) => hu.id === u.id),
-                                      )
-                                      .map((u) => (
-                                        <option key={u.id} value={u.id}>
-                                          {u.name} {u.is_admin ? "(Admin)" : ""}
-                                        </option>
-                                      ))}
-                                  </select>
-                                )}
-
-                                <button
-                                  onClick={() => handleForward(request.id)}
-                                  disabled={!selectedForwardUser || selectedForwardUser === "other" || !!processingId}
-                                  className="inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
-                                >
-                                  <Send className="mr-1 h-3 w-3" />
-                                  Forward
-                                </button>
-                                <button
-                                  onClick={() => {
-                                    setForwardingId(null)
-                                    setSelectedForwardUser("")
-                                    setShowOtherUsers(false)
-                                  }}
-                                  className="inline-flex items-center px-2.5 py-1.5 border border-gray-300 text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
-                                >
-                                  Cancel
-                                </button>
-                              </div>
+                          {request.current_holder && (
+                            <div className="text-xs text-blue-600 mt-1">
+                              Currently with: {request.current_holder?.name}
                             </div>
-                          ) : (
-                            <button
-                              onClick={() => setForwardingId(request.id)}
-                              disabled={!!processingId}
-                              className="inline-flex items-center px-2.5 py-1.5 border border-gray-300 text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
-                            >
-                              <UserPlus className="mr-1 h-4 w-4" />
-                              Forward to User
-                            </button>
                           )}
+                          {request.notes && <div className="text-xs text-gray-500 mt-1">Note: {request.notes}</div>}
+                          {request.auto_declined && request.declined_reason && (
+                            <div className="text-xs text-orange-600 mt-1">{request.declined_reason}</div>
+                          )}
+                        </div>
+                      </div>
+                      <div className="ml-2 flex-shrink-0 flex">
+                        {getStatusBadge(request.status, request.auto_declined)}
+                      </div>
+                    </div>
+
+                    <div className="mt-2 sm:flex sm:justify-between">
+                      <div className="sm:flex">
+                        <div className="flex items-center text-sm text-gray-500">
+                          <div className="flex-shrink-0 mr-1.5">
+                            <User className="h-4 w-4 text-gray-400" />
+                          </div>
+                          <Link to={`/members/${request.requester?.id}`} className="hover:text-primary-600">
+                            {request.requester?.name}
+                          </Link>
+                        </div>
+                        {request.forwarded_user && (
+                          <div className="mt-2 flex items-center text-sm text-blue-600 sm:mt-0 sm:ml-6">
+                            <div className="flex-shrink-0 mr-1.5">
+                              <UserPlus className="h-4 w-4 text-blue-500" />
+                            </div>
+                            Forwarded to: {request.forwarded_user?.name}
+                          </div>
+                        )}
+                      </div>
+                      <div className="mt-2 flex items-center text-sm text-gray-500 sm:mt-0">
+                        <svg
+                          className="flex-shrink-0 mr-1.5 h-4 w-4 text-gray-400"
+                          xmlns="http://www.w3.org/2000/svg"
+                          viewBox="0 0 20 20"
+                          fill="currentColor"
+                        >
+                          <path
+                            fillRule="evenodd"
+                            d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z"
+                            clipRule="evenodd"
+                          />
+                        </svg>
+                        {formatToIST(request.created_at, "MMM d, yyyy")} IST
+                      </div>
+                    </div>
+
+                    {/* Action buttons based on status and user role */}
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      {/* Approve/Reject for pending requests */}
+                      {request.status === "pending" && canApprove(request) && (
+                        <>
+                          <button
+                            onClick={() => handleApprove(request.id)}
+                            disabled={!!processingId}
+                            className="inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50"
+                          >
+                            <CheckCircle className="mr-1 h-4 w-4" />
+                            Approve
+                          </button>
+                          <button
+                            onClick={() => handleReject(request.id)}
+                            disabled={!!processingId}
+                            className="inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50"
+                          >
+                            <XCircle className="mr-1 h-4 w-4" />
+                            Reject
+                          </button>
                         </>
                       )}
 
-                    {/* Received button for approved requests (requester only) */}
-                    {request.status === "approved" && request.requester_id === user?.id && (
-                      <button
-                        onClick={() => handleReceived(request.id)}
-                        disabled={!!processingId}
-                        className="inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
-                      >
-                        <CheckCircle className="mr-1 h-4 w-4" />
-                        Mark as Received
-                      </button>
-                    )}
+                      {/* Forward option for admins on hall equipment */}
+                      {request.status === "pending" &&
+                        user?.is_admin &&
+                        request.equipment?.ownership_type === "hall" &&
+                        !request.forwarded_to && (
+                          <>
+                            {forwardingId === request.id ? (
+                              <div className="flex flex-col gap-2">
+                                <div className="flex items-center gap-2">
+                                  <select
+                                    className="text-xs border border-gray-300 rounded px-2 py-1"
+                                    value={selectedForwardUser}
+                                    onChange={(e) => {
+                                      setSelectedForwardUser(e.target.value)
+                                      if (e.target.value === "other") {
+                                        setShowOtherUsers(true)
+                                        setHallUsers(getForwardingUsers(request))
+                                      } else {
+                                        setShowOtherUsers(false)
+                                      }
+                                    }}
+                                  >
+                                    <option value="">Select user...</option>
+                                    {getForwardingUsers(request).map((u) => (
+                                      <option key={u.id} value={u.id}>
+                                        {u.name} ({u.hostel})
+                                      </option>
+                                    ))}
+                                    <option value="other">Others...</option>
+                                  </select>
 
-                    {/* Return button for received requests (current holder) */}
-                    {request.status === "received" &&
-                      (request.current_holder_id === user?.id || request.requester_id === user?.id) && (
+                                  {showOtherUsers && (
+                                    <select
+                                      className="text-xs border border-gray-300 rounded px-2 py-1"
+                                      value={selectedForwardUser === "other" ? "" : selectedForwardUser}
+                                      onChange={(e) => setSelectedForwardUser(e.target.value)}
+                                    >
+                                      <option value="">Select from all users...</option>
+                                      {allUsers
+                                        .filter(
+                                          (u) =>
+                                            u.id !== user.id &&
+                                            !getForwardingUsers(request).find((hu) => hu.id === u.id),
+                                        )
+                                        .map((u) => (
+                                          <option key={u.id} value={u.id}>
+                                            {u.name} {u.is_admin ? "(Admin)" : ""}
+                                          </option>
+                                        ))}
+                                    </select>
+                                  )}
+
+                                  <button
+                                    onClick={() => handleForward(request.id)}
+                                    disabled={!selectedForwardUser || selectedForwardUser === "other" || !!processingId}
+                                    className="inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+                                  >
+                                    <Send className="mr-1 h-3 w-3" />
+                                    Forward
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      setForwardingId(null)
+                                      setSelectedForwardUser("")
+                                      setShowOtherUsers(false)
+                                    }}
+                                    className="inline-flex items-center px-2.5 py-1.5 border border-gray-300 text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+                                  >
+                                    Cancel
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => setForwardingId(request.id)}
+                                disabled={!!processingId}
+                                className="inline-flex items-center px-2.5 py-1.5 border border-gray-300 text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+                              >
+                                <UserPlus className="mr-1 h-4 w-4" />
+                                Forward to User
+                              </button>
+                            )}
+                          </>
+                        )}
+
+                      {/* Received button for approved requests (requester only) */}
+                      {request.status === "approved" && request.requester_id === user?.id && (
+                        <button
+                          onClick={() => handleReceived(request.id)}
+                          disabled={!!processingId}
+                          className="inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+                        >
+                          <CheckCircle className="mr-1 h-4 w-4" />
+                          Mark as Received
+                        </button>
+                      )}
+
+                      {/* Return button for received requests (current holder) - only show if there are return options */}
+                      {showReturnButton && (
                         <>
                           {returningId === request.id ? (
                             <div className="flex flex-col gap-2 w-full">
@@ -1083,7 +1108,7 @@ const RequestsPage = () => {
                                   }}
                                 >
                                   <option value="">Return to...</option>
-                                  {getReturnOptions(request).map((option) => (
+                                  {returnOptions.map((option) => (
                                     <option key={option.value} value={option.value}>
                                       {option.label}
                                     </option>
@@ -1147,35 +1172,36 @@ const RequestsPage = () => {
                         </>
                       )}
 
-                    {processingId === request.id && (
-                      <span className="inline-flex items-center text-xs text-gray-500">
-                        <svg
-                          className="animate-spin -ml-1 mr-2 h-4 w-4 text-gray-500"
-                          xmlns="http://www.w3.org/2000/svg"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                        >
-                          <circle
-                            className="opacity-25"
-                            cx="12"
-                            cy="12"
-                            r="10"
-                            stroke="currentColor"
-                            strokeWidth="4"
-                          ></circle>
-                          <path
-                            className="opacity-75"
-                            fill="currentColor"
-                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                          ></path>
-                        </svg>
-                        Processing...
-                      </span>
-                    )}
+                      {processingId === request.id && (
+                        <span className="inline-flex items-center text-xs text-gray-500">
+                          <svg
+                            className="animate-spin -ml-1 mr-2 h-4 w-4 text-gray-500"
+                            xmlns="http://www.w3.org/2000/svg"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                          >
+                            <circle
+                              className="opacity-25"
+                              cx="12"
+                              cy="12"
+                              r="10"
+                              stroke="currentColor"
+                              strokeWidth="4"
+                            ></circle>
+                            <path
+                              className="opacity-75"
+                              fill="currentColor"
+                              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                            ></path>
+                          </svg>
+                          Processing...
+                        </span>
+                      )}
+                    </div>
                   </div>
-                </div>
-              </li>
-            ))}
+                </li>
+              )
+            })}
           </ul>
         </div>
       ) : (
