@@ -43,6 +43,9 @@ const HomePage = () => {
     name: "",
     email: "",
     phone: "",
+    roll_number: "",
+    domain: "Photography",
+    year: "ug_1st",
     additional_info: "",
   })
   const [registerSuccess, setRegisterSuccess] = useState<string | null>(null)
@@ -96,9 +99,22 @@ const HomePage = () => {
     setInquiryForm((prev) => ({ ...prev, [name]: value }))
   }
 
+  // Roll number validation function
+  const validateRollNumber = (rollNumber: string): boolean => {
+    // Check if roll number starts with two digits followed by two letters
+    const rollPattern = /^[0-9]{2}[A-Za-z]{2}.*$/
+    return rollPattern.test(rollNumber)
+  }
+
   const handleRegisterSubmit = async (e: FormEvent, publicEventId: string) => {
     e.preventDefault()
     setRegisterError(null)
+
+    // Validate roll number format
+    if (!validateRollNumber(registerForm.roll_number)) {
+      setRegisterError("Roll number must start with 2 digits followed by 2 letters (e.g., 21CS001)")
+      return
+    }
 
     try {
       const { error } = await supabase.from("publicevent_registrations").insert({
@@ -106,6 +122,9 @@ const HomePage = () => {
         name: registerForm.name,
         email: registerForm.email,
         phone: registerForm.phone || null,
+        roll_number: registerForm.roll_number,
+        domain: registerForm.domain,
+        year: registerForm.year,
         additional_info: registerForm.additional_info || null,
       })
 
@@ -127,6 +146,9 @@ const HomePage = () => {
         name: "",
         email: "",
         phone: "",
+        roll_number: "",
+        domain: "Photography",
+        year: "ug_1st",
         additional_info: "",
       })
 
@@ -566,6 +588,47 @@ const HomePage = () => {
                             />
                           </div>
                           <div>
+                            <input
+                              type="text"
+                              placeholder="Roll Number (e.g., 21CS001) *"
+                              className="input text-sm"
+                              value={registerForm.roll_number}
+                              onChange={(e) => setRegisterForm({ ...registerForm, roll_number: e.target.value.toUpperCase() })}
+                              required
+                            />
+                          </div>
+                          <div>
+                            <select
+                              className="input text-sm"
+                              value={registerForm.year}
+                              onChange={(e) => setRegisterForm({ ...registerForm, year: e.target.value })}
+                              required
+                            >
+                              <option value="ug_1st">UG - 1st Year</option>
+                              <option value="ug_2nd">UG - 2nd Year</option>
+                              <option value="ug_3rd">UG - 3rd Year</option>
+                              <option value="ug_4th">UG - 4th Year</option>
+                              <option value="ug_5th">UG - 5th Year</option>
+                              <option value="pg_1st">PG - 1st Year</option>
+                              <option value="pg_2nd">PG - 2nd Year</option>
+                            </select>
+                          </div>
+                          <div>
+                            <select
+                              className="input text-sm"
+                              value={registerForm.domain}
+                              onChange={(e) => setRegisterForm({ ...registerForm, domain: e.target.value })}
+                              required
+                            >
+                              <option value="Photography">Photography</option>
+                              <option value="Cinematography">Cinematography</option>
+                              <option value="Editing">Editing</option>
+                              <option value="Scriptwriting">Scriptwriting</option>
+                              <option value="Sound & Music">Sound & Music</option>
+                              <option value="Design">Design</option>
+                            </select>
+                          </div>
+                          <div>
                             <textarea
                               placeholder="Additional information (Optional)"
                               className="input text-sm"
@@ -729,7 +792,7 @@ const HomePage = () => {
                     <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                       <div className="flex items-center">
                         <div className="flex-shrink-0">
-                          <svg className="h-5 w-5 text-green-400\" viewBox="0 0 20 20\" fill="currentColor">
+                          <svg className="h-5 w-5 text-green-400\" viewBox=\"0 0 20 20\" fill=\"currentColor">
                             <path
                               fillRule="evenodd"
                               d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
