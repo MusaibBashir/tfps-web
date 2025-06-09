@@ -190,9 +190,43 @@ const RequestsPage = () => {
 
       // Auto-decline ONLY conflicting requests if this request has time bounds
       if (request.start_time && request.end_time) {
-        await supabase.rpc("auto_decline_conflicts", {
-          p_approved_request_id: requestId,
-        })
+        // Get all pending requests for the same equipment
+        const { data: pendingRequests } = await supabase
+          .from("equipment_requests")
+          .select("*")
+          .eq("equipment_id", request.equipment_id)
+          .eq("status", "pending")
+          .neq("id", requestId)
+
+        // Filter for actual time conflicts
+        const conflictingRequests =
+          pendingRequests?.filter((pendingReq) => {
+            if (!pendingReq.start_time || !pendingReq.end_time) return false
+
+            const reqStart = new Date(request.start_time!)
+            const reqEnd = new Date(request.end_time!)
+            const pendingStart = new Date(pendingReq.start_time)
+            const pendingEnd = new Date(pendingReq.end_time)
+
+            // Check for overlap: requests conflict if one starts before the other ends
+            return reqStart < pendingEnd && reqEnd > pendingStart
+          }) || []
+
+        // Decline only conflicting requests
+        if (conflictingRequests.length > 0) {
+          await supabase
+            .from("equipment_requests")
+            .update({
+              status: "rejected",
+              auto_declined: true,
+              declined_reason: `Auto-declined due to time conflict with approved request by ${request.requester?.name}`,
+              approved_by: user?.id,
+            })
+            .in(
+              "id",
+              conflictingRequests.map((r) => r.id),
+            )
+        }
       }
 
       // Update equipment status to in_use
@@ -262,18 +296,29 @@ const RequestsPage = () => {
       options.push({ value: "admin", label: "Return to Admin" })
     }
 
-    // Get pending AND approved requests for this equipment that could receive it next
-    // Only show approved requests as transfer options
+    // Get approved requests for this equipment that could receive it next
+    // Only show approved requests that don't have time conflicts
     const approvedRequests = requests.filter(
       (r) =>
         r.equipment_id === request.equipment_id &&
         r.status === "approved" &&
         r.id !== request.id &&
-        r.requester_id !== user?.id &&
-        (!r.start_time || !r.end_time || !request.end_time || new Date(r.start_time) >= new Date(request.end_time)),
+        r.requester_id !== user?.id,
     )
 
-    approvedRequests.forEach((approvedReq) => {
+    // Filter out time conflicts - only show if the approved request starts after current request ends
+    // or if either request doesn't have time bounds
+    const nonConflictingRequests = approvedRequests.filter((approvedReq) => {
+      // If either request doesn't have time bounds, allow transfer
+      if (!request.start_time || !request.end_time || !approvedReq.start_time || !approvedReq.end_time) {
+        return true
+      }
+
+      // Check if approved request starts after current request ends
+      return new Date(approvedReq.start_time) >= new Date(request.end_time)
+    })
+
+    nonConflictingRequests.forEach((approvedReq) => {
       if (approvedReq.requester) {
         options.push({
           value: approvedReq.requester.id,
