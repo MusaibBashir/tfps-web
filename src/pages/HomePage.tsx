@@ -18,9 +18,7 @@ import {
   Play,
   Star,
   BookOpen,
-  Sparkles,
-  Award,
-  Film,
+  Youtube,
 } from "lucide-react"
 import { useAuth } from "../contexts/AuthContext"
 import { useSupabase } from "../contexts/SupabaseContext"
@@ -30,25 +28,12 @@ const HomePage = () => {
   const { user } = useAuth()
   const { supabase } = useSupabase()
   const navigate = useNavigate()
-  const [inquiryForm, setInquiryForm] = useState({
-    name: "",
-    email: "",
-    phone: "",
-    inquiryType: "general",
-    subject: "",
-    message: "",
-  })
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [submitSuccess, setSubmitSuccess] = useState(false)
   const [upcomingPublicEvents, setUpcomingPublicEvents] = useState<PublicEvent[]>([])
   const [registering, setRegistering] = useState<string | null>(null)
   const [registerForm, setRegisterForm] = useState({
     name: "",
     email: "",
     phone: "",
-    roll_number: "",
-    domain: "Photography",
-    year: "ug_1st",
     additional_info: "",
   })
   const [registerSuccess, setRegisterSuccess] = useState<string | null>(null)
@@ -73,51 +58,25 @@ const HomePage = () => {
     }
 
     fetchPublicEvents()
+
+    // Load Instagram embed script
+    const script = document.createElement('script')
+    script.src = '//www.instagram.com/embed.js'
+    script.async = true
+    document.body.appendChild(script)
+
+    return () => {
+      // Cleanup script on unmount
+      const existingScript = document.querySelector('script[src="//www.instagram.com/embed.js"]')
+      if (existingScript) {
+        document.body.removeChild(existingScript)
+      }
+    }
   }, [supabase])
-
-  const handleInquirySubmit = async (e: FormEvent) => {
-    e.preventDefault()
-    setIsSubmitting(true)
-
-    // Simulate form submission
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-
-    setSubmitSuccess(true)
-    setInquiryForm({
-      name: "",
-      email: "",
-      phone: "",
-      inquiryType: "general",
-      subject: "",
-      message: "",
-    })
-    setIsSubmitting(false)
-
-    // Hide success message after 3 seconds
-    setTimeout(() => setSubmitSuccess(false), 3000)
-  }
-
-  const handleInquiryChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target
-    setInquiryForm((prev) => ({ ...prev, [name]: value }))
-  }
-
-  // Roll number validation function
-  const validateRollNumber = (rollNumber: string): boolean => {
-    // Check if roll number starts with two digits followed by two letters
-    const rollPattern = /^[0-9]{2}[A-Za-z]{2}.*$/
-    return rollPattern.test(rollNumber)
-  }
 
   const handleRegisterSubmit = async (e: FormEvent, publicEventId: string) => {
     e.preventDefault()
     setRegisterError(null)
-
-    // Validate roll number format
-    if (!validateRollNumber(registerForm.roll_number)) {
-      setRegisterError("Roll number must start with 2 digits followed by 2 letters (e.g., 21CS001)")
-      return
-    }
 
     try {
       const { error } = await supabase.from("publicevent_registrations").insert({
@@ -125,9 +84,6 @@ const HomePage = () => {
         name: registerForm.name,
         email: registerForm.email,
         phone: registerForm.phone || null,
-        roll_number: registerForm.roll_number,
-        domain: registerForm.domain,
-        year: registerForm.year,
         additional_info: registerForm.additional_info || null,
       })
 
@@ -149,9 +105,6 @@ const HomePage = () => {
         name: "",
         email: "",
         phone: "",
-        roll_number: "",
-        domain: "Photography",
-        year: "ug_1st",
         additional_info: "",
       })
 
@@ -169,59 +122,31 @@ const HomePage = () => {
     return null
   }
 
-  // Recent movies with YouTube embeds
+  // Recent movies with real YouTube videos
   const recentMovies = [
     {
       id: 1,
-      title: "Campus Chronicles",
-      youtubeId: "dQw4w9WgXcQ",
-      description: "A documentary capturing the essence of student life and creativity on campus.",
-      duration: "12:45",
+      title: "TFPS Showreel 2024",
+      youtubeId: "Ekuy8Ymvk68",
+      description: "A showcase of our best photography and cinematography work from 2024.",
+      duration: "3:45",
       views: "2.3K",
     },
     {
       id: 2,
-      title: "Through the Lens",
-      youtubeId: "jNQXAC9IVRw",
-      description: "A short film exploring the art of photography and visual storytelling.",
-      duration: "8:30",
+      title: "Behind the Scenes",
+      youtubeId: "7Ay0bQemOs8",
+      description: "Get an inside look at how we create our stunning visual content.",
+      duration: "5:20",
       views: "1.8K",
     },
     {
       id: 3,
-      title: "TFPS Annual Showcase",
-      youtubeId: "9bZkp7q19f0",
-      description: "Highlights from our annual photography and film exhibition.",
-      duration: "15:20",
+      title: "TFPS Documentary",
+      youtubeId: "V3cechi6Ovk",
+      description: "The story of TFPS and our journey in visual storytelling.",
+      duration: "8:15",
       views: "4.1K",
-    },
-  ]
-
-  // Instagram posts
-  const instagramPosts = [
-    {
-      id: "post1",
-      image: "https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?w=400&auto=format&fit=crop",
-      caption: "Behind the scenes at our latest shoot! The magic happens when creativity meets passion. 📸✨ #TFPS #Photography #BehindTheScenes",
-      likes: 124,
-      date: "2 days ago",
-      instagramUrl: "https://instagram.com/p/example1",
-    },
-    {
-      id: "post2",
-      image: "https://images.unsplash.com/photo-1496559249665-c7e2874707ea?w=400&auto=format&fit=crop",
-      caption: "Congratulations to our photography contest winners! Your talent continues to inspire us all. 🏆 #TFPS #Contest #Winners",
-      likes: 89,
-      date: "5 days ago",
-      instagramUrl: "https://instagram.com/p/example2",
-    },
-    {
-      id: "post3",
-      image: "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=400&auto=format&fit=crop",
-      caption: "New equipment just arrived! Can't wait to see what amazing content our members create with these tools. 📷 #TFPS #NewGear #Equipment",
-      likes: 156,
-      date: "1 week ago",
-      instagramUrl: "https://instagram.com/p/example3",
     },
   ]
 
@@ -262,108 +187,92 @@ const HomePage = () => {
     },
   ]
 
+  // Governors data
+  const governors = [
+    {
+      id: 1,
+      name: "Arjun Sharma",
+      position: "President",
+      image: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300&h=300&fit=crop&crop=face",
+    },
+    {
+      id: 2,
+      name: "Priya Patel",
+      position: "Vice President",
+      image: "https://images.unsplash.com/photo-1494790108755-2616b612b786?w=300&h=300&fit=crop&crop=face",
+    },
+    {
+      id: 3,
+      name: "Rahul Kumar",
+      position: "Secretary",
+      image: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=300&h=300&fit=crop&crop=face",
+    },
+    {
+      id: 4,
+      name: "Sneha Gupta",
+      position: "Treasurer",
+      image: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=300&h=300&fit=crop&crop=face",
+    },
+  ]
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-amber-50 via-white to-orange-50">
+    <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-yellow-50 relative overflow-hidden">
       {/* Floating particles background */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-1/4 left-1/4 w-2 h-2 bg-gradient-to-r from-amber-400 to-orange-400 rounded-full animate-pulse opacity-60"></div>
-        <div className="absolute top-3/4 right-1/4 w-1 h-1 bg-gradient-to-r from-orange-400 to-amber-400 rounded-full animate-pulse opacity-40 animation-delay-1000"></div>
-        <div className="absolute top-1/2 left-3/4 w-1.5 h-1.5 bg-gradient-to-r from-amber-300 to-orange-300 rounded-full animate-pulse opacity-50 animation-delay-2000"></div>
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-1/4 left-1/4 w-2 h-2 bg-amber-400 rounded-full animate-float opacity-60"></div>
+        <div className="absolute top-1/3 right-1/3 w-1 h-1 bg-orange-400 rounded-full animate-float animation-delay-1000 opacity-40"></div>
+        <div className="absolute bottom-1/4 left-1/3 w-3 h-3 bg-yellow-400 rounded-full animate-float animation-delay-2000 opacity-50"></div>
+        <div className="absolute top-2/3 right-1/4 w-1.5 h-1.5 bg-amber-500 rounded-full animate-float opacity-30"></div>
       </div>
 
       {/* Header */}
-      <header className="relative overflow-hidden">
-        {/* Gradient background with glass effect */}
-        <div className="absolute inset-0 bg-gradient-to-br from-amber-600 via-orange-600 to-amber-700"></div>
-        <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-white/10"></div>
-        
-        {/* Glass overlay */}
-        <div className="absolute inset-0 backdrop-blur-sm bg-white/5"></div>
-        
-        <div className="container mx-auto px-4 py-6 relative z-10">
+      <header className="glass-card sticky top-0 z-50 border-0 rounded-none backdrop-blur-xl bg-gradient-to-r from-amber-500/90 to-orange-500/90">
+        <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4 group">
-              <div className="p-3 bg-white/20 backdrop-blur-md rounded-2xl shadow-2xl border border-white/30 group-hover:scale-110 transition-all duration-500">
-                <Camera className="h-10 w-10 text-white drop-shadow-lg" />
+            <div className="flex items-center gap-3 animate-fade-in">
+              <div className="p-2 bg-white/20 rounded-xl shadow-lg backdrop-blur-md">
+                <Camera className="h-10 w-10 text-white" />
               </div>
               <div>
-                <h1 className="text-3xl font-bold text-white drop-shadow-lg">TFPS</h1>
-                <p className="text-amber-100 text-sm font-medium drop-shadow">Technology Film and Photography Society</p>
+                <h1 className="text-2xl font-bold text-white">TFPS</h1>
+                <p className="text-amber-100 text-sm">Technology Film and Photography Society</p>
               </div>
             </div>
             <div className="flex items-center gap-4">
               <Link
                 to="/login"
-                className="glass-button text-white hover:text-amber-100 px-6 py-3 rounded-xl font-medium transition-all duration-300 hover:scale-105"
+                className="glass-button px-6 py-2 rounded-xl font-medium transition-all duration-300 hover:scale-105 border-2 border-white/30 text-white hover:bg-white/20"
               >
                 Login
               </Link>
-              <a
-                href="#register"
-                className="bg-gradient-to-r from-white/20 to-white/10 backdrop-blur-md border border-white/30 text-white hover:from-white/30 hover:to-white/20 px-6 py-3 rounded-xl font-medium transition-all duration-300 hover:scale-105 shadow-xl"
-              >
-                Register for Event
-              </a>
             </div>
           </div>
         </div>
       </header>
 
       {/* Hero Section */}
-      <section className="relative py-24 overflow-hidden">
-        {/* Animated gradient background */}
-        <div className="absolute inset-0 bg-gradient-to-br from-amber-600 via-orange-600 to-amber-700 animate-gradient bg-[length:400%_400%]"></div>
-        <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent"></div>
-        
-        {/* Floating elements */}
-        <div className="absolute top-20 left-10 w-20 h-20 bg-white/10 rounded-full blur-xl animate-pulse"></div>
-        <div className="absolute bottom-20 right-10 w-32 h-32 bg-amber-300/20 rounded-full blur-2xl animate-pulse animation-delay-1000"></div>
-        
+      <section className="relative py-20 overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-amber-600/20 to-orange-600/20 animate-gradient"></div>
         <div className="container mx-auto px-4 text-center relative z-10">
-          <div className="max-w-4xl mx-auto">
-            <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-md rounded-full px-6 py-3 mb-8 border border-white/30">
-              <Sparkles className="h-5 w-5 text-amber-200" />
-              <span className="text-white font-medium">Where Creativity Meets Technology</span>
-            </div>
-            
-            <h2 className="text-7xl font-bold mb-6 text-white drop-shadow-2xl">
-              <span className="bg-gradient-to-r from-white via-amber-100 to-white bg-clip-text text-transparent">
-                TFPS
-              </span>
+          <div className="animate-fade-in">
+            <h2 className="text-7xl font-bold mb-6 bg-gradient-to-r from-amber-600 to-orange-600 bg-clip-text text-transparent">
+              TFPS
             </h2>
-            <p className="text-2xl text-amber-100 mb-4 font-light drop-shadow-lg">Technology Film and Photography Society</p>
-            <p className="text-xl text-white/90 mb-12 max-w-3xl mx-auto leading-relaxed drop-shadow">
+            <p className="text-3xl text-gray-700 mb-4 font-light">Technology Film and Photography Society</p>
+            <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto leading-relaxed">
               Where creativity meets technology. Join our vibrant community of photographers and filmmakers as we capture stories, create art, and push the boundaries of visual expression.
             </p>
-            
-            <div className="flex flex-col sm:flex-row gap-6 justify-center">
-              <a
-                href="#register"
-                className="glass-button-primary px-8 py-4 rounded-2xl font-semibold text-lg transition-all duration-300 hover:scale-105 shadow-2xl"
-              >
-                Join Our Community
-                <ChevronRight className="ml-2 h-5 w-5 inline" />
-              </a>
-              <a
-                href="#about"
-                className="glass-button px-8 py-4 rounded-2xl font-semibold text-lg transition-all duration-300 hover:scale-105"
-              >
-                Learn More
-              </a>
-            </div>
           </div>
         </div>
       </section>
 
       {/* Recent Movies Section */}
-      <section className="py-20 relative">
+      <section className="py-16 relative">
         <div className="container mx-auto px-4">
-          <div className="text-center mb-16">
-            <div className="inline-flex items-center gap-2 bg-gradient-to-r from-amber-100 to-orange-100 rounded-full px-6 py-3 mb-6">
-              <Film className="h-5 w-5 text-amber-600" />
-              <span className="text-amber-800 font-semibold">Latest Creations</span>
-            </div>
-            <h3 className="text-4xl font-bold text-gray-900 mb-4">Recent Movies</h3>
+          <div className="text-center mb-12 animate-fade-in">
+            <h3 className="text-4xl font-bold bg-gradient-to-r from-amber-600 to-orange-600 bg-clip-text text-transparent mb-4">
+              Recent Movies
+            </h3>
             <p className="text-gray-600 max-w-2xl mx-auto text-lg">
               Watch our latest film productions and documentaries created by our talented members.
             </p>
@@ -373,8 +282,8 @@ const HomePage = () => {
             {recentMovies.map((movie, index) => (
               <div 
                 key={movie.id} 
-                className="glass-card group hover:scale-105 transition-all duration-500"
-                style={{ animationDelay: `${index * 200}ms` }}
+                className="glass-card group hover-lift animate-fade-in"
+                style={{ animationDelay: `${index * 0.2}s` }}
               >
                 <div className="relative">
                   <div className="aspect-video bg-gray-900 relative overflow-hidden rounded-t-2xl">
@@ -387,25 +296,23 @@ const HomePage = () => {
                       allowFullScreen
                     />
                   </div>
-                  <div className="absolute top-3 right-3 bg-black/70 backdrop-blur-sm text-white px-3 py-1 rounded-full text-sm font-medium">
+                  <div className="absolute top-3 right-3 glass-button px-2 py-1 rounded-lg text-sm font-medium">
                     {movie.duration}
                   </div>
                 </div>
                 <div className="p-6">
-                  <h4 className="text-xl font-semibold text-gray-900 mb-3 group-hover:text-amber-700 transition-colors">
-                    {movie.title}
-                  </h4>
+                  <h4 className="text-xl font-semibold text-gray-900 mb-2">{movie.title}</h4>
                   <p className="text-gray-600 mb-4 leading-relaxed">{movie.description}</p>
                   <div className="flex items-center justify-between text-sm text-gray-500">
-                    <div className="flex items-center gap-2">
-                      <Play className="h-4 w-4 text-amber-600" />
-                      <span className="font-medium">{movie.views} views</span>
+                    <div className="flex items-center gap-1">
+                      <Play className="h-4 w-4" />
+                      {movie.views} views
                     </div>
                     <a
                       href={`https://youtube.com/watch?v=${movie.youtubeId}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-amber-600 hover:text-amber-700 font-medium flex items-center gap-1 transition-colors"
+                      className="text-amber-600 hover:text-amber-800 font-medium flex items-center gap-1 transition-colors"
                     >
                       Watch on YouTube
                       <ExternalLink className="h-3 w-3" />
@@ -415,94 +322,259 @@ const HomePage = () => {
               </div>
             ))}
           </div>
+
+          <div className="text-center mt-10">
+            <a
+              href="https://www.youtube.com/@TFPSIITKgp"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="glass-button-primary px-8 py-4 rounded-xl font-medium inline-flex items-center gap-3 hover:scale-105 transition-all duration-300"
+            >
+              <Youtube className="h-5 w-5" />
+              Subscribe to Our Channel
+              <ExternalLink className="h-4 w-4" />
+            </a>
+          </div>
         </div>
       </section>
 
       {/* Instagram Feed Section */}
-      <section className="py-20 bg-gradient-to-br from-orange-50 to-amber-50 relative">
+      <section className="py-16 bg-gradient-to-r from-amber-50 to-orange-50">
         <div className="container mx-auto px-4">
-          <div className="text-center mb-16">
-            <div className="inline-flex items-center gap-2 bg-gradient-to-r from-pink-100 to-purple-100 rounded-full px-6 py-3 mb-6">
-              <Instagram className="h-5 w-5 text-pink-600" />
-              <span className="text-pink-800 font-semibold">Social Media</span>
-            </div>
-            <h3 className="text-4xl font-bold text-gray-900 mb-4">Follow Us on Instagram</h3>
+          <div className="text-center mb-12 animate-fade-in">
+            <h3 className="text-4xl font-bold bg-gradient-to-r from-amber-600 to-orange-600 bg-clip-text text-transparent mb-4">
+              Follow Us on Instagram
+            </h3>
             <p className="text-gray-600 max-w-2xl mx-auto text-lg">
               Stay updated with our latest activities, behind-the-scenes content, and creative works.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {instagramPosts.map((post, index) => (
-              <div 
-                key={post.id} 
-                className="glass-card group hover:scale-105 transition-all duration-500"
-                style={{ animationDelay: `${index * 150}ms` }}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Instagram Post 1 */}
+            <div className="glass-card p-4 hover-lift animate-fade-in">
+              <blockquote 
+                className="instagram-media" 
+                data-instgrm-captioned 
+                data-instgrm-permalink="https://www.instagram.com/p/DKjzVjJsU9B/?utm_source=ig_embed&utm_campaign=loading" 
+                data-instgrm-version="14" 
+                style={{ 
+                  background: 'transparent', 
+                  border: 0, 
+                  borderRadius: '3px', 
+                  boxShadow: 'none', 
+                  margin: '1px', 
+                  maxWidth: '100%', 
+                  minWidth: '326px', 
+                  padding: 0, 
+                  width: '100%' 
+                }}
               >
-                <div className="h-64 overflow-hidden rounded-t-2xl">
-                  <img
-                    src={post.image}
-                    alt="Instagram post"
-                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                  />
-                </div>
-                <div className="p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center">
-                      <div className="p-2 bg-gradient-to-r from-pink-500 to-purple-600 rounded-full mr-3">
-                        <Instagram className="h-4 w-4 text-white" />
+                <div style={{ padding: '16px' }}>
+                  <a 
+                    href="https://www.instagram.com/p/DKjzVjJsU9B/?utm_source=ig_embed&utm_campaign=loading" 
+                    style={{ 
+                      background: '#FFFFFF', 
+                      lineHeight: 0, 
+                      padding: '0 0', 
+                      textAlign: 'center', 
+                      textDecoration: 'none', 
+                      width: '100%' 
+                    }} 
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center' }}>
+                      <div style={{ backgroundColor: '#F4F4F4', borderRadius: '50%', flexGrow: 0, height: '40px', marginRight: '14px', width: '40px' }}></div>
+                      <div style={{ display: 'flex', flexDirection: 'column', flexGrow: 1, justifyContent: 'center' }}>
+                        <div style={{ backgroundColor: '#F4F4F4', borderRadius: '4px', flexGrow: 0, height: '14px', marginBottom: '6px', width: '100px' }}></div>
+                        <div style={{ backgroundColor: '#F4F4F4', borderRadius: '4px', flexGrow: 0, height: '14px', width: '60px' }}></div>
                       </div>
-                      <span className="text-sm font-semibold text-gray-900">@tfps_official</span>
                     </div>
-                    <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">{post.date}</span>
-                  </div>
-                  <p className="text-sm text-gray-700 mb-4 leading-relaxed">{post.caption}</p>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-sm text-gray-500">
-                      <div className="w-4 h-4 bg-gradient-to-r from-red-500 to-pink-500 rounded-full flex items-center justify-center">
-                        <span className="text-white text-xs">♥</span>
+                    <div style={{ padding: '19% 0' }}></div>
+                    <div style={{ display: 'block', height: '50px', margin: '0 auto 12px', width: '50px' }}>
+                      <svg width="50px" height="50px" viewBox="0 0 60 60" version="1.1" xmlns="http://www.w3.org/2000/svg">
+                        <g stroke="none" strokeWidth="1" fill="none" fillRule="evenodd">
+                          <g transform="translate(-511.000000, -20.000000)" fill="#000000">
+                            <g>
+                              <path d="M556.869,30.41 C554.814,30.41 553.148,32.076 553.148,34.131 C553.148,36.186 554.814,37.852 556.869,37.852 C558.924,37.852 560.59,36.186 560.59,34.131 C560.59,32.076 558.924,30.41 556.869,30.41 M541,60.657 C535.114,60.657 530.342,55.887 530.342,50 C530.342,44.114 535.114,39.342 541,39.342 C546.887,39.342 551.658,44.114 551.658,50 C551.658,55.887 546.887,60.657 541,60.657 M541,33.886 C532.1,33.886 524.886,41.1 524.886,50 C524.886,58.899 532.1,66.113 541,66.113 C549.9,66.113 557.115,58.899 557.115,50 C557.115,41.1 549.9,33.886 541,33.886 M565.378,62.101 C565.244,65.022 564.756,66.606 564.346,67.663 C563.803,69.06 563.154,70.057 562.106,71.106 C561.058,72.155 560.06,72.803 558.662,73.347 C557.607,73.757 556.021,74.244 553.102,74.378 C549.944,74.521 548.997,74.552 541,74.552 C533.003,74.552 532.056,74.521 528.898,74.378 C525.979,74.244 524.393,73.757 523.338,73.347 C521.94,72.803 520.942,72.155 519.894,71.106 C518.846,70.057 518.197,69.06 517.654,67.663 C517.244,66.606 516.755,65.022 516.623,62.101 C516.479,58.943 516.448,57.996 516.448,50 C516.448,42.003 516.479,41.056 516.623,37.899 C516.755,34.978 517.244,33.391 517.654,32.338 C518.197,30.938 518.846,29.942 519.894,28.894 C520.942,27.846 521.94,27.196 523.338,26.654 C524.393,26.244 525.979,25.756 528.898,25.623 C532.057,25.479 533.004,25.448 541,25.448 C548.997,25.448 549.943,25.479 553.102,25.623 C556.021,25.756 557.607,26.244 558.662,26.654 C560.06,27.196 561.058,27.846 562.106,28.894 C563.154,29.942 563.803,30.938 564.346,32.338 C564.756,33.391 565.244,34.978 565.378,37.899 C565.522,41.056 565.552,42.003 565.552,50 C565.552,57.996 565.522,58.943 565.378,62.101 M570.82,37.631 C570.674,34.438 570.167,32.258 569.425,30.349 C568.659,28.377 567.633,26.702 565.965,25.035 C564.297,23.368 562.623,22.342 560.652,21.575 C558.743,20.834 556.562,20.326 553.369,20.18 C550.169,20.033 549.148,20 541,20 C532.853,20 531.831,20.033 528.631,20.18 C525.438,20.326 523.257,20.834 521.349,21.575 C519.376,22.342 517.703,23.368 516.035,25.035 C514.368,26.702 513.342,28.377 512.574,30.349 C511.834,32.258 511.326,34.438 511.181,37.631 C511.035,40.831 511,41.851 511,50 C511,58.147 511.035,59.17 511.181,62.369 C511.326,65.562 511.834,67.743 512.574,69.651 C513.342,71.625 514.368,73.296 516.035,74.965 C517.703,76.634 519.376,77.658 521.349,78.425 C523.257,79.167 525.438,79.673 528.631,79.82 C531.831,79.965 532.853,80.001 541,80.001 C549.148,80.001 550.169,79.965 553.369,79.82 C556.562,79.673 558.743,79.167 560.652,78.425 C562.623,77.658 564.297,76.634 565.965,74.965 C567.633,73.296 568.659,71.625 569.425,69.651 C570.167,67.743 570.674,65.562 570.82,62.369 C570.966,59.17 571,58.147 571,50 C571,41.851 570.966,40.831 570.82,37.631"></path>
+                            </g>
+                          </g>
+                        </g>
+                      </svg>
+                    </div>
+                    <div style={{ paddingTop: '8px' }}>
+                      <div style={{ color: '#3897f0', fontFamily: 'Arial,sans-serif', fontSize: '14px', fontStyle: 'normal', fontWeight: '550', lineHeight: '18px' }}>
+                        View this post on Instagram
                       </div>
-                      <span className="font-medium">{post.likes} likes</span>
                     </div>
-                    <a
-                      href={post.instagramUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-pink-600 hover:text-pink-700 text-sm font-medium flex items-center gap-1 transition-colors"
-                    >
-                      View Post
-                      <ExternalLink className="h-3 w-3" />
+                  </a>
+                  <p style={{ color: '#c9c8cd', fontFamily: 'Arial,sans-serif', fontSize: '14px', lineHeight: '17px', marginBottom: 0, marginTop: '8px', overflow: 'hidden', padding: '8px 0 7px', textAlign: 'center', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <a href="https://www.instagram.com/p/DKjzVjJsU9B/?utm_source=ig_embed&utm_campaign=loading" style={{ color: '#c9c8cd', fontFamily: 'Arial,sans-serif', fontSize: '14px', fontStyle: 'normal', fontWeight: 'normal', lineHeight: '17px', textDecoration: 'none' }} target="_blank" rel="noopener noreferrer">
+                      A post shared by TFPS | IIT Kharagpur (@tfps.iitkgp)
                     </a>
-                  </div>
+                  </p>
                 </div>
-              </div>
-            ))}
+              </blockquote>
+            </div>
+
+            {/* Instagram Post 2 */}
+            <div className="glass-card p-4 hover-lift animate-fade-in" style={{ animationDelay: '0.2s' }}>
+              <blockquote 
+                className="instagram-media" 
+                data-instgrm-captioned 
+                data-instgrm-permalink="https://www.instagram.com/p/DJ9KYr3pp08/?utm_source=ig_embed&utm_campaign=loading" 
+                data-instgrm-version="14" 
+                style={{ 
+                  background: 'transparent', 
+                  border: 0, 
+                  borderRadius: '3px', 
+                  boxShadow: 'none', 
+                  margin: '1px', 
+                  maxWidth: '100%', 
+                  minWidth: '326px', 
+                  padding: 0, 
+                  width: '100%' 
+                }}
+              >
+                <div style={{ padding: '16px' }}>
+                  <a 
+                    href="https://www.instagram.com/p/DJ9KYr3pp08/?utm_source=ig_embed&utm_campaign=loading" 
+                    style={{ 
+                      background: '#FFFFFF', 
+                      lineHeight: 0, 
+                      padding: '0 0', 
+                      textAlign: 'center', 
+                      textDecoration: 'none', 
+                      width: '100%' 
+                    }} 
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center' }}>
+                      <div style={{ backgroundColor: '#F4F4F4', borderRadius: '50%', flexGrow: 0, height: '40px', marginRight: '14px', width: '40px' }}></div>
+                      <div style={{ display: 'flex', flexDirection: 'column', flexGrow: 1, justifyContent: 'center' }}>
+                        <div style={{ backgroundColor: '#F4F4F4', borderRadius: '4px', flexGrow: 0, height: '14px', marginBottom: '6px', width: '100px' }}></div>
+                        <div style={{ backgroundColor: '#F4F4F4', borderRadius: '4px', flexGrow: 0, height: '14px', width: '60px' }}></div>
+                      </div>
+                    </div>
+                    <div style={{ padding: '19% 0' }}></div>
+                    <div style={{ display: 'block', height: '50px', margin: '0 auto 12px', width: '50px' }}>
+                      <svg width="50px" height="50px" viewBox="0 0 60 60" version="1.1" xmlns="http://www.w3.org/2000/svg">
+                        <g stroke="none" strokeWidth="1" fill="none" fillRule="evenodd">
+                          <g transform="translate(-511.000000, -20.000000)" fill="#000000">
+                            <g>
+                              <path d="M556.869,30.41 C554.814,30.41 553.148,32.076 553.148,34.131 C553.148,36.186 554.814,37.852 556.869,37.852 C558.924,37.852 560.59,36.186 560.59,34.131 C560.59,32.076 558.924,30.41 556.869,30.41 M541,60.657 C535.114,60.657 530.342,55.887 530.342,50 C530.342,44.114 535.114,39.342 541,39.342 C546.887,39.342 551.658,44.114 551.658,50 C551.658,55.887 546.887,60.657 541,60.657 M541,33.886 C532.1,33.886 524.886,41.1 524.886,50 C524.886,58.899 532.1,66.113 541,66.113 C549.9,66.113 557.115,58.899 557.115,50 C557.115,41.1 549.9,33.886 541,33.886 M565.378,62.101 C565.244,65.022 564.756,66.606 564.346,67.663 C563.803,69.06 563.154,70.057 562.106,71.106 C561.058,72.155 560.06,72.803 558.662,73.347 C557.607,73.757 556.021,74.244 553.102,74.378 C549.944,74.521 548.997,74.552 541,74.552 C533.003,74.552 532.056,74.521 528.898,74.378 C525.979,74.244 524.393,73.757 523.338,73.347 C521.94,72.803 520.942,72.155 519.894,71.106 C518.846,70.057 518.197,69.06 517.654,67.663 C517.244,66.606 516.755,65.022 516.623,62.101 C516.479,58.943 516.448,57.996 516.448,50 C516.448,42.003 516.479,41.056 516.623,37.899 C516.755,34.978 517.244,33.391 517.654,32.338 C518.197,30.938 518.846,29.942 519.894,28.894 C520.942,27.846 521.94,27.196 523.338,26.654 C524.393,26.244 525.979,25.756 528.898,25.623 C532.057,25.479 533.004,25.448 541,25.448 C548.997,25.448 549.943,25.479 553.102,25.623 C556.021,25.756 557.607,26.244 558.662,26.654 C560.06,27.196 561.058,27.846 562.106,28.894 C563.154,29.942 563.803,30.938 564.346,32.338 C564.756,33.391 565.244,34.978 565.378,37.899 C565.522,41.056 565.552,42.003 565.552,50 C565.552,57.996 565.522,58.943 565.378,62.101 M570.82,37.631 C570.674,34.438 570.167,32.258 569.425,30.349 C568.659,28.377 567.633,26.702 565.965,25.035 C564.297,23.368 562.623,22.342 560.652,21.575 C558.743,20.834 556.562,20.326 553.369,20.18 C550.169,20.033 549.148,20 541,20 C532.853,20 531.831,20.033 528.631,20.18 C525.438,20.326 523.257,20.834 521.349,21.575 C519.376,22.342 517.703,23.368 516.035,25.035 C514.368,26.702 513.342,28.377 512.574,30.349 C511.834,32.258 511.326,34.438 511.181,37.631 C511.035,40.831 511,41.851 511,50 C511,58.147 511.035,59.17 511.181,62.369 C511.326,65.562 511.834,67.743 512.574,69.651 C513.342,71.625 514.368,73.296 516.035,74.965 C517.703,76.634 519.376,77.658 521.349,78.425 C523.257,79.167 525.438,79.673 528.631,79.82 C531.831,79.965 532.853,80.001 541,80.001 C549.148,80.001 550.169,79.965 553.369,79.82 C556.562,79.673 558.743,79.167 560.652,78.425 C562.623,77.658 564.297,76.634 565.965,74.965 C567.633,73.296 568.659,71.625 569.425,69.651 C570.167,67.743 570.674,65.562 570.82,62.369 C570.966,59.17 571,58.147 571,50 C571,41.851 570.966,40.831 570.82,37.631"></path>
+                            </g>
+                          </g>
+                        </g>
+                      </svg>
+                    </div>
+                    <div style={{ paddingTop: '8px' }}>
+                      <div style={{ color: '#3897f0', fontFamily: 'Arial,sans-serif', fontSize: '14px', fontStyle: 'normal', fontWeight: '550', lineHeight: '18px' }}>
+                        View this post on Instagram
+                      </div>
+                    </div>
+                  </a>
+                  <p style={{ color: '#c9c8cd', fontFamily: 'Arial,sans-serif', fontSize: '14px', lineHeight: '17px', marginBottom: 0, marginTop: '8px', overflow: 'hidden', padding: '8px 0 7px', textAlign: 'center', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <a href="https://www.instagram.com/p/DJ9KYr3pp08/?utm_source=ig_embed&utm_campaign=loading" style={{ color: '#c9c8cd', fontFamily: 'Arial,sans-serif', fontSize: '14px', fontStyle: 'normal', fontWeight: 'normal', lineHeight: '17px', textDecoration: 'none' }} target="_blank" rel="noopener noreferrer">
+                      A post shared by ClickKGP (@click_kgp)
+                    </a>
+                  </p>
+                </div>
+              </blockquote>
+            </div>
+
+            {/* Instagram Post 3 */}
+            <div className="glass-card p-4 hover-lift animate-fade-in" style={{ animationDelay: '0.4s' }}>
+              <blockquote 
+                className="instagram-media" 
+                data-instgrm-captioned 
+                data-instgrm-permalink="https://www.instagram.com/p/DJtvbjnT1eS/?utm_source=ig_embed&utm_campaign=loading" 
+                data-instgrm-version="14" 
+                style={{ 
+                  background: 'transparent', 
+                  border: 0, 
+                  borderRadius: '3px', 
+                  boxShadow: 'none', 
+                  margin: '1px', 
+                  maxWidth: '100%', 
+                  minWidth: '326px', 
+                  padding: 0, 
+                  width: '100%' 
+                }}
+              >
+                <div style={{ padding: '16px' }}>
+                  <a 
+                    href="https://www.instagram.com/p/DJtvbjnT1eS/?utm_source=ig_embed&utm_campaign=loading" 
+                    style={{ 
+                      background: '#FFFFFF', 
+                      lineHeight: 0, 
+                      padding: '0 0', 
+                      textAlign: 'center', 
+                      textDecoration: 'none', 
+                      width: '100%' 
+                    }} 
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center' }}>
+                      <div style={{ backgroundColor: '#F4F4F4', borderRadius: '50%', flexGrow: 0, height: '40px', marginRight: '14px', width: '40px' }}></div>
+                      <div style={{ display: 'flex', flexDirection: 'column', flexGrow: 1, justifyContent: 'center' }}>
+                        <div style={{ backgroundColor: '#F4F4F4', borderRadius: '4px', flexGrow: 0, height: '14px', marginBottom: '6px', width: '100px' }}></div>
+                        <div style={{ backgroundColor: '#F4F4F4', borderRadius: '4px', flexGrow: 0, height: '14px', width: '60px' }}></div>
+                      </div>
+                    </div>
+                    <div style={{ padding: '19% 0' }}></div>
+                    <div style={{ display: 'block', height: '50px', margin: '0 auto 12px', width: '50px' }}>
+                      <svg width="50px" height="50px" viewBox="0 0 60 60" version="1.1" xmlns="http://www.w3.org/2000/svg">
+                        <g stroke="none" strokeWidth="1" fill="none" fillRule="evenodd">
+                          <g transform="translate(-511.000000, -20.000000)" fill="#000000">
+                            <g>
+                              <path d="M556.869,30.41 C554.814,30.41 553.148,32.076 553.148,34.131 C553.148,36.186 554.814,37.852 556.869,37.852 C558.924,37.852 560.59,36.186 560.59,34.131 C560.59,32.076 558.924,30.41 556.869,30.41 M541,60.657 C535.114,60.657 530.342,55.887 530.342,50 C530.342,44.114 535.114,39.342 541,39.342 C546.887,39.342 551.658,44.114 551.658,50 C551.658,55.887 546.887,60.657 541,60.657 M541,33.886 C532.1,33.886 524.886,41.1 524.886,50 C524.886,58.899 532.1,66.113 541,66.113 C549.9,66.113 557.115,58.899 557.115,50 C557.115,41.1 549.9,33.886 541,33.886 M565.378,62.101 C565.244,65.022 564.756,66.606 564.346,67.663 C563.803,69.06 563.154,70.057 562.106,71.106 C561.058,72.155 560.06,72.803 558.662,73.347 C557.607,73.757 556.021,74.244 553.102,74.378 C549.944,74.521 548.997,74.552 541,74.552 C533.003,74.552 532.056,74.521 528.898,74.378 C525.979,74.244 524.393,73.757 523.338,73.347 C521.94,72.803 520.942,72.155 519.894,71.106 C518.846,70.057 518.197,69.06 517.654,67.663 C517.244,66.606 516.755,65.022 516.623,62.101 C516.479,58.943 516.448,57.996 516.448,50 C516.448,42.003 516.479,41.056 516.623,37.899 C516.755,34.978 517.244,33.391 517.654,32.338 C518.197,30.938 518.846,29.942 519.894,28.894 C520.942,27.846 521.94,27.196 523.338,26.654 C524.393,26.244 525.979,25.756 528.898,25.623 C532.057,25.479 533.004,25.448 541,25.448 C548.997,25.448 549.943,25.479 553.102,25.623 C556.021,25.756 557.607,26.244 558.662,26.654 C560.06,27.196 561.058,27.846 562.106,28.894 C563.154,29.942 563.803,30.938 564.346,32.338 C564.756,33.391 565.244,34.978 565.378,37.899 C565.522,41.056 565.552,42.003 565.552,50 C565.552,57.996 565.522,58.943 565.378,62.101 M570.82,37.631 C570.674,34.438 570.167,32.258 569.425,30.349 C568.659,28.377 567.633,26.702 565.965,25.035 C564.297,23.368 562.623,22.342 560.652,21.575 C558.743,20.834 556.562,20.326 553.369,20.18 C550.169,20.033 549.148,20 541,20 C532.853,20 531.831,20.033 528.631,20.18 C525.438,20.326 523.257,20.834 521.349,21.575 C519.376,22.342 517.703,23.368 516.035,25.035 C514.368,26.702 513.342,28.377 512.574,30.349 C511.834,32.258 511.326,34.438 511.181,37.631 C511.035,40.831 511,41.851 511,50 C511,58.147 511.035,59.17 511.181,62.369 C511.326,65.562 511.834,67.743 512.574,69.651 C513.342,71.625 514.368,73.296 516.035,74.965 C517.703,76.634 519.376,77.658 521.349,78.425 C523.257,79.167 525.438,79.673 528.631,79.82 C531.831,79.965 532.853,80.001 541,80.001 C549.148,80.001 550.169,79.965 553.369,79.82 C556.562,79.673 558.743,79.167 560.652,78.425 C562.623,77.658 564.297,76.634 565.965,74.965 C567.633,73.296 568.659,71.625 569.425,69.651 C570.167,67.743 570.674,65.562 570.82,62.369 C570.966,59.17 571,58.147 571,50 C571,41.851 570.966,40.831 570.82,37.631"></path>
+                            </g>
+                          </g>
+                        </g>
+                      </svg>
+                    </div>
+                    <div style={{ paddingTop: '8px' }}>
+                      <div style={{ color: '#3897f0', fontFamily: 'Arial,sans-serif', fontSize: '14px', fontStyle: 'normal', fontWeight: '550', lineHeight: '18px' }}>
+                        View this post on Instagram
+                      </div>
+                    </div>
+                  </a>
+                  <p style={{ color: '#c9c8cd', fontFamily: 'Arial,sans-serif', fontSize: '14px', lineHeight: '17px', marginBottom: 0, marginTop: '8px', overflow: 'hidden', padding: '8px 0 7px', textAlign: 'center', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <a href="https://www.instagram.com/p/DJtvbjnT1eS/?utm_source=ig_embed&utm_campaign=loading" style={{ color: '#c9c8cd', fontFamily: 'Arial,sans-serif', fontSize: '14px', fontStyle: 'normal', fontWeight: 'normal', lineHeight: '17px', textDecoration: 'none' }} target="_blank" rel="noopener noreferrer">
+                      A post shared by TFPS | IIT Kharagpur (@tfps.iitkgp)
+                    </a>
+                  </p>
+                </div>
+              </blockquote>
+            </div>
           </div>
 
-          <div className="text-center mt-12">
+          <div className="text-center mt-10">
             <a
-              href="https://instagram.com/tfps_official"
+              href="https://www.instagram.com/tfps.iitkgp/"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center bg-gradient-to-r from-pink-500 to-purple-600 text-white px-8 py-4 rounded-2xl font-semibold hover:from-pink-600 hover:to-purple-700 transition-all duration-300 hover:scale-105 shadow-xl"
+              className="glass-button-primary px-8 py-4 rounded-xl font-medium inline-flex items-center gap-3 hover:scale-105 transition-all duration-300"
             >
-              <Instagram className="mr-3 h-6 w-6" />
-              Follow @tfps_official
-              <ExternalLink className="ml-3 h-5 w-5" />
+              <Instagram className="h-5 w-5" />
+              Follow @tfps.iitkgp
+              <ExternalLink className="h-4 w-4" />
             </a>
           </div>
         </div>
       </section>
 
       {/* Movie Reviews Section */}
-      <section className="py-20 relative">
+      <section className="py-16 relative">
         <div className="container mx-auto px-4">
-          <div className="text-center mb-16">
-            <div className="inline-flex items-center gap-2 bg-gradient-to-r from-blue-100 to-indigo-100 rounded-full px-6 py-3 mb-6">
-              <BookOpen className="h-5 w-5 text-blue-600" />
-              <span className="text-blue-800 font-semibold">Reviews & Analysis</span>
-            </div>
-            <h3 className="text-4xl font-bold text-gray-900 mb-4">Recent Movie Reviews</h3>
+          <div className="text-center mb-12 animate-fade-in">
+            <h3 className="text-4xl font-bold bg-gradient-to-r from-amber-600 to-orange-600 bg-clip-text text-transparent mb-4">
+              Recent Movie Reviews
+            </h3>
             <p className="text-gray-600 max-w-2xl mx-auto text-lg">
               Read our members' thoughtful reviews and analyses of films, exploring cinematography, storytelling, and visual arts.
             </p>
@@ -512,89 +584,119 @@ const HomePage = () => {
             {movieReviews.map((review, index) => (
               <div 
                 key={review.id} 
-                className="glass-card group hover:scale-105 transition-all duration-500"
-                style={{ animationDelay: `${index * 100}ms` }}
+                className="glass-card p-6 hover-lift animate-fade-in"
+                style={{ animationDelay: `${index * 0.2}s` }}
               >
-                <div className="p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full">
-                        {review.platformIcon}
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    {review.platformIcon}
+                    <span className="text-sm font-medium text-gray-600">{review.platform}</span>
+                  </div>
+                  <span className="text-xs text-gray-500">{review.date}</span>
+                </div>
+                
+                <h4 className="text-lg font-semibold text-gray-900 mb-2 line-clamp-2">{review.title}</h4>
+                <p className="text-sm text-gray-500 mb-3">by {review.author}</p>
+                <p className="text-gray-600 mb-4 line-clamp-3">{review.excerpt}</p>
+                
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4 text-xs text-gray-500">
+                    {review.readTime && <span>{review.readTime}</span>}
+                    {review.rating && (
+                      <div className="flex items-center gap-1">
+                        <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                        <span>{review.rating}/5</span>
                       </div>
-                      <span className="text-sm font-semibold text-blue-600">{review.platform}</span>
-                    </div>
-                    <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">{review.date}</span>
+                    )}
                   </div>
-                  
-                  <h4 className="text-lg font-semibold text-gray-900 mb-3 line-clamp-2 group-hover:text-blue-700 transition-colors">
-                    {review.title}
-                  </h4>
-                  <p className="text-sm text-gray-500 mb-3 font-medium">by {review.author}</p>
-                  <p className="text-gray-600 mb-6 leading-relaxed line-clamp-3">{review.excerpt}</p>
-                  
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4 text-xs text-gray-500">
-                      {review.readTime && (
-                        <span className="bg-gray-100 px-2 py-1 rounded-full font-medium">{review.readTime}</span>
-                      )}
-                      {review.rating && (
-                        <div className="flex items-center gap-1">
-                          <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-                          <span className="font-medium">{review.rating}/5</span>
-                        </div>
-                      )}
-                    </div>
-                    <a
-                      href={review.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-600 hover:text-blue-700 text-sm font-medium flex items-center gap-1 transition-colors"
-                    >
-                      Read More
-                      <ExternalLink className="h-3 w-3" />
-                    </a>
-                  </div>
+                  <a
+                    href={review.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-amber-600 hover:text-amber-800 text-sm font-medium flex items-center gap-1 transition-colors"
+                  >
+                    Read More
+                    <ExternalLink className="h-3 w-3" />
+                  </a>
                 </div>
               </div>
             ))}
           </div>
 
-          <div className="text-center mt-12">
-            <div className="flex flex-col sm:flex-row gap-6 justify-center">
+          <div className="text-center mt-10">
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <a
                 href="https://medium.com/@tfps"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="glass-button-secondary inline-flex items-center px-8 py-4 rounded-2xl font-semibold transition-all duration-300 hover:scale-105"
+                className="glass-button-secondary px-6 py-3 rounded-xl font-medium inline-flex items-center gap-2 hover:scale-105 transition-all duration-300"
               >
-                <BookOpen className="mr-3 h-6 w-6" />
+                <BookOpen className="h-5 w-5" />
                 Follow on Medium
-                <ExternalLink className="ml-3 h-5 w-5" />
+                <ExternalLink className="h-4 w-4" />
               </a>
               <a
                 href="https://letterboxd.com/tfps"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="glass-button-secondary inline-flex items-center px-8 py-4 rounded-2xl font-semibold transition-all duration-300 hover:scale-105"
+                className="glass-button-secondary px-6 py-3 rounded-xl font-medium inline-flex items-center gap-2 hover:scale-105 transition-all duration-300"
               >
-                <Star className="mr-3 h-6 w-6" />
+                <Star className="h-5 w-5" />
                 Follow on Letterboxd
-                <ExternalLink className="ml-3 h-5 w-5" />
+                <ExternalLink className="h-4 w-4" />
               </a>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Upcoming Public Events Section */}
-      <section id="register" className="py-20 bg-gradient-to-br from-amber-50 to-orange-50 relative">
+      {/* Meet Our Governors Section */}
+      <section className="py-16 bg-gradient-to-r from-amber-50 to-orange-50">
         <div className="container mx-auto px-4">
-          <div className="text-center mb-16">
-            <div className="inline-flex items-center gap-2 bg-gradient-to-r from-green-100 to-emerald-100 rounded-full px-6 py-3 mb-6">
-              <Calendar className="h-5 w-5 text-green-600" />
-              <span className="text-green-800 font-semibold">Upcoming Events</span>
-            </div>
-            <h3 className="text-4xl font-bold text-gray-900 mb-4">Register for Events</h3>
+          <div className="text-center mb-12 animate-fade-in">
+            <h3 className="text-4xl font-bold bg-gradient-to-r from-amber-600 to-orange-600 bg-clip-text text-transparent mb-4">
+              Meet Our Governors
+            </h3>
+            <p className="text-gray-600 max-w-2xl mx-auto text-lg">
+              The dedicated leaders who guide TFPS towards excellence in photography and filmmaking.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+            {governors.map((governor, index) => (
+              <div 
+                key={governor.id} 
+                className="glass-card p-6 text-center hover-lift animate-fade-in group"
+                style={{ animationDelay: `${index * 0.2}s` }}
+              >
+                <div className="relative mb-6">
+                  <div className="w-24 h-24 mx-auto rounded-full overflow-hidden ring-4 ring-amber-200 group-hover:ring-amber-300 transition-all duration-300">
+                    <img
+                      src={governor.image}
+                      alt={governor.name}
+                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                    />
+                  </div>
+                  <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs px-3 py-1 rounded-full font-medium">
+                    {governor.position}
+                  </div>
+                </div>
+                <h4 className="text-lg font-semibold text-gray-900 group-hover:text-amber-600 transition-colors">
+                  {governor.name}
+                </h4>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Upcoming Public Events Section */}
+      <section id="register" className="py-16 relative">
+        <div className="container mx-auto px-4">
+          <div className="text-center mb-12 animate-fade-in">
+            <h3 className="text-4xl font-bold bg-gradient-to-r from-amber-600 to-orange-600 bg-clip-text text-transparent mb-4">
+              Register for Events
+            </h3>
             <p className="text-gray-600 max-w-2xl mx-auto text-lg">
               Join our upcoming public events and workshops. These events are open for everyone to participate.
             </p>
@@ -605,16 +707,14 @@ const HomePage = () => {
               upcomingPublicEvents.map((publicEvent, index) => (
                 <div 
                   key={publicEvent.id} 
-                  className="glass-card group hover:scale-105 transition-all duration-500"
-                  style={{ animationDelay: `${index * 150}ms` }}
+                  className="glass-card overflow-hidden hover-lift animate-fade-in"
+                  style={{ animationDelay: `${index * 0.2}s` }}
                 >
                   <div className="p-6">
                     <div className="flex justify-between items-start mb-4">
                       <div>
-                        <h4 className="text-xl font-semibold text-gray-900 group-hover:text-amber-700 transition-colors">
-                          {publicEvent.title}
-                        </h4>
-                        <p className="text-sm text-gray-500 mt-2 font-medium">
+                        <h4 className="text-xl font-semibold text-gray-900">{publicEvent.title}</h4>
+                        <p className="text-sm text-gray-500 mt-1">
                           {new Date(publicEvent.start_time).toLocaleDateString()} at{" "}
                           {new Date(publicEvent.start_time).toLocaleTimeString([], {
                             hour: "2-digit",
@@ -623,7 +723,7 @@ const HomePage = () => {
                         </p>
                       </div>
                       <span
-                        className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold shadow-sm ${
+                        className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
                           publicEvent.event_type === "workshop"
                             ? "bg-gradient-to-r from-blue-400 to-blue-500 text-white"
                             : publicEvent.event_type === "screening"
@@ -640,31 +740,29 @@ const HomePage = () => {
                     </div>
 
                     {publicEvent.location && (
-                      <div className="flex items-center mt-3 text-sm text-gray-600 bg-gray-50 rounded-lg px-3 py-2">
-                        <MapPin className="h-4 w-4 mr-2 text-amber-600" />
+                      <div className="flex items-center mt-3 text-sm text-gray-500">
+                        <MapPin className="h-4 w-4 mr-1" />
                         {publicEvent.location}
                       </div>
                     )}
 
-                    {publicEvent.description && (
-                      <p className="mt-4 text-sm text-gray-600 leading-relaxed">{publicEvent.description}</p>
-                    )}
+                    {publicEvent.description && <p className="mt-4 text-sm text-gray-600 leading-relaxed">{publicEvent.description}</p>}
 
                     {publicEvent.max_participants && (
-                      <p className="mt-3 text-xs text-gray-500 bg-amber-50 rounded-lg px-3 py-2">
+                      <p className="mt-2 text-xs text-gray-500">
                         Limited to {publicEvent.max_participants} participants
                       </p>
                     )}
 
                     <div className="mt-6">
                       {registerSuccess === publicEvent.id ? (
-                        <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl p-4">
-                          <p className="text-sm text-green-800 font-medium">
+                        <div className="glass-card bg-green-50/80 border-green-200 p-3">
+                          <p className="text-sm text-green-800">
                             Registration successful! We'll contact you with more details.
                           </p>
                         </div>
                       ) : registering === publicEvent.id ? (
-                        <form onSubmit={(e) => handleRegisterSubmit(e, publicEvent.id)} className="space-y-4">
+                        <form onSubmit={(e) => handleRegisterSubmit(e, publicEvent.id)} className="space-y-3">
                           <div>
                             <input
                               type="text"
@@ -695,47 +793,6 @@ const HomePage = () => {
                             />
                           </div>
                           <div>
-                            <input
-                              type="text"
-                              placeholder="Roll Number (e.g., 21CS001) *"
-                              className="glass-input text-sm"
-                              value={registerForm.roll_number}
-                              onChange={(e) => setRegisterForm({ ...registerForm, roll_number: e.target.value.toUpperCase() })}
-                              required
-                            />
-                          </div>
-                          <div>
-                            <select
-                              className="glass-input text-sm"
-                              value={registerForm.year}
-                              onChange={(e) => setRegisterForm({ ...registerForm, year: e.target.value })}
-                              required
-                            >
-                              <option value="ug_1st">UG - 1st Year</option>
-                              <option value="ug_2nd">UG - 2nd Year</option>
-                              <option value="ug_3rd">UG - 3rd Year</option>
-                              <option value="ug_4th">UG - 4th Year</option>
-                              <option value="ug_5th">UG - 5th Year</option>
-                              <option value="pg_1st">PG - 1st Year</option>
-                              <option value="pg_2nd">PG - 2nd Year</option>
-                            </select>
-                          </div>
-                          <div>
-                            <select
-                              className="glass-input text-sm"
-                              value={registerForm.domain}
-                              onChange={(e) => setRegisterForm({ ...registerForm, domain: e.target.value })}
-                              required
-                            >
-                              <option value="Photography">Photography</option>
-                              <option value="Cinematography">Cinematography</option>
-                              <option value="Editing">Editing</option>
-                              <option value="Scriptwriting">Scriptwriting</option>
-                              <option value="Sound & Music">Sound & Music</option>
-                              <option value="Design">Design</option>
-                            </select>
-                          </div>
-                          <div>
                             <textarea
                               placeholder="Additional information (Optional)"
                               className="glass-input text-sm"
@@ -744,11 +801,9 @@ const HomePage = () => {
                               onChange={(e) => setRegisterForm({ ...registerForm, additional_info: e.target.value })}
                             />
                           </div>
-                          {registerError && (
-                            <p className="text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2">{registerError}</p>
-                          )}
-                          <div className="flex gap-3">
-                            <button type="submit" className="glass-button-primary text-sm py-3 px-4 flex-1 rounded-xl">
+                          {registerError && <p className="text-xs text-red-600">{registerError}</p>}
+                          <div className="flex gap-2">
+                            <button type="submit" className="glass-button-primary text-sm py-2 px-4 flex-1 rounded-lg">
                               Register
                             </button>
                             <button
@@ -757,7 +812,7 @@ const HomePage = () => {
                                 setRegistering(null)
                                 setRegisterError(null)
                               }}
-                              className="glass-button text-sm py-3 px-4 rounded-xl"
+                              className="glass-button-secondary text-sm py-2 px-4 rounded-lg"
                             >
                               Cancel
                             </button>
@@ -766,7 +821,7 @@ const HomePage = () => {
                       ) : (
                         <button
                           onClick={() => setRegistering(publicEvent.id)}
-                          className="glass-button-primary w-full py-3 rounded-xl font-semibold transition-all duration-300 hover:scale-105"
+                          className="glass-button-primary w-full py-3 rounded-lg font-medium"
                           disabled={
                             publicEvent.registration_deadline &&
                             new Date() > new Date(publicEvent.registration_deadline)
@@ -782,14 +837,12 @@ const HomePage = () => {
                 </div>
               ))
             ) : (
-              <div className="col-span-1 md:col-span-3 text-center py-16">
-                <div className="glass-card max-w-md mx-auto p-8">
-                  <Calendar className="h-16 w-16 text-amber-400 mx-auto mb-4" />
-                  <h4 className="text-xl font-semibold text-gray-900 mb-2">No upcoming events</h4>
-                  <p className="text-gray-600">
-                    Check back later for new events or contact us for more information.
-                  </p>
-                </div>
+              <div className="col-span-1 md:col-span-3 text-center py-12">
+                <Calendar className="h-12 w-12 text-amber-400 mx-auto" />
+                <h4 className="mt-4 text-lg font-medium text-gray-900">No upcoming events</h4>
+                <p className="mt-2 text-gray-500">
+                  Check back later for new events or contact us for more information.
+                </p>
               </div>
             )}
           </div>
@@ -797,14 +850,12 @@ const HomePage = () => {
       </section>
 
       {/* Features Section */}
-      <section id="about" className="py-20 relative">
+      <section id="about" className="py-16 bg-gradient-to-r from-amber-50 to-orange-50">
         <div className="container mx-auto px-4">
-          <div className="text-center mb-16">
-            <div className="inline-flex items-center gap-2 bg-gradient-to-r from-purple-100 to-indigo-100 rounded-full px-6 py-3 mb-6">
-              <Sparkles className="h-5 w-5 text-purple-600" />
-              <span className="text-purple-800 font-semibold">What We Offer</span>
-            </div>
-            <h3 className="text-4xl font-bold text-gray-900 mb-4">What We Offer</h3>
+          <div className="text-center mb-12 animate-fade-in">
+            <h3 className="text-4xl font-bold bg-gradient-to-r from-amber-600 to-orange-600 bg-clip-text text-transparent mb-4">
+              What We Offer
+            </h3>
             <p className="text-gray-600 max-w-2xl mx-auto text-lg">
               TFPS provides a comprehensive platform for photography and film enthusiasts to grow their skills and
               collaborate on projects.
@@ -816,56 +867,63 @@ const HomePage = () => {
               icon={<Camera className="h-8 w-8" />}
               title="Equipment Access"
               description="Access professional cameras, lenses, and filming equipment for your projects."
-              delay={0}
+              delay="0s"
             />
             <FeatureCard
               icon={<Users className="h-8 w-8" />}
               title="Community"
               description="Connect with like-minded photographers and filmmakers in our vibrant community."
-              delay={100}
+              delay="0.2s"
             />
             <FeatureCard
               icon={<Calendar className="h-8 w-8" />}
               title="Events & Shoots"
               description="Participate in organized shoots, screenings, and photography workshops."
-              delay={200}
+              delay="0.4s"
             />
             <FeatureCard
               icon={<Package className="h-8 w-8" />}
               title="Project Management"
               description="Organize and manage your creative projects with our integrated tools."
-              delay={300}
+              delay="0.6s"
             />
           </div>
         </div>
       </section>
 
       {/* Stats Section */}
-      <section className="py-20 bg-gradient-to-br from-amber-600 via-orange-600 to-amber-700 relative overflow-hidden">
-        {/* Background effects */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-white/10"></div>
-        <div className="absolute top-0 left-0 w-full h-full bg-white/5 backdrop-blur-sm"></div>
-        
+      <section className="py-16 bg-gradient-to-br from-amber-500 to-orange-600 relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-r from-amber-600/20 to-orange-600/20 animate-gradient"></div>
         <div className="container mx-auto px-4 relative z-10">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8 text-center">
-            <StatCard number="150+" label="Active Members" delay={0} />
-            <StatCard number="50+" label="Equipment Items" delay={100} />
-            <StatCard number="200+" label="Projects Completed" delay={200} />
-            <StatCard number="25+" label="Awards Won" delay={300} />
+            <div className="animate-fade-in">
+              <div className="text-5xl font-bold text-white mb-2">150+</div>
+              <div className="text-amber-100 text-lg">Active Members</div>
+            </div>
+            <div className="animate-fade-in" style={{ animationDelay: '0.2s' }}>
+              <div className="text-5xl font-bold text-white mb-2">50+</div>
+              <div className="text-amber-100 text-lg">Equipment Items</div>
+            </div>
+            <div className="animate-fade-in" style={{ animationDelay: '0.4s' }}>
+              <div className="text-5xl font-bold text-white mb-2">200+</div>
+              <div className="text-amber-100 text-lg">Projects Completed</div>
+            </div>
+            <div className="animate-fade-in" style={{ animationDelay: '0.6s' }}>
+              <div className="text-5xl font-bold text-white mb-2">25+</div>
+              <div className="text-amber-100 text-lg">Awards Won</div>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* Inquiry Form Section */}
-      <section id="inquiry" className="py-20 relative">
+      {/* Contact Section */}
+      <section id="contact" className="py-16 relative">
         <div className="container mx-auto px-4">
-          <div className="max-w-6xl mx-auto">
-            <div className="text-center mb-16">
-              <div className="inline-flex items-center gap-2 bg-gradient-to-r from-teal-100 to-cyan-100 rounded-full px-6 py-3 mb-6">
-                <Mail className="h-5 w-5 text-teal-600" />
-                <span className="text-teal-800 font-semibold">Get in Touch</span>
-              </div>
-              <h3 className="text-4xl font-bold text-gray-900 mb-4">Get in Touch</h3>
+          <div className="max-w-4xl mx-auto">
+            <div className="text-center mb-12 animate-fade-in">
+              <h3 className="text-4xl font-bold bg-gradient-to-r from-amber-600 to-orange-600 bg-clip-text text-transparent mb-4">
+                Get in Touch
+              </h3>
               <p className="text-gray-600 text-lg">
                 Have questions about joining TFPS or need more information? We'd love to hear from you!
               </p>
@@ -873,17 +931,32 @@ const HomePage = () => {
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
               {/* Contact Info */}
-              <div className="glass-card p-8">
-                <h4 className="text-2xl font-semibold text-gray-900 mb-8">Contact Information</h4>
+              <div className="glass-card p-8 animate-fade-in">
+                <h4 className="text-2xl font-semibold text-gray-900 mb-6">Contact Information</h4>
                 <div className="space-y-6">
-                  <ContactItem icon={<Mail className="h-6 w-6 text-amber-600" />} text="contact@tfps.edu" />
-                  <ContactItem icon={<Phone className="h-6 w-6 text-amber-600" />} text="+91 98765 43210" />
-                  <ContactItem icon={<MapPin className="h-6 w-6 text-amber-600" />} text="Student Activity Center, Campus" />
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 bg-gradient-to-r from-amber-500 to-orange-500 rounded-xl text-white">
+                      <Mail className="h-5 w-5" />
+                    </div>
+                    <span className="text-gray-700 font-medium">contact@tfps.edu</span>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 bg-gradient-to-r from-amber-500 to-orange-500 rounded-xl text-white">
+                      <Phone className="h-5 w-5" />
+                    </div>
+                    <span className="text-gray-700 font-medium">+91 98765 43210</span>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 bg-gradient-to-r from-amber-500 to-orange-500 rounded-xl text-white">
+                      <MapPin className="h-5 w-5" />
+                    </div>
+                    <span className="text-gray-700 font-medium">Student Activity Center, Campus</span>
+                  </div>
                 </div>
 
-                <div className="mt-10">
+                <div className="mt-8">
                   <h5 className="font-semibold text-gray-900 mb-4 text-lg">Office Hours</h5>
-                  <div className="text-gray-600 space-y-2 bg-amber-50 rounded-xl p-4">
+                  <div className="text-gray-600 space-y-2">
                     <div className="flex justify-between">
                       <span>Monday - Friday:</span>
                       <span className="font-medium">9:00 AM - 6:00 PM</span>
@@ -898,147 +971,78 @@ const HomePage = () => {
                     </div>
                   </div>
                 </div>
+
+                <div className="mt-8">
+                  <h5 className="font-semibold text-gray-900 mb-4 text-lg">Follow Us</h5>
+                  <div className="flex space-x-4">
+                    <a 
+                      href="https://www.instagram.com/tfps.iitkgp/" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="p-3 bg-gradient-to-r from-pink-500 to-purple-600 rounded-xl text-white hover:scale-110 transition-transform duration-300"
+                    >
+                      <Instagram className="h-5 w-5" />
+                    </a>
+                    <a 
+                      href="https://www.youtube.com/@TFPSIITKgp" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="p-3 bg-gradient-to-r from-red-500 to-red-600 rounded-xl text-white hover:scale-110 transition-transform duration-300"
+                    >
+                      <Youtube className="h-5 w-5" />
+                    </a>
+                    <a 
+                      href="https://medium.com/@tfps" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="p-3 bg-gradient-to-r from-gray-700 to-gray-800 rounded-xl text-white hover:scale-110 transition-transform duration-300"
+                    >
+                      <BookOpen className="h-5 w-5" />
+                    </a>
+                    <a 
+                      href="https://letterboxd.com/tfps" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="p-3 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl text-white hover:scale-110 transition-transform duration-300"
+                    >
+                      <Star className="h-5 w-5" />
+                    </a>
+                  </div>
+                </div>
               </div>
 
-              {/* Inquiry Form */}
-              <div className="glass-card p-8">
-                <form onSubmit={handleInquirySubmit} className="space-y-6">
-                  {submitSuccess && (
-                    <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl p-4">
-                      <div className="flex items-center">
-                        <div className="flex-shrink-0">
-                          <svg className="h-5 w-5 text-green-400\" viewBox="0 0 20 20\" fill="currentColor">
-                            <path
-                              fillRule="evenodd"
-                              d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                              clipRule="evenodd"
-                            />
-                          </svg>
-                        </div>
-                        <div className="ml-3">
-                          <p className="text-sm font-medium text-green-800">
-                            Thank you for your inquiry! We'll get back to you soon.
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
-                        Full Name *
-                      </label>
-                      <input
-                        type="text"
-                        id="name"
-                        name="name"
-                        required
-                        className="glass-input"
-                        value={inquiryForm.name}
-                        onChange={handleInquiryChange}
-                      />
-                    </div>
-                    <div>
-                      <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                        Email *
-                      </label>
-                      <input
-                        type="email"
-                        id="email"
-                        name="email"
-                        required
-                        className="glass-input"
-                        value={inquiryForm.email}
-                        onChange={handleInquiryChange}
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
-                      Phone Number
-                    </label>
-                    <input
-                      type="tel"
-                      id="phone"
-                      name="phone"
-                      className="glass-input"
-                      value={inquiryForm.phone}
-                      onChange={handleInquiryChange}
-                    />
-                  </div>
-
-                  <div>
-                    <label htmlFor="inquiryType" className="block text-sm font-medium text-gray-700 mb-2">
-                      Inquiry Type *
-                    </label>
-                    <select
-                      id="inquiryType"
-                      name="inquiryType"
-                      required
-                      className="glass-input"
-                      value={inquiryForm.inquiryType}
-                      onChange={handleInquiryChange}
-                    >
-                      <option value="general">General Information</option>
-                      <option value="membership">Membership Inquiry</option>
-                      <option value="equipment">Equipment Rental</option>
-                      <option value="collaboration">Project Collaboration</option>
-                      <option value="workshop">Workshop/Training</option>
-                      <option value="technical">Technical Support</option>
-                      <option value="other">Other</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label htmlFor="subject" className="block text-sm font-medium text-gray-700 mb-2">
-                      Subject *
-                    </label>
-                    <input
-                      type="text"
-                      id="subject"
-                      name="subject"
-                      required
-                      className="glass-input"
-                      value={inquiryForm.subject}
-                      onChange={handleInquiryChange}
-                    />
-                  </div>
-
-                  <div>
-                    <label htmlFor="message" className="block text-sm font-medium text-gray-700 mb-2">
-                      Message *
-                    </label>
-                    <textarea
-                      id="message"
-                      name="message"
-                      rows={4}
-                      required
-                      className="glass-input"
-                      value={inquiryForm.message}
-                      onChange={handleInquiryChange}
-                    />
-                  </div>
-
-                  <button
-                    type="submit"
-                    disabled={isSubmitting}
-                    className="w-full glass-button-primary py-4 rounded-xl font-semibold text-lg transition-all duration-300 hover:scale-105 flex items-center justify-center"
+              {/* Quick Links */}
+              <div className="glass-card p-8 animate-fade-in" style={{ animationDelay: '0.2s' }}>
+                <h4 className="text-2xl font-semibold text-gray-900 mb-6">Quick Links</h4>
+                <div className="space-y-4">
+                  <a 
+                    href="#about" 
+                    className="block p-4 rounded-xl bg-gradient-to-r from-amber-50 to-orange-50 hover:from-amber-100 hover:to-orange-100 transition-all duration-300 group"
                   >
-                    {isSubmitting ? (
-                      <>
-                        <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-white mr-3"></div>
-                        Sending...
-                      </>
-                    ) : (
-                      <>
-                        Send Message
-                        <ChevronRight className="ml-2 h-5 w-5" />
-                      </>
-                    )}
-                  </button>
-                </form>
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium text-gray-900 group-hover:text-amber-600">About Us</span>
+                      <ChevronRight className="h-4 w-4 text-gray-400 group-hover:text-amber-600 group-hover:translate-x-1 transition-all duration-300" />
+                    </div>
+                  </a>
+                  <a 
+                    href="#register" 
+                    className="block p-4 rounded-xl bg-gradient-to-r from-amber-50 to-orange-50 hover:from-amber-100 hover:to-orange-100 transition-all duration-300 group"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium text-gray-900 group-hover:text-amber-600">Register for Events</span>
+                      <ChevronRight className="h-4 w-4 text-gray-400 group-hover:text-amber-600 group-hover:translate-x-1 transition-all duration-300" />
+                    </div>
+                  </a>
+                  <Link 
+                    to="/login" 
+                    className="block p-4 rounded-xl bg-gradient-to-r from-amber-50 to-orange-50 hover:from-amber-100 hover:to-orange-100 transition-all duration-300 group"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium text-gray-900 group-hover:text-amber-600">Member Login</span>
+                      <ChevronRight className="h-4 w-4 text-gray-400 group-hover:text-amber-600 group-hover:translate-x-1 transition-all duration-300" />
+                    </div>
+                  </Link>
+                </div>
               </div>
             </div>
           </div>
@@ -1046,83 +1050,106 @@ const HomePage = () => {
       </section>
 
       {/* Footer */}
-      <footer className="bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white py-16 relative overflow-hidden">
-        {/* Background effects */}
-        <div className="absolute inset-0 bg-gradient-to-t from-amber-900/20 via-transparent to-transparent"></div>
-        
+      <footer className="bg-gradient-to-br from-gray-900 to-gray-800 text-white py-12 relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-r from-amber-600/10 to-orange-600/10"></div>
         <div className="container mx-auto px-4 relative z-10">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
-            <div>
-              <div className="flex items-center gap-4 mb-6">
-                <div className="p-3 bg-gradient-to-r from-amber-500 to-orange-500 rounded-2xl shadow-xl">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="animate-fade-in">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2 bg-gradient-to-r from-amber-500 to-orange-500 rounded-xl">
                   <Camera className="h-8 w-8 text-white" />
                 </div>
                 <div>
-                  <h3 className="text-2xl font-bold">TFPS</h3>
+                  <h3 className="text-xl font-bold">TFPS</h3>
                   <p className="text-gray-400 text-sm">Technology Film and Photography Society</p>
                 </div>
               </div>
-              <p className="text-gray-300 leading-relaxed">
+              <p className="text-gray-400 leading-relaxed">
                 Empowering creativity through technology, fostering a community of passionate photographers and
                 filmmakers.
               </p>
             </div>
 
-            <div>
-              <h4 className="font-semibold mb-6 text-lg">Quick Links</h4>
-              <ul className="space-y-3 text-gray-300">
+            <div className="animate-fade-in" style={{ animationDelay: '0.2s' }}>
+              <h4 className="font-semibold mb-4 text-lg">Quick Links</h4>
+              <ul className="space-y-3 text-gray-400">
                 <li>
-                  <a href="#about" className="hover:text-amber-400 transition-colors duration-300 flex items-center group">
-                    <ChevronRight className="h-4 w-4 mr-2 group-hover:translate-x-1 transition-transform" />
+                  <a href="#about" className="hover:text-white transition-colors hover:translate-x-1 inline-block duration-300">
                     About Us
                   </a>
                 </li>
                 <li>
-                  <a href="#register" className="hover:text-amber-400 transition-colors duration-300 flex items-center group">
-                    <ChevronRight className="h-4 w-4 mr-2 group-hover:translate-x-1 transition-transform" />
+                  <a href="#register" className="hover:text-white transition-colors hover:translate-x-1 inline-block duration-300">
                     Register for Events
                   </a>
                 </li>
                 <li>
-                  <a href="#inquiry" className="hover:text-amber-400 transition-colors duration-300 flex items-center group">
-                    <ChevronRight className="h-4 w-4 mr-2 group-hover:translate-x-1 transition-transform" />
+                  <a href="#contact" className="hover:text-white transition-colors hover:translate-x-1 inline-block duration-300">
                     Contact
                   </a>
                 </li>
                 <li>
-                  <Link to="/login" className="hover:text-amber-400 transition-colors duration-300 flex items-center group">
-                    <ChevronRight className="h-4 w-4 mr-2 group-hover:translate-x-1 transition-transform" />
+                  <Link to="/login" className="hover:text-white transition-colors hover:translate-x-1 inline-block duration-300">
                     Member Login
                   </Link>
                 </li>
               </ul>
             </div>
 
-            <div>
-              <h4 className="font-semibold mb-6 text-lg">Connect With Us</h4>
-              <div className="text-gray-300 space-y-4 mb-6">
-                <div className="flex items-center gap-3">
-                  <Mail className="h-5 w-5 text-amber-400" />
+            <div className="animate-fade-in" style={{ animationDelay: '0.4s' }}>
+              <h4 className="font-semibold mb-4 text-lg">Connect With Us</h4>
+              <div className="text-gray-400 space-y-3 mb-6">
+                <div className="flex items-center gap-2">
+                  <Mail className="h-4 w-4" />
                   <span>contact@tfps.edu</span>
                 </div>
-                <div className="flex items-center gap-3">
-                  <Phone className="h-5 w-5 text-amber-400" />
+                <div className="flex items-center gap-2">
+                  <Phone className="h-4 w-4" />
                   <span>+91 98765 43210</span>
                 </div>
-                <div className="flex items-center gap-3">
-                  <MapPin className="h-5 w-5 text-amber-400" />
+                <div className="flex items-center gap-2">
+                  <MapPin className="h-4 w-4" />
                   <span>Student Activity Center</span>
                 </div>
               </div>
               <div className="flex space-x-4">
-                <SocialLink href="https://instagram.com/tfps_official" icon={<Instagram className="h-5 w-5" />} />
-                <SocialLink href="https://medium.com/@tfps" icon={<BookOpen className="h-5 w-5" />} />
-                <SocialLink href="https://letterboxd.com/tfps" icon={<Star className="h-5 w-5" />} />
+                <a 
+                  href="https://www.instagram.com/tfps.iitkgp/" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-gray-400 hover:text-white hover:scale-110 transition-all duration-300"
+                >
+                  <Instagram className="h-5 w-5" />
+                </a>
+                <a 
+                  href="https://www.youtube.com/@TFPSIITKgp" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-gray-400 hover:text-white hover:scale-110 transition-all duration-300"
+                >
+                  <Youtube className="h-5 w-5" />
+                </a>
+                <a 
+                  href="https://medium.com/@tfps" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-gray-400 hover:text-white hover:scale-110 transition-all duration-300"
+                >
+                  <BookOpen className="h-5 w-5" />
+                </a>
+                <a 
+                  href="https://letterboxd.com/tfps" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-gray-400 hover:text-white hover:scale-110 transition-all duration-300"
+                >
+                  <Star className="h-5 w-5" />
+                </a>
               </div>
             </div>
           </div>
 
-          <div className="border-t border-gray-700 mt-12 pt-8 text-center text-gray-400">
+          <div className="border-t border-gray-800 mt-8 pt-8 text-center text-gray-400">
             <p>&copy; {new Date().getFullYear()} Technology Film and Photography Society. All rights reserved.</p>
           </div>
         </div>
@@ -1135,66 +1162,22 @@ interface FeatureCardProps {
   icon: React.ReactNode
   title: string
   description: string
-  delay: number
+  delay: string
 }
 
 const FeatureCard = ({ icon, title, description, delay }: FeatureCardProps) => (
   <div 
-    className="glass-card text-center p-8 group hover:scale-105 transition-all duration-500"
-    style={{ animationDelay: `${delay}ms` }}
+    className="glass-card p-6 text-center hover-lift animate-fade-in group"
+    style={{ animationDelay: delay }}
   >
-    <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-2xl mb-6 group-hover:scale-110 transition-transform duration-300 shadow-xl">
+    <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-xl mb-4 group-hover:scale-110 transition-transform duration-300">
       {icon}
     </div>
-    <h4 className="text-xl font-semibold text-gray-900 mb-4 group-hover:text-amber-700 transition-colors">{title}</h4>
+    <h4 className="text-xl font-semibold text-gray-900 mb-2 group-hover:text-amber-600 transition-colors">
+      {title}
+    </h4>
     <p className="text-gray-600 leading-relaxed">{description}</p>
   </div>
-)
-
-interface StatCardProps {
-  number: string
-  label: string
-  delay: number
-}
-
-const StatCard = ({ number, label, delay }: StatCardProps) => (
-  <div 
-    className="text-center group"
-    style={{ animationDelay: `${delay}ms` }}
-  >
-    <div className="text-5xl font-bold text-white mb-3 group-hover:scale-110 transition-transform duration-300 drop-shadow-lg">
-      {number}
-    </div>
-    <div className="text-amber-100 font-medium text-lg">{label}</div>
-  </div>
-)
-
-interface ContactItemProps {
-  icon: React.ReactNode
-  text: string
-}
-
-const ContactItem = ({ icon, text }: ContactItemProps) => (
-  <div className="flex items-center gap-4 p-4 bg-amber-50 rounded-xl hover:bg-amber-100 transition-colors duration-300">
-    <div className="flex-shrink-0">{icon}</div>
-    <span className="text-gray-700 font-medium">{text}</span>
-  </div>
-)
-
-interface SocialLinkProps {
-  href: string
-  icon: React.ReactNode
-}
-
-const SocialLink = ({ href, icon }: SocialLinkProps) => (
-  <a 
-    href={href} 
-    className="p-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-xl hover:from-amber-600 hover:to-orange-600 transition-all duration-300 hover:scale-110 shadow-lg"
-    target="_blank"
-    rel="noopener noreferrer"
-  >
-    {icon}
-  </a>
 )
 
 export default HomePage
