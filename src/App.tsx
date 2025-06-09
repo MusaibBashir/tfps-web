@@ -38,13 +38,7 @@ function App() {
         navigate("/dashboard", { replace: true })
         return
       }
-
-      // If on a protected route (including refresh), redirect to dashboard
-      // This ensures consistent navigation and prevents users from staying on random protected pages
-      if (isProtectedRoute(location.pathname) && location.pathname !== "/dashboard") {
-        navigate("/dashboard", { replace: true })
-        return
-      }
+      // Allow navigation to all protected routes - don't force redirect to dashboard
     } else {
       // User is not logged in
       // If trying to access protected routes, redirect to login
