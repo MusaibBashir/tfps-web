@@ -105,24 +105,20 @@ const RequestsPage = () => {
             const isOwner = req.equipment?.owner_id === user.id
             const isForwarded = req.forwarded_to === user.id
             const isCurrentHolder = req.current_holder_id === user.id
-            // Show forwarded requests only to the forwarded user, not the original approver
-            const canSeeForwarded = req.forwarded_to && req.forwarded_to === user.id
             const isOriginalApprover = req.approved_by === user.id && !req.forwarded_to
 
-            return isRequester || isOwner || canSeeForwarded || isCurrentHolder || isOriginalApprover
+            return isRequester || isOwner || isForwarded || isCurrentHolder || isOriginalApprover
           })
         }
 
-        // After setting requests, fix any missing forwards
-        if (userRequests.length > 0) {
-          setRequests(userRequests)
-          setFilteredRequests(userRequests)
+        setRequests(userRequests)
+        setFilteredRequests(userRequests)
 
-          // Fix missing forwards after a short delay
-          setTimeout(() => {
-            fixMissingForwards()
-          }, 1000)
-        }
+        // Check for any inconsistencies after loading
+        setTimeout(() => {
+          fixMissingForwards(userRequests)
+        }, 1000)
+
       } catch (error) {
         console.error("Error fetching requests:", error)
       } finally {
@@ -199,6 +195,8 @@ const RequestsPage = () => {
             notes: `Handover request sent to ${currentHolderName}`,
           })
           .eq("id", requestId)
+
+        console.log(`Request ${requestId} forwarded to current holder: ${currentHolderName}`)
       } else {
         // No one has the equipment currently - approve normally
         await supabase
@@ -224,6 +222,8 @@ const RequestsPage = () => {
           checkout_time: new Date().toISOString(),
           expected_return_time: request.end_time,
         })
+
+        console.log(`Request ${requestId} approved and equipment given to requester`)
       }
 
       await refreshRequests()
@@ -278,7 +278,6 @@ const RequestsPage = () => {
     }
 
     // Get handover requests - ALL approved requests for this equipment that are forwarded to current user
-    // This is the key fix - we need to check ALL requests, not just the filtered ones
     const allHandoverRequests = requests.filter(
       (r) =>
         r.equipment_id === request.equipment_id &&
@@ -292,6 +291,7 @@ const RequestsPage = () => {
       userId: user?.id,
       allRequests: requests.length,
       handoverRequests: allHandoverRequests,
+      currentRequest: request.id,
     })
 
     allHandoverRequests.forEach((handoverReq) => {
@@ -341,7 +341,7 @@ const RequestsPage = () => {
           })
           .eq("id", request.equipment_id)
 
-        // Update equipment log
+        // Update equipment log for current user
         const { data: logData } = await supabase
           .from("equipment_logs")
           .select("*")
@@ -361,11 +361,10 @@ const RequestsPage = () => {
             .eq("id", logData.id)
         }
 
-        // Update any approved/forwarded requests to show "Give equipment" option for owner
+        // Clear forwarded_to for any approved requests for this equipment
         await supabase
           .from("equipment_requests")
           .update({
-            status: "approved",
             forwarded_to: null,
             notes: `Equipment returned to owner. Ready to give to requester.`,
           })
@@ -383,6 +382,8 @@ const RequestsPage = () => {
             severity: "moderate",
           })
         }
+
+        console.log(`Equipment returned to owner/admin from request ${requestId}`)
       } else if (selectedOption && selectedOption.requestId) {
         // Handover to another user with approved request
         const newHolderId = finalReturnUser
@@ -442,12 +443,15 @@ const RequestsPage = () => {
         }
 
         // Create new log for new holder (start their usage)
+        const handoverRequest = requests.find((r) => r.id === handoverRequestId)
         await supabase.from("equipment_logs").insert({
           equipment_id: request.equipment_id,
           user_id: newHolderId,
           checkout_time: returnTime,
-          expected_return_time: requests.find((r) => r.id === handoverRequestId)?.end_time,
+          expected_return_time: handoverRequest?.end_time,
         })
+
+        console.log(`Equipment handed over from ${user?.name} to ${allUsers.find((u) => u.id === newHolderId)?.name}`)
       }
 
       setReturningId(null)
@@ -497,6 +501,7 @@ const RequestsPage = () => {
         expected_return_time: request.end_time,
       })
 
+      console.log(`Owner gave equipment to requester for request ${requestId}`)
       await refreshRequests()
     } catch (error) {
       console.error("Error giving equipment:", error)
@@ -579,6 +584,8 @@ const RequestsPage = () => {
               })
               .eq("id", currentUserRequest.id)
           }
+
+          console.log(`Handover completed from possession to ${allUsers.find((u) => u.id === returnToUser)?.name}`)
         }
       } else {
         // Regular return to owner/admin
@@ -598,11 +605,10 @@ const RequestsPage = () => {
           })
           .eq("id", equipmentLog.id)
 
-        // Update any approved/forwarded requests to show "Give equipment" option for owner
+        // Clear forwarded_to for any approved requests for this equipment
         await supabase
           .from("equipment_requests")
           .update({
-            status: "approved",
             forwarded_to: null,
             notes: `Equipment returned to owner. Ready to give to requester.`,
           })
@@ -636,6 +642,8 @@ const RequestsPage = () => {
             severity: "moderate",
           })
         }
+
+        console.log(`Equipment returned to owner/admin from possession`)
       }
 
       setReturningId(null)
@@ -669,33 +677,34 @@ const RequestsPage = () => {
       if (updatedRequests) {
         // Fetch events for updated requests
         const eventIds = updatedRequests.filter((req) => req.event_id).map((req) => req.event_id)
+        let requestsWithEvents = updatedRequests
+
         if (eventIds.length > 0) {
           const { data: eventsForRequests } = await supabase.from("events").select("*").in("id", eventIds)
-          const requestsWithEvents = updatedRequests.map((req) => ({
+          requestsWithEvents = updatedRequests.map((req) => ({
             ...req,
             events: req.event_id ? eventsForRequests?.find((e) => e.id === req.event_id) : null,
           }))
-
-          // Filter for current user
-          let userRequests: any[] = []
-          if (user.is_admin) {
-            userRequests = requestsWithEvents
-          } else {
-            userRequests = requestsWithEvents.filter((req) => {
-              const isRequester = req.requester_id === user.id
-              const isOwner = req.equipment?.owner_id === user.id
-              const isForwarded = req.forwarded_to === user.id
-              const isCurrentHolder = req.current_holder_id === user.id
-              const canSeeForwarded = req.forwarded_to && req.forwarded_to === user.id
-              const isOriginalApprover = req.approved_by === user.id && !req.forwarded_to
-
-              return isRequester || isOwner || canSeeForwarded || isCurrentHolder || isOriginalApprover
-            })
-          }
-
-          setRequests(userRequests)
-          setFilteredRequests(userRequests)
         }
+
+        // Filter for current user
+        let userRequests: any[] = []
+        if (user.is_admin) {
+          userRequests = requestsWithEvents
+        } else {
+          userRequests = requestsWithEvents.filter((req) => {
+            const isRequester = req.requester_id === user.id
+            const isOwner = req.equipment?.owner_id === user.id
+            const isForwarded = req.forwarded_to === user.id
+            const isCurrentHolder = req.current_holder_id === user.id
+            const isOriginalApprover = req.approved_by === user.id && !req.forwarded_to
+
+            return isRequester || isOwner || isForwarded || isCurrentHolder || isOriginalApprover
+          })
+        }
+
+        setRequests(userRequests)
+        setFilteredRequests(userRequests)
       }
 
       // Refresh equipment in possession
@@ -715,10 +724,13 @@ const RequestsPage = () => {
     }
   }
 
-  const fixMissingForwards = async () => {
+  const fixMissingForwards = async (currentRequests?: any[]) => {
+    const requestsToCheck = currentRequests || requests
+    if (!requestsToCheck.length) return
+
     try {
       // Find approved requests that should be forwarded but aren't
-      const approvedRequests = requests.filter(
+      const approvedRequests = requestsToCheck.filter(
         (r) => r.status === "approved" && !r.forwarded_to && !r.received_time && r.current_holder_id !== r.requester_id,
       )
 
@@ -735,6 +747,8 @@ const RequestsPage = () => {
 
         if (currentLog && currentLog.user_id !== request.requester_id) {
           // This request should be forwarded to the current holder
+          console.log(`Auto-forwarding request ${request.id} to current holder: ${currentLog.user?.name}`)
+          
           await supabase
             .from("equipment_requests")
             .update({
@@ -745,7 +759,10 @@ const RequestsPage = () => {
         }
       }
 
-      await refreshRequests()
+      // Only refresh if we made changes
+      if (approvedRequests.length > 0) {
+        await refreshRequests()
+      }
     } catch (error) {
       console.error("Error fixing missing forwards:", error)
     }
@@ -882,23 +899,12 @@ const RequestsPage = () => {
                   (r) => r.equipment_id === log.equipment_id && r.status === "approved" && r.forwarded_to === user?.id,
                 )
 
-                // Also check for approved requests that should be forwarded but aren't yet
-                const pendingHandovers = requests.filter(
-                  (r) =>
-                    r.equipment_id === log.equipment_id &&
-                    r.status === "approved" &&
-                    r.requester_id !== user?.id &&
-                    !r.forwarded_to &&
-                    r.current_holder_id !== r.requester_id,
-                )
-
-                const allHandoverRequests = [...handoverRequests, ...pendingHandovers]
-
                 console.log("Debug - Possession handover check:", {
                   equipmentId: log.equipment_id,
+                  equipmentName: log.equipment?.name,
                   userId: user?.id,
                   handoverRequests: handoverRequests.length,
-                  allRequests: requests.filter((r) => r.equipment_id === log.equipment_id),
+                  requestDetails: handoverRequests.map(r => ({ id: r.id, requester: r.requester?.name })),
                 })
 
                 return (
@@ -913,10 +919,10 @@ const RequestsPage = () => {
                           Expected return: {formatToIST(log.expected_return_time, "MMM d, HH:mm")} IST
                         </span>
                       )}
-                      {allHandoverRequests.length > 0 && (
+                      {handoverRequests.length > 0 && (
                         <div className="text-xs text-blue-600 mt-1">
-                          {allHandoverRequests.length} handover request(s) pending:{" "}
-                          {allHandoverRequests.map((r) => r.requester?.name).join(", ")}
+                          {handoverRequests.length} handover request(s) pending:{" "}
+                          {handoverRequests.map((r) => r.requester?.name).join(", ")}
                         </div>
                       )}
                     </div>
@@ -993,7 +999,7 @@ const RequestsPage = () => {
                           className="inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50"
                         >
                           <ArrowRightLeft className="mr-1 h-4 w-4" />
-                          {allHandoverRequests.length > 0 ? "Return/Handover" : "Return Equipment"}
+                          {handoverRequests.length > 0 ? "Return/Handover" : "Return Equipment"}
                         </button>
                       )}
                     </div>
