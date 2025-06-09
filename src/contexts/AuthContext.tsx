@@ -110,8 +110,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       // Clear user state
       setUser(null)
 
-      // Force a page reload to clear any cached state
-      window.location.href = "/login"
+      // Use relative path instead of full URL to avoid 404
+      window.location.pathname = "/login"
     } catch (error) {
       console.error("Logout error:", error)
       // Fallback: still clear state even if there's an error
@@ -119,7 +119,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       sessionStorage.clear()
       clearAllCookies()
       setUser(null)
-      window.location.href = "/login"
+      window.location.pathname = "/login"
     }
   }
 
