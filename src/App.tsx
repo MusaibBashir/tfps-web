@@ -33,12 +33,17 @@ function App() {
 
     // If user is logged in
     if (user) {
+      // If on root path or home, redirect to dashboard
+      if (location.pathname === "/" || location.pathname === "/home") {
+        navigate("/dashboard", { replace: true })
+        return
+      }
       // If on login page, redirect to dashboard
       if (location.pathname === "/login") {
         navigate("/dashboard", { replace: true })
         return
       }
-      // Allow navigation to all protected routes - don't force redirect to dashboard
+      // Allow navigation to all other protected routes
     } else {
       // User is not logged in
       // If trying to access protected routes, redirect to login
@@ -46,6 +51,9 @@ function App() {
         navigate("/login", { replace: true })
         return
       }
+      // If on root path, show homepage (don't redirect)
+      // If on /home, show homepage (don't redirect)
+      // If on /login, show login page (don't redirect)
     }
   }, [user, loading, navigate, location.pathname])
 
@@ -81,7 +89,7 @@ function App() {
       </Route>
 
       {/* Fallback route */}
-      <Route path="*" element={<Navigate to="/" replace />} />
+      <Route path="*" element={<Navigate to="/\" replace />} />
     </Routes>
   )
 }
