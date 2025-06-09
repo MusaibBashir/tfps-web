@@ -7,6 +7,9 @@ export interface User {
   year: number
   domain: string
   is_admin: boolean
+  favorite_movie?: string
+  instagram_link?: string
+  letterboxd_link?: string
   created_at: string
 }
 
@@ -58,6 +61,33 @@ export interface Event {
   creator?: User
   approver?: User
   participants?: EventParticipant[]
+}
+
+export interface PublicEvent {
+  id: string
+  title: string
+  description: string | null
+  location: string | null
+  event_type: "workshop" | "screening" | "exhibition" | "competition" | "other"
+  start_time: string
+  end_time: string
+  max_participants: number | null
+  registration_deadline: string | null
+  is_active: boolean
+  created_by: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface PublicEventRegistration {
+  id: string
+  publicevent_id: string
+  name: string
+  email: string
+  phone: string | null
+  additional_info: string | null
+  registration_status: "registered" | "confirmed" | "cancelled"
+  created_at: string
 }
 
 export interface EventParticipant {

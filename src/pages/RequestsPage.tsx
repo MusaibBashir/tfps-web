@@ -17,7 +17,7 @@ import {
 import { useSupabase } from "../contexts/SupabaseContext"
 import { useAuth } from "../contexts/AuthContext"
 import type { EquipmentRequest } from "../types"
-import { format, parseISO } from "date-fns"
+import { formatToIST } from "../utils/timezone"
 
 const RequestsPage = () => {
   const { supabase } = useSupabase()
@@ -38,7 +38,6 @@ const RequestsPage = () => {
   const [damageNotes, setDamageNotes] = useState("")
   const [equipmentInPossession, setEquipmentInPossession] = useState<any[]>([])
   const [showOtherUsers, setShowOtherUsers] = useState(false)
-  const [customUserSearch, setCustomUserSearch] = useState("")
 
   useEffect(() => {
     const fetchRequests = async () => {
@@ -212,9 +211,6 @@ const RequestsPage = () => {
         expected_return_time: request.end_time,
       })
 
-      // DO NOT automatically forward non-conflicting requests
-      // They should remain as pending for the owner/admin to approve separately
-
       // Refresh requests
       await refreshRequests()
     } catch (error) {
@@ -286,27 +282,17 @@ const RequestsPage = () => {
       }
     })
 
-    // Add option to transfer to any other user (only if not owner)
-    if (request.equipment?.owner_id !== user?.id) {
-      options.push({ value: "other", label: "Transfer to Other User" })
-    }
-
     return options
   }
 
   const handleReturn = async (requestId: string) => {
-    if (returnToUser === "other" && !customUserSearch) {
-      alert("Please select a user to transfer to")
-      return
-    }
-
     setProcessingId(requestId)
     try {
       const request = requests.find((r) => r.id === requestId)
       if (!request) return
 
       const returnTime = new Date().toISOString()
-      const finalReturnUser = returnToUser === "other" ? customUserSearch : returnToUser
+      const finalReturnUser = returnToUser
 
       if (finalReturnUser === request.equipment?.owner_id || finalReturnUser === "admin") {
         // Returning to original owner/admin - complete the cycle
@@ -372,7 +358,7 @@ const RequestsPage = () => {
           })
         }
       } else {
-        // Transferring to another user
+        // Transferring to another user with approved request
         const newHolderId = finalReturnUser
 
         // Update current request
@@ -439,8 +425,6 @@ const RequestsPage = () => {
       setReturnToUser("")
       setReturnCondition("perfect")
       setDamageNotes("")
-      setCustomUserSearch("")
-      setShowOtherUsers(false)
       await refreshRequests()
     } catch (error) {
       console.error("Error processing return:", error)
@@ -450,16 +434,12 @@ const RequestsPage = () => {
   }
 
   const handleReturnFromPossession = async (equipmentLog: any) => {
-    if (returnToUser === "other" && !customUserSearch) {
-      alert("Please select a user to transfer to")
-      return
-    }
-
     setProcessingId(equipmentLog.id)
     try {
       const returnTime = new Date().toISOString()
-      const finalReturnUser = returnToUser === "other" ? customUserSearch : returnToUser
+      const finalReturnUser = returnToUser
 
+      // Only allow returning to owner or admin
       if (finalReturnUser === equipmentLog.equipment?.owner_id || finalReturnUser === "admin") {
         // Returning to original owner
         await supabase
@@ -500,43 +480,12 @@ const RequestsPage = () => {
             severity: "moderate",
           })
         }
-      } else {
-        // Transfer to another user
-        const newHolderId = finalReturnUser
-
-        // Update current log
-        await supabase
-          .from("equipment_logs")
-          .update({
-            return_time: returnTime,
-            transferred_to: newHolderId,
-            transfer_time: returnTime,
-          })
-          .eq("id", equipmentLog.id)
-
-        // Create new log for new holder
-        await supabase.from("equipment_logs").insert({
-          equipment_id: equipmentLog.equipment_id,
-          user_id: newHolderId,
-          checkout_time: returnTime,
-        })
-
-        // Create transfer record
-        await supabase.from("equipment_transfers").insert({
-          equipment_id: equipmentLog.equipment_id,
-          from_user_id: user?.id,
-          to_user_id: newHolderId,
-          transfer_time: returnTime,
-          notes: `Direct transfer via equipment management`,
-        })
       }
 
       setReturningId(null)
       setReturnToUser("")
       setReturnCondition("perfect")
       setDamageNotes("")
-      setCustomUserSearch("")
-      setShowOtherUsers(false)
       await refreshRequests()
     } catch (error) {
       console.error("Error processing return from possession:", error)
@@ -741,11 +690,11 @@ const RequestsPage = () => {
                   <div>
                     <span className="font-medium text-gray-900">{log.equipment?.name}</span>
                     <span className="text-sm text-gray-500 ml-2">
-                      Since {format(parseISO(log.checkout_time), "MMM d, yyyy HH:mm")}
+                      Since {formatToIST(log.checkout_time, "MMM d, yyyy HH:mm")} IST
                     </span>
                     {log.expected_return_time && (
                       <span className="text-xs text-gray-400 ml-2">
-                        Expected return: {format(parseISO(log.expected_return_time), "MMM d, HH:mm")}
+                        Expected return: {formatToIST(log.expected_return_time, "MMM d, HH:mm")} IST
                       </span>
                     )}
                   </div>
@@ -758,35 +707,13 @@ const RequestsPage = () => {
                             value={returnToUser}
                             onChange={(e) => {
                               setReturnToUser(e.target.value)
-                              if (e.target.value !== "other") {
-                                setShowOtherUsers(false)
-                                setCustomUserSearch("")
-                              }
                             }}
                           >
                             <option value="">Return to...</option>
                             <option value={log.equipment?.owner_id || "admin"}>
                               {log.equipment?.owner_id ? "Equipment Owner" : "Admin"}
                             </option>
-                            <option value="other">Transfer to Other User</option>
                           </select>
-
-                          {returnToUser === "other" && (
-                            <select
-                              className="text-xs border border-gray-300 rounded px-2 py-1"
-                              value={customUserSearch}
-                              onChange={(e) => setCustomUserSearch(e.target.value)}
-                            >
-                              <option value="">Select user...</option>
-                              {allUsers
-                                .filter((u) => u.id !== user.id)
-                                .map((u) => (
-                                  <option key={u.id} value={u.id}>
-                                    {u.name}
-                                  </option>
-                                ))}
-                            </select>
-                          )}
 
                           <select
                             className="text-xs border border-gray-300 rounded px-2 py-1"
@@ -812,10 +739,7 @@ const RequestsPage = () => {
                           <button
                             onClick={() => handleReturnFromPossession(log)}
                             disabled={
-                              !returnToUser ||
-                              (returnToUser === "other" && !customUserSearch) ||
-                              !!processingId ||
-                              (returnCondition === "damaged" && !damageNotes)
+                              !returnToUser || !!processingId || (returnCondition === "damaged" && !damageNotes)
                             }
                             className="inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50"
                           >
@@ -828,8 +752,6 @@ const RequestsPage = () => {
                               setReturnToUser("")
                               setReturnCondition("perfect")
                               setDamageNotes("")
-                              setCustomUserSearch("")
-                              setShowOtherUsers(false)
                             }}
                             className="inline-flex items-center px-2.5 py-1.5 border border-gray-300 text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
                           >
@@ -924,8 +846,8 @@ const RequestsPage = () => {
                           {request.start_time && request.end_time && (
                             <span className="ml-2 text-xs text-gray-400">
                               <Clock className="inline h-3 w-3 mr-1" />
-                              {format(parseISO(request.start_time), "MMM d, HH:mm")} -{" "}
-                              {format(parseISO(request.end_time), "HH:mm")}
+                              {formatToIST(request.start_time, "MMM d, HH:mm")} -{" "}
+                              {formatToIST(request.end_time, "HH:mm")} IST
                             </span>
                           )}
                         </div>
@@ -977,7 +899,7 @@ const RequestsPage = () => {
                           clipRule="evenodd"
                         />
                       </svg>
-                      {format(parseISO(request.created_at), "MMM d, yyyy")}
+                      {formatToIST(request.created_at, "MMM d, yyyy")} IST
                     </div>
                   </div>
 
@@ -1113,10 +1035,6 @@ const RequestsPage = () => {
                                   value={returnToUser}
                                   onChange={(e) => {
                                     setReturnToUser(e.target.value)
-                                    if (e.target.value !== "other") {
-                                      setShowOtherUsers(false)
-                                      setCustomUserSearch("")
-                                    }
                                   }}
                                 >
                                   <option value="">Return to...</option>
@@ -1126,23 +1044,6 @@ const RequestsPage = () => {
                                     </option>
                                   ))}
                                 </select>
-
-                                {returnToUser === "other" && (
-                                  <select
-                                    className="text-xs border border-gray-300 rounded px-2 py-1"
-                                    value={customUserSearch}
-                                    onChange={(e) => setCustomUserSearch(e.target.value)}
-                                  >
-                                    <option value="">Select user...</option>
-                                    {allUsers
-                                      .filter((u) => u.id !== user.id)
-                                      .map((u) => (
-                                        <option key={u.id} value={u.id}>
-                                          {u.name}
-                                        </option>
-                                      ))}
-                                  </select>
-                                )}
 
                                 <select
                                   className="text-xs border border-gray-300 rounded px-2 py-1"
@@ -1168,10 +1069,7 @@ const RequestsPage = () => {
                                 <button
                                   onClick={() => handleReturn(request.id)}
                                   disabled={
-                                    !returnToUser ||
-                                    (returnToUser === "other" && !customUserSearch) ||
-                                    !!processingId ||
-                                    (returnCondition === "damaged" && !damageNotes)
+                                    !returnToUser || !!processingId || (returnCondition === "damaged" && !damageNotes)
                                   }
                                   className="inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50"
                                 >
@@ -1184,8 +1082,6 @@ const RequestsPage = () => {
                                     setReturnToUser("")
                                     setReturnCondition("perfect")
                                     setDamageNotes("")
-                                    setCustomUserSearch("")
-                                    setShowOtherUsers(false)
                                   }}
                                   className="inline-flex items-center px-2.5 py-1.5 border border-gray-300 text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
                                 >
