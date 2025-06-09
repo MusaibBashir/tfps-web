@@ -1,25 +1,37 @@
-import { Outlet } from 'react-router-dom';
-import Navbar from './Navbar';
-import { useAuth } from '../contexts/AuthContext';
+"use client"
+
+import { Outlet } from "react-router-dom"
+import Navbar from "./Navbar"
+import { useAuth } from "../contexts/AuthContext"
 
 const Layout = () => {
-  const { user } = useAuth();
+  const { user } = useAuth()
 
   if (!user) {
-    return null;
+    return null
   }
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col bg-gradient-to-br from-gray-50 via-orange-50 to-gray-100">
       <Navbar />
-      <main className="flex-grow p-6">
-        <Outlet />
+      <main className="flex-grow p-6 relative">
+        {/* Subtle background pattern */}
+        <div className="absolute inset-0 opacity-5 bg-gradient-to-br from-orange-500 to-black pointer-events-none"></div>
+        <div className="relative z-10">
+          <Outlet />
+        </div>
       </main>
-      <footer className="bg-white border-t py-4 text-center text-sm text-gray-500">
-        &copy; {new Date().getFullYear()} Technology Film and Photography Society
+      <footer className="bg-gradient-black text-white border-t border-orange-500/20 py-6 text-center relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-r from-orange-600/10 to-transparent"></div>
+        <div className="relative z-10">
+          <p className="text-orange-200 font-medium">
+            &copy; {new Date().getFullYear()} Technology Film and Photography Society
+          </p>
+          <p className="text-orange-300/70 text-sm mt-1">Capturing moments, creating memories</p>
+        </div>
       </footer>
     </div>
-  );
-};
+  )
+}
 
-export default Layout;
+export default Layout
