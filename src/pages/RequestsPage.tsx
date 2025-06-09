@@ -264,8 +264,9 @@ const RequestsPage = () => {
       options.push({ value: "admin", label: "Return to Admin" })
     }
 
-    // Get handover requests - requests that are approved and forwarded to current user
-    const handoverRequests = requests.filter(
+    // Get handover requests - ALL approved requests for this equipment that are forwarded to current user
+    // This is the key fix - we need to check ALL requests, not just the filtered ones
+    const allHandoverRequests = requests.filter(
       (r) =>
         r.equipment_id === request.equipment_id &&
         r.status === "approved" &&
@@ -273,7 +274,14 @@ const RequestsPage = () => {
         r.id !== request.id,
     )
 
-    handoverRequests.forEach((handoverReq) => {
+    console.log("Debug - Looking for handover requests:", {
+      equipmentId: request.equipment_id,
+      userId: user?.id,
+      allRequests: requests.length,
+      handoverRequests: allHandoverRequests,
+    })
+
+    allHandoverRequests.forEach((handoverReq) => {
       if (handoverReq.requester) {
         options.push({
           value: handoverReq.requester.id,
@@ -489,43 +497,132 @@ const RequestsPage = () => {
     try {
       const returnTime = new Date().toISOString()
 
-      // Always return to owner/admin - no confirmation needed
-      await supabase
-        .from("equipment")
-        .update({
-          status: returnCondition === "damaged" ? "maintenance" : "available",
-          condition_notes: returnCondition === "damaged" ? damageNotes : null,
-        })
-        .eq("id", equipmentLog.equipment_id)
+      // Check if this is a handover to another user
+      const isHandover = returnToUser !== equipmentLog.equipment?.owner_id && returnToUser !== "admin"
 
-      // Update equipment log
-      await supabase
-        .from("equipment_logs")
-        .update({
-          return_time: returnTime,
-        })
-        .eq("id", equipmentLog.id)
+      if (isHandover) {
+        // This is a handover - find the corresponding request
+        const handoverRequest = requests.find(
+          (r) =>
+            r.equipment_id === equipmentLog.equipment_id &&
+            r.status === "approved" &&
+            r.forwarded_to === user?.id &&
+            r.requester_id === returnToUser,
+        )
 
-      // Update any approved/forwarded requests to show "Give equipment" option for owner
-      await supabase
-        .from("equipment_requests")
-        .update({
-          status: "approved",
-          forwarded_to: null,
-          notes: `Equipment returned to owner. Ready to give to requester.`,
-        })
-        .eq("equipment_id", equipmentLog.equipment_id)
-        .eq("status", "approved")
-        .not("forwarded_to", "is", null)
+        if (handoverRequest) {
+          // Update the handover request to received status
+          await supabase
+            .from("equipment_requests")
+            .update({
+              status: "received",
+              received_time: returnTime,
+              current_holder_id: returnToUser,
+              forwarded_to: null,
+              notes: `Equipment received via handover from ${user?.name}`,
+            })
+            .eq("id", handoverRequest.id)
 
-      // Create damage report if damaged
-      if (returnCondition === "damaged" && damageNotes) {
-        await supabase.from("damage_reports").insert({
-          equipment_id: equipmentLog.equipment_id,
-          reported_by: user?.id,
-          damage_description: damageNotes,
-          severity: "moderate",
-        })
+          // Create transfer record
+          await supabase.from("equipment_transfers").insert({
+            equipment_id: equipmentLog.equipment_id,
+            from_user_id: user?.id,
+            to_user_id: returnToUser,
+            transfer_time: returnTime,
+            notes: `Handover via equipment request system`,
+          })
+
+          // Update current equipment log (end current user's usage)
+          await supabase
+            .from("equipment_logs")
+            .update({
+              return_time: returnTime,
+              transferred_to: returnToUser,
+              transfer_time: returnTime,
+            })
+            .eq("id", equipmentLog.id)
+
+          // Create new log for new holder (start their usage)
+          await supabase.from("equipment_logs").insert({
+            equipment_id: equipmentLog.equipment_id,
+            user_id: returnToUser,
+            checkout_time: returnTime,
+            expected_return_time: handoverRequest.end_time,
+          })
+
+          // Find and update the current user's request to returned
+          const currentUserRequest = requests.find(
+            (r) =>
+              r.equipment_id === equipmentLog.equipment_id && r.status === "received" && r.requester_id === user?.id,
+          )
+
+          if (currentUserRequest) {
+            await supabase
+              .from("equipment_requests")
+              .update({
+                status: "returned",
+                returned_time: returnTime,
+                notes: `Handed over to ${allUsers.find((u) => u.id === returnToUser)?.name}`,
+              })
+              .eq("id", currentUserRequest.id)
+          }
+        }
+      } else {
+        // Regular return to owner/admin
+        await supabase
+          .from("equipment")
+          .update({
+            status: returnCondition === "damaged" ? "maintenance" : "available",
+            condition_notes: returnCondition === "damaged" ? damageNotes : null,
+          })
+          .eq("id", equipmentLog.equipment_id)
+
+        // Update equipment log
+        await supabase
+          .from("equipment_logs")
+          .update({
+            return_time: returnTime,
+          })
+          .eq("id", equipmentLog.id)
+
+        // Update any approved/forwarded requests to show "Give equipment" option for owner
+        await supabase
+          .from("equipment_requests")
+          .update({
+            status: "approved",
+            forwarded_to: null,
+            notes: `Equipment returned to owner. Ready to give to requester.`,
+          })
+          .eq("equipment_id", equipmentLog.equipment_id)
+          .eq("status", "approved")
+          .not("forwarded_to", "is", null)
+
+        // Update current user's request to returned
+        const currentUserRequest = requests.find(
+          (r) => r.equipment_id === equipmentLog.equipment_id && r.status === "received" && r.requester_id === user?.id,
+        )
+
+        if (currentUserRequest) {
+          await supabase
+            .from("equipment_requests")
+            .update({
+              status: "returned",
+              returned_time: returnTime,
+              return_condition: returnCondition,
+              damage_notes: returnCondition === "damaged" ? damageNotes : null,
+            })
+            .eq("id", currentUserRequest.id)
+        }
+
+        // Create damage report if damaged
+        if (returnCondition === "damaged" && damageNotes) {
+          await supabase.from("damage_reports").insert({
+            equipment_id: equipmentLog.equipment_id,
+            reported_by: user?.id,
+            damage_description: damageNotes,
+            severity: "moderate",
+          })
+        }
       }
 
       setReturningId(null)
@@ -736,6 +833,13 @@ const RequestsPage = () => {
                   (r) => r.equipment_id === log.equipment_id && r.status === "approved" && r.forwarded_to === user?.id,
                 )
 
+                console.log("Debug - Possession handover check:", {
+                  equipmentId: log.equipment_id,
+                  userId: user?.id,
+                  handoverRequests: handoverRequests.length,
+                  allRequests: requests.filter((r) => r.equipment_id === log.equipment_id),
+                })
+
                 return (
                   <div key={log.id} className="flex items-center justify-between bg-white p-3 rounded-md">
                     <div>
@@ -750,7 +854,8 @@ const RequestsPage = () => {
                       )}
                       {handoverRequests.length > 0 && (
                         <div className="text-xs text-blue-600 mt-1">
-                          {handoverRequests.length} handover request(s) pending
+                          {handoverRequests.length} handover request(s) pending:{" "}
+                          {handoverRequests.map((r) => r.requester?.name).join(", ")}
                         </div>
                       )}
                     </div>
