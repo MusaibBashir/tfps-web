@@ -1,15 +1,26 @@
 /** @type {import('tailwindcss').Config} */
-const defaultConfig = require("shadcn/ui/tailwind.config")
-
 module.exports = {
-  ...defaultConfig,
-  content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}", "*.{js,ts,jsx,tsx,mdx}"],
+  darkMode: ["class"],
+  content: [
+    "./index.html", 
+    "./src/**/*.{js,ts,jsx,tsx}", 
+    "*.{js,ts,jsx,tsx,mdx}",
+    "./pages/**/*.{ts,tsx}",
+    "./components/**/*.{ts,tsx}",
+    "./app/**/*.{ts,tsx}",
+  ],
+  prefix: "",
   theme: {
-    ...defaultConfig.theme,
+    container: {
+      center: true,
+      padding: "2rem",
+      screens: {
+        "2xl": "1400px",
+      },
+    },
     extend: {
-      ...defaultConfig.theme.extend,
       colors: {
-        ...defaultConfig.theme.extend.colors,
+        // Your existing primary colors (orange theme)
         primary: {
           50: "#fff7ed",
           100: "#ffedd5",
@@ -22,7 +33,10 @@ module.exports = {
           800: "#9a3412",
           900: "#7c2d12",
           950: "#431407",
+          DEFAULT: "#f97316",
+          foreground: "#ffffff",
         },
+        // Your existing secondary colors
         secondary: {
           50: "#f8fafc",
           100: "#f1f5f9",
@@ -35,7 +49,10 @@ module.exports = {
           800: "#1e293b", // Dark gray/black
           900: "#0f172a", // Almost black
           950: "#020617", // Pure black
+          DEFAULT: "#f1f5f9",
+          foreground: "#0f172a",
         },
+        // Your existing accent colors
         accent: {
           50: "#fef3c7",
           100: "#fde68a",
@@ -47,28 +64,31 @@ module.exports = {
           700: "#92400e",
           800: "#78350f",
           900: "#451a03",
+          DEFAULT: "#d97706",
+          foreground: "#ffffff",
         },
+        // shadcn/ui required colors
+        border: "hsl(214.3 31.8% 91.4%)",
+        input: "hsl(214.3 31.8% 91.4%)",
+        ring: "#f97316", // Using your primary color
+        background: "hsl(0 0% 100%)",
+        foreground: "hsl(222.2 84% 4.9%)",
         destructive: {
-          DEFAULT: "hsl(var(--destructive))",
-          foreground: "hsl(var(--destructive-foreground))",
+          DEFAULT: "hsl(0 84.2% 60.2%)",
+          foreground: "hsl(210 40% 98%)",
         },
         muted: {
-          DEFAULT: "hsl(var(--muted))",
-          foreground: "hsl(var(--muted-foreground))",
+          DEFAULT: "hsl(210 40% 96%)",
+          foreground: "hsl(215.4 16.3% 46.9%)",
         },
         popover: {
-          DEFAULT: "hsl(var(--popover))",
-          foreground: "hsl(var(--popover-foreground))",
+          DEFAULT: "hsl(0 0% 100%)",
+          foreground: "hsl(222.2 84% 4.9%)",
         },
         card: {
-          DEFAULT: "hsl(var(--card))",
-          foreground: "hsl(var(--card-foreground))",
+          DEFAULT: "hsl(0 0% 100%)",
+          foreground: "hsl(222.2 84% 4.9%)",
         },
-        border: "hsl(var(--border))",
-        input: "hsl(var(--input))",
-        ring: "hsl(var(--ring))",
-        background: "hsl(var(--background))",
-        foreground: "hsl(var(--foreground))",
       },
       backgroundImage: {
         "gradient-orange": "linear-gradient(135deg, #f97316 0%, #ea580c 100%)",
@@ -88,6 +108,8 @@ module.exports = {
         "fade-in": "fadeIn 0.3s ease-in-out",
         "slide-in": "slideIn 0.3s ease-in-out",
         gradient: "gradient 6s ease infinite",
+        "accordion-down": "accordion-down 0.2s ease-out",
+        "accordion-up": "accordion-up 0.2s ease-out",
       },
       keyframes: {
         fadeIn: {
@@ -102,8 +124,16 @@ module.exports = {
           "0%, 100%": { backgroundPosition: "0% 50%" },
           "50%": { backgroundPosition: "100% 50%" },
         },
+        "accordion-down": {
+          from: { height: "0" },
+          to: { height: "var(--radix-accordion-content-height)" },
+        },
+        "accordion-up": {
+          from: { height: "var(--radix-accordion-content-height)" },
+          to: { height: "0" },
+        },
       },
     },
   },
-  plugins: [...defaultConfig.plugins, require("tailwindcss-animate")],
+  plugins: [require("tailwindcss-animate")],
 }
