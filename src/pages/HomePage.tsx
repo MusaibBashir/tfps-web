@@ -18,6 +18,9 @@ import {
   Play,
   Star,
   BookOpen,
+  Sparkles,
+  Award,
+  Film,
 } from "lucide-react"
 import { useAuth } from "../contexts/AuthContext"
 import { useSupabase } from "../contexts/SupabaseContext"
@@ -260,28 +263,44 @@ const HomePage = () => {
   ]
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-amber-50 via-white to-orange-50">
+      {/* Floating particles background */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-1/4 left-1/4 w-2 h-2 bg-gradient-to-r from-amber-400 to-orange-400 rounded-full animate-pulse opacity-60"></div>
+        <div className="absolute top-3/4 right-1/4 w-1 h-1 bg-gradient-to-r from-orange-400 to-amber-400 rounded-full animate-pulse opacity-40 animation-delay-1000"></div>
+        <div className="absolute top-1/2 left-3/4 w-1.5 h-1.5 bg-gradient-to-r from-amber-300 to-orange-300 rounded-full animate-pulse opacity-50 animation-delay-2000"></div>
+      </div>
+
       {/* Header */}
-      <header className="bg-primary-900 text-white sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-4">
+      <header className="relative overflow-hidden">
+        {/* Gradient background with glass effect */}
+        <div className="absolute inset-0 bg-gradient-to-br from-amber-600 via-orange-600 to-amber-700"></div>
+        <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-white/10"></div>
+        
+        {/* Glass overlay */}
+        <div className="absolute inset-0 backdrop-blur-sm bg-white/5"></div>
+        
+        <div className="container mx-auto px-4 py-6 relative z-10">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Camera className="h-10 w-10" />
+            <div className="flex items-center gap-4 group">
+              <div className="p-3 bg-white/20 backdrop-blur-md rounded-2xl shadow-2xl border border-white/30 group-hover:scale-110 transition-all duration-500">
+                <Camera className="h-10 w-10 text-white drop-shadow-lg" />
+              </div>
               <div>
-                <h1 className="text-2xl font-bold">TFPS</h1>
-                <p className="text-primary-200 text-sm">Technology Film and Photography Society</p>
+                <h1 className="text-3xl font-bold text-white drop-shadow-lg">TFPS</h1>
+                <p className="text-amber-100 text-sm font-medium drop-shadow">Technology Film and Photography Society</p>
               </div>
             </div>
             <div className="flex items-center gap-4">
               <Link
                 to="/login"
-                className="text-primary-200 hover:text-white px-4 py-2 rounded-lg font-medium transition-colors"
+                className="glass-button text-white hover:text-amber-100 px-6 py-3 rounded-xl font-medium transition-all duration-300 hover:scale-105"
               >
                 Login
               </Link>
               <a
                 href="#register"
-                className="bg-primary-600 hover:bg-primary-700 px-6 py-2 rounded-lg font-medium transition-colors"
+                className="bg-gradient-to-r from-white/20 to-white/10 backdrop-blur-md border border-white/30 text-white hover:from-white/30 hover:to-white/20 px-6 py-3 rounded-xl font-medium transition-all duration-300 hover:scale-105 shadow-xl"
               >
                 Register for Event
               </a>
@@ -291,31 +310,74 @@ const HomePage = () => {
       </header>
 
       {/* Hero Section */}
-      <section className="bg-gradient-to-br from-primary-600 to-primary-800 text-white py-20">
-        <div className="container mx-auto px-4 text-center">
-          <h2 className="text-6xl font-bold mb-6">TFPS</h2>
-          <p className="text-2xl text-primary-100 mb-4 font-light">Technology Film and Photography Society</p>
-          <p className="text-xl text-primary-200 mb-8 max-w-3xl mx-auto">
-            Where creativity meets technology. Join our vibrant community of photographers and filmmakers as we capture stories, create art, and push the boundaries of visual expression.
-          </p>
+      <section className="relative py-24 overflow-hidden">
+        {/* Animated gradient background */}
+        <div className="absolute inset-0 bg-gradient-to-br from-amber-600 via-orange-600 to-amber-700 animate-gradient bg-[length:400%_400%]"></div>
+        <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent"></div>
+        
+        {/* Floating elements */}
+        <div className="absolute top-20 left-10 w-20 h-20 bg-white/10 rounded-full blur-xl animate-pulse"></div>
+        <div className="absolute bottom-20 right-10 w-32 h-32 bg-amber-300/20 rounded-full blur-2xl animate-pulse animation-delay-1000"></div>
+        
+        <div className="container mx-auto px-4 text-center relative z-10">
+          <div className="max-w-4xl mx-auto">
+            <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-md rounded-full px-6 py-3 mb-8 border border-white/30">
+              <Sparkles className="h-5 w-5 text-amber-200" />
+              <span className="text-white font-medium">Where Creativity Meets Technology</span>
+            </div>
+            
+            <h2 className="text-7xl font-bold mb-6 text-white drop-shadow-2xl">
+              <span className="bg-gradient-to-r from-white via-amber-100 to-white bg-clip-text text-transparent">
+                TFPS
+              </span>
+            </h2>
+            <p className="text-2xl text-amber-100 mb-4 font-light drop-shadow-lg">Technology Film and Photography Society</p>
+            <p className="text-xl text-white/90 mb-12 max-w-3xl mx-auto leading-relaxed drop-shadow">
+              Where creativity meets technology. Join our vibrant community of photographers and filmmakers as we capture stories, create art, and push the boundaries of visual expression.
+            </p>
+            
+            <div className="flex flex-col sm:flex-row gap-6 justify-center">
+              <a
+                href="#register"
+                className="glass-button-primary px-8 py-4 rounded-2xl font-semibold text-lg transition-all duration-300 hover:scale-105 shadow-2xl"
+              >
+                Join Our Community
+                <ChevronRight className="ml-2 h-5 w-5 inline" />
+              </a>
+              <a
+                href="#about"
+                className="glass-button px-8 py-4 rounded-2xl font-semibold text-lg transition-all duration-300 hover:scale-105"
+              >
+                Learn More
+              </a>
+            </div>
+          </div>
         </div>
       </section>
 
       {/* Recent Movies Section */}
-      <section className="py-16 bg-white">
+      <section className="py-20 relative">
         <div className="container mx-auto px-4">
-          <div className="text-center mb-12">
-            <h3 className="text-3xl font-bold text-gray-900 mb-4">Recent Movies</h3>
-            <p className="text-gray-600 max-w-2xl mx-auto">
+          <div className="text-center mb-16">
+            <div className="inline-flex items-center gap-2 bg-gradient-to-r from-amber-100 to-orange-100 rounded-full px-6 py-3 mb-6">
+              <Film className="h-5 w-5 text-amber-600" />
+              <span className="text-amber-800 font-semibold">Latest Creations</span>
+            </div>
+            <h3 className="text-4xl font-bold text-gray-900 mb-4">Recent Movies</h3>
+            <p className="text-gray-600 max-w-2xl mx-auto text-lg">
               Watch our latest film productions and documentaries created by our talented members.
             </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {recentMovies.map((movie) => (
-              <div key={movie.id} className="bg-white rounded-lg shadow-lg overflow-hidden group hover:shadow-xl transition-shadow">
+            {recentMovies.map((movie, index) => (
+              <div 
+                key={movie.id} 
+                className="glass-card group hover:scale-105 transition-all duration-500"
+                style={{ animationDelay: `${index * 200}ms` }}
+              >
                 <div className="relative">
-                  <div className="aspect-video bg-gray-900 relative overflow-hidden">
+                  <div className="aspect-video bg-gray-900 relative overflow-hidden rounded-t-2xl">
                     <iframe
                       src={`https://www.youtube.com/embed/${movie.youtubeId}`}
                       title={movie.title}
@@ -325,23 +387,25 @@ const HomePage = () => {
                       allowFullScreen
                     />
                   </div>
-                  <div className="absolute top-3 right-3 bg-black bg-opacity-70 text-white px-2 py-1 rounded text-sm">
+                  <div className="absolute top-3 right-3 bg-black/70 backdrop-blur-sm text-white px-3 py-1 rounded-full text-sm font-medium">
                     {movie.duration}
                   </div>
                 </div>
                 <div className="p-6">
-                  <h4 className="text-xl font-semibold text-gray-900 mb-2">{movie.title}</h4>
-                  <p className="text-gray-600 mb-4">{movie.description}</p>
+                  <h4 className="text-xl font-semibold text-gray-900 mb-3 group-hover:text-amber-700 transition-colors">
+                    {movie.title}
+                  </h4>
+                  <p className="text-gray-600 mb-4 leading-relaxed">{movie.description}</p>
                   <div className="flex items-center justify-between text-sm text-gray-500">
-                    <div className="flex items-center gap-1">
-                      <Play className="h-4 w-4" />
-                      {movie.views} views
+                    <div className="flex items-center gap-2">
+                      <Play className="h-4 w-4 text-amber-600" />
+                      <span className="font-medium">{movie.views} views</span>
                     </div>
                     <a
                       href={`https://youtube.com/watch?v=${movie.youtubeId}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-primary-600 hover:text-primary-800 font-medium flex items-center gap-1"
+                      className="text-amber-600 hover:text-amber-700 font-medium flex items-center gap-1 transition-colors"
                     >
                       Watch on YouTube
                       <ExternalLink className="h-3 w-3" />
@@ -355,43 +419,58 @@ const HomePage = () => {
       </section>
 
       {/* Instagram Feed Section */}
-      <section className="py-16 bg-gray-50">
+      <section className="py-20 bg-gradient-to-br from-orange-50 to-amber-50 relative">
         <div className="container mx-auto px-4">
-          <div className="text-center mb-12">
-            <h3 className="text-3xl font-bold text-gray-900 mb-4">Follow Us on Instagram</h3>
-            <p className="text-gray-600 max-w-2xl mx-auto">
+          <div className="text-center mb-16">
+            <div className="inline-flex items-center gap-2 bg-gradient-to-r from-pink-100 to-purple-100 rounded-full px-6 py-3 mb-6">
+              <Instagram className="h-5 w-5 text-pink-600" />
+              <span className="text-pink-800 font-semibold">Social Media</span>
+            </div>
+            <h3 className="text-4xl font-bold text-gray-900 mb-4">Follow Us on Instagram</h3>
+            <p className="text-gray-600 max-w-2xl mx-auto text-lg">
               Stay updated with our latest activities, behind-the-scenes content, and creative works.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {instagramPosts.map((post) => (
-              <div key={post.id} className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
-                <div className="h-64 overflow-hidden">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {instagramPosts.map((post, index) => (
+              <div 
+                key={post.id} 
+                className="glass-card group hover:scale-105 transition-all duration-500"
+                style={{ animationDelay: `${index * 150}ms` }}
+              >
+                <div className="h-64 overflow-hidden rounded-t-2xl">
                   <img
                     src={post.image}
                     alt="Instagram post"
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                   />
                 </div>
-                <div className="p-4">
-                  <div className="flex items-center justify-between mb-3">
+                <div className="p-6">
+                  <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center">
-                      <Instagram className="h-5 w-5 text-pink-600 mr-2" />
-                      <span className="text-sm font-medium text-gray-900">@tfps_official</span>
+                      <div className="p-2 bg-gradient-to-r from-pink-500 to-purple-600 rounded-full mr-3">
+                        <Instagram className="h-4 w-4 text-white" />
+                      </div>
+                      <span className="text-sm font-semibold text-gray-900">@tfps_official</span>
                     </div>
-                    <span className="text-xs text-gray-500">{post.date}</span>
+                    <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">{post.date}</span>
                   </div>
-                  <p className="text-sm text-gray-700 mb-3 leading-relaxed">{post.caption}</p>
+                  <p className="text-sm text-gray-700 mb-4 leading-relaxed">{post.caption}</p>
                   <div className="flex items-center justify-between">
-                    <div className="text-sm text-gray-500">{post.likes} likes</div>
+                    <div className="flex items-center gap-2 text-sm text-gray-500">
+                      <div className="w-4 h-4 bg-gradient-to-r from-red-500 to-pink-500 rounded-full flex items-center justify-center">
+                        <span className="text-white text-xs">♥</span>
+                      </div>
+                      <span className="font-medium">{post.likes} likes</span>
+                    </div>
                     <a
                       href={post.instagramUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-pink-600 hover:text-pink-800 text-sm font-medium flex items-center gap-1"
+                      className="text-pink-600 hover:text-pink-700 text-sm font-medium flex items-center gap-1 transition-colors"
                     >
-                      View on Instagram
+                      View Post
                       <ExternalLink className="h-3 w-3" />
                     </a>
                   </div>
@@ -400,91 +479,107 @@ const HomePage = () => {
             ))}
           </div>
 
-          <div className="text-center mt-10">
+          <div className="text-center mt-12">
             <a
               href="https://instagram.com/tfps_official"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center bg-gradient-to-r from-pink-500 to-purple-600 text-white px-6 py-3 rounded-lg font-medium hover:from-pink-600 hover:to-purple-700 transition-all"
+              className="inline-flex items-center bg-gradient-to-r from-pink-500 to-purple-600 text-white px-8 py-4 rounded-2xl font-semibold hover:from-pink-600 hover:to-purple-700 transition-all duration-300 hover:scale-105 shadow-xl"
             >
-              <Instagram className="mr-2 h-5 w-5" />
+              <Instagram className="mr-3 h-6 w-6" />
               Follow @tfps_official
-              <ExternalLink className="ml-2 h-4 w-4" />
+              <ExternalLink className="ml-3 h-5 w-5" />
             </a>
           </div>
         </div>
       </section>
 
       {/* Movie Reviews Section */}
-      <section className="py-16 bg-white">
+      <section className="py-20 relative">
         <div className="container mx-auto px-4">
-          <div className="text-center mb-12">
-            <h3 className="text-3xl font-bold text-gray-900 mb-4">Recent Movie Reviews</h3>
-            <p className="text-gray-600 max-w-2xl mx-auto">
+          <div className="text-center mb-16">
+            <div className="inline-flex items-center gap-2 bg-gradient-to-r from-blue-100 to-indigo-100 rounded-full px-6 py-3 mb-6">
+              <BookOpen className="h-5 w-5 text-blue-600" />
+              <span className="text-blue-800 font-semibold">Reviews & Analysis</span>
+            </div>
+            <h3 className="text-4xl font-bold text-gray-900 mb-4">Recent Movie Reviews</h3>
+            <p className="text-gray-600 max-w-2xl mx-auto text-lg">
               Read our members' thoughtful reviews and analyses of films, exploring cinematography, storytelling, and visual arts.
             </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {movieReviews.map((review) => (
-              <div key={review.id} className="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-2">
-                    {review.platformIcon}
-                    <span className="text-sm font-medium text-gray-600">{review.platform}</span>
-                  </div>
-                  <span className="text-xs text-gray-500">{review.date}</span>
-                </div>
-                
-                <h4 className="text-lg font-semibold text-gray-900 mb-2 line-clamp-2">{review.title}</h4>
-                <p className="text-sm text-gray-500 mb-3">by {review.author}</p>
-                <p className="text-gray-600 mb-4 line-clamp-3">{review.excerpt}</p>
-                
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4 text-xs text-gray-500">
-                    {review.readTime && <span>{review.readTime}</span>}
-                    {review.rating && (
-                      <div className="flex items-center gap-1">
-                        <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-                        <span>{review.rating}/5</span>
+            {movieReviews.map((review, index) => (
+              <div 
+                key={review.id} 
+                className="glass-card group hover:scale-105 transition-all duration-500"
+                style={{ animationDelay: `${index * 100}ms` }}
+              >
+                <div className="p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full">
+                        {review.platformIcon}
                       </div>
-                    )}
+                      <span className="text-sm font-semibold text-blue-600">{review.platform}</span>
+                    </div>
+                    <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">{review.date}</span>
                   </div>
-                  <a
-                    href={review.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-primary-600 hover:text-primary-800 text-sm font-medium flex items-center gap-1"
-                  >
-                    Read More
-                    <ExternalLink className="h-3 w-3" />
-                  </a>
+                  
+                  <h4 className="text-lg font-semibold text-gray-900 mb-3 line-clamp-2 group-hover:text-blue-700 transition-colors">
+                    {review.title}
+                  </h4>
+                  <p className="text-sm text-gray-500 mb-3 font-medium">by {review.author}</p>
+                  <p className="text-gray-600 mb-6 leading-relaxed line-clamp-3">{review.excerpt}</p>
+                  
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4 text-xs text-gray-500">
+                      {review.readTime && (
+                        <span className="bg-gray-100 px-2 py-1 rounded-full font-medium">{review.readTime}</span>
+                      )}
+                      {review.rating && (
+                        <div className="flex items-center gap-1">
+                          <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                          <span className="font-medium">{review.rating}/5</span>
+                        </div>
+                      )}
+                    </div>
+                    <a
+                      href={review.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:text-blue-700 text-sm font-medium flex items-center gap-1 transition-colors"
+                    >
+                      Read More
+                      <ExternalLink className="h-3 w-3" />
+                    </a>
+                  </div>
                 </div>
               </div>
             ))}
           </div>
 
-          <div className="text-center mt-10">
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+          <div className="text-center mt-12">
+            <div className="flex flex-col sm:flex-row gap-6 justify-center">
               <a
                 href="https://medium.com/@tfps"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center text-gray-700 bg-gray-100 hover:bg-gray-200 px-6 py-3 rounded-lg font-medium transition-colors"
+                className="glass-button-secondary inline-flex items-center px-8 py-4 rounded-2xl font-semibold transition-all duration-300 hover:scale-105"
               >
-                <BookOpen className="mr-2 h-5 w-5" />
+                <BookOpen className="mr-3 h-6 w-6" />
                 Follow on Medium
-                <ExternalLink className="ml-2 h-4 w-4" />
+                <ExternalLink className="ml-3 h-5 w-5" />
               </a>
               <a
                 href="https://letterboxd.com/tfps"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center text-blue-700 bg-blue-100 hover:bg-blue-200 px-6 py-3 rounded-lg font-medium transition-colors"
+                className="glass-button-secondary inline-flex items-center px-8 py-4 rounded-2xl font-semibold transition-all duration-300 hover:scale-105"
               >
-                <Star className="mr-2 h-5 w-5" />
+                <Star className="mr-3 h-6 w-6" />
                 Follow on Letterboxd
-                <ExternalLink className="ml-2 h-4 w-4" />
+                <ExternalLink className="ml-3 h-5 w-5" />
               </a>
             </div>
           </div>
@@ -492,24 +587,34 @@ const HomePage = () => {
       </section>
 
       {/* Upcoming Public Events Section */}
-      <section id="register" className="py-16 bg-gray-50">
+      <section id="register" className="py-20 bg-gradient-to-br from-amber-50 to-orange-50 relative">
         <div className="container mx-auto px-4">
-          <div className="text-center mb-12">
-            <h3 className="text-3xl font-bold text-gray-900 mb-4">Register for Events</h3>
-            <p className="text-gray-600 max-w-2xl mx-auto">
+          <div className="text-center mb-16">
+            <div className="inline-flex items-center gap-2 bg-gradient-to-r from-green-100 to-emerald-100 rounded-full px-6 py-3 mb-6">
+              <Calendar className="h-5 w-5 text-green-600" />
+              <span className="text-green-800 font-semibold">Upcoming Events</span>
+            </div>
+            <h3 className="text-4xl font-bold text-gray-900 mb-4">Register for Events</h3>
+            <p className="text-gray-600 max-w-2xl mx-auto text-lg">
               Join our upcoming public events and workshops. These events are open for everyone to participate.
             </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {upcomingPublicEvents.length > 0 ? (
-              upcomingPublicEvents.map((publicEvent) => (
-                <div key={publicEvent.id} className="bg-white rounded-lg shadow-md overflow-hidden">
+              upcomingPublicEvents.map((publicEvent, index) => (
+                <div 
+                  key={publicEvent.id} 
+                  className="glass-card group hover:scale-105 transition-all duration-500"
+                  style={{ animationDelay: `${index * 150}ms` }}
+                >
                   <div className="p-6">
                     <div className="flex justify-between items-start mb-4">
                       <div>
-                        <h4 className="text-xl font-semibold text-gray-900">{publicEvent.title}</h4>
-                        <p className="text-sm text-gray-500 mt-1">
+                        <h4 className="text-xl font-semibold text-gray-900 group-hover:text-amber-700 transition-colors">
+                          {publicEvent.title}
+                        </h4>
+                        <p className="text-sm text-gray-500 mt-2 font-medium">
                           {new Date(publicEvent.start_time).toLocaleDateString()} at{" "}
                           {new Date(publicEvent.start_time).toLocaleTimeString([], {
                             hour: "2-digit",
@@ -518,16 +623,16 @@ const HomePage = () => {
                         </p>
                       </div>
                       <span
-                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                        className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold shadow-sm ${
                           publicEvent.event_type === "workshop"
-                            ? "bg-blue-100 text-blue-800"
+                            ? "bg-gradient-to-r from-blue-400 to-blue-500 text-white"
                             : publicEvent.event_type === "screening"
-                              ? "bg-purple-100 text-purple-800"
+                              ? "bg-gradient-to-r from-purple-400 to-purple-500 text-white"
                               : publicEvent.event_type === "exhibition"
-                                ? "bg-green-100 text-green-800"
+                                ? "bg-gradient-to-r from-green-400 to-green-500 text-white"
                                 : publicEvent.event_type === "competition"
-                                  ? "bg-orange-100 text-orange-800"
-                                  : "bg-gray-100 text-gray-800"
+                                  ? "bg-gradient-to-r from-orange-400 to-orange-500 text-white"
+                                  : "bg-gradient-to-r from-gray-400 to-gray-500 text-white"
                         }`}
                       >
                         {publicEvent.event_type.charAt(0).toUpperCase() + publicEvent.event_type.slice(1)}
@@ -535,34 +640,36 @@ const HomePage = () => {
                     </div>
 
                     {publicEvent.location && (
-                      <div className="flex items-center mt-3 text-sm text-gray-500">
-                        <MapPin className="h-4 w-4 mr-1" />
+                      <div className="flex items-center mt-3 text-sm text-gray-600 bg-gray-50 rounded-lg px-3 py-2">
+                        <MapPin className="h-4 w-4 mr-2 text-amber-600" />
                         {publicEvent.location}
                       </div>
                     )}
 
-                    {publicEvent.description && <p className="mt-4 text-sm text-gray-600">{publicEvent.description}</p>}
+                    {publicEvent.description && (
+                      <p className="mt-4 text-sm text-gray-600 leading-relaxed">{publicEvent.description}</p>
+                    )}
 
                     {publicEvent.max_participants && (
-                      <p className="mt-2 text-xs text-gray-500">
+                      <p className="mt-3 text-xs text-gray-500 bg-amber-50 rounded-lg px-3 py-2">
                         Limited to {publicEvent.max_participants} participants
                       </p>
                     )}
 
                     <div className="mt-6">
                       {registerSuccess === publicEvent.id ? (
-                        <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-                          <p className="text-sm text-green-800">
+                        <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl p-4">
+                          <p className="text-sm text-green-800 font-medium">
                             Registration successful! We'll contact you with more details.
                           </p>
                         </div>
                       ) : registering === publicEvent.id ? (
-                        <form onSubmit={(e) => handleRegisterSubmit(e, publicEvent.id)} className="space-y-3">
+                        <form onSubmit={(e) => handleRegisterSubmit(e, publicEvent.id)} className="space-y-4">
                           <div>
                             <input
                               type="text"
                               placeholder="Your Name *"
-                              className="input text-sm"
+                              className="glass-input text-sm"
                               value={registerForm.name}
                               onChange={(e) => setRegisterForm({ ...registerForm, name: e.target.value })}
                               required
@@ -572,7 +679,7 @@ const HomePage = () => {
                             <input
                               type="email"
                               placeholder="Your Email *"
-                              className="input text-sm"
+                              className="glass-input text-sm"
                               value={registerForm.email}
                               onChange={(e) => setRegisterForm({ ...registerForm, email: e.target.value })}
                               required
@@ -582,7 +689,7 @@ const HomePage = () => {
                             <input
                               type="tel"
                               placeholder="Your Phone (Optional)"
-                              className="input text-sm"
+                              className="glass-input text-sm"
                               value={registerForm.phone}
                               onChange={(e) => setRegisterForm({ ...registerForm, phone: e.target.value })}
                             />
@@ -591,7 +698,7 @@ const HomePage = () => {
                             <input
                               type="text"
                               placeholder="Roll Number (e.g., 21CS001) *"
-                              className="input text-sm"
+                              className="glass-input text-sm"
                               value={registerForm.roll_number}
                               onChange={(e) => setRegisterForm({ ...registerForm, roll_number: e.target.value.toUpperCase() })}
                               required
@@ -599,7 +706,7 @@ const HomePage = () => {
                           </div>
                           <div>
                             <select
-                              className="input text-sm"
+                              className="glass-input text-sm"
                               value={registerForm.year}
                               onChange={(e) => setRegisterForm({ ...registerForm, year: e.target.value })}
                               required
@@ -615,7 +722,7 @@ const HomePage = () => {
                           </div>
                           <div>
                             <select
-                              className="input text-sm"
+                              className="glass-input text-sm"
                               value={registerForm.domain}
                               onChange={(e) => setRegisterForm({ ...registerForm, domain: e.target.value })}
                               required
@@ -631,15 +738,17 @@ const HomePage = () => {
                           <div>
                             <textarea
                               placeholder="Additional information (Optional)"
-                              className="input text-sm"
+                              className="glass-input text-sm"
                               rows={2}
                               value={registerForm.additional_info}
                               onChange={(e) => setRegisterForm({ ...registerForm, additional_info: e.target.value })}
                             />
                           </div>
-                          {registerError && <p className="text-xs text-red-600">{registerError}</p>}
-                          <div className="flex gap-2">
-                            <button type="submit" className="btn btn-primary text-sm py-1 px-3 flex-1">
+                          {registerError && (
+                            <p className="text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2">{registerError}</p>
+                          )}
+                          <div className="flex gap-3">
+                            <button type="submit" className="glass-button-primary text-sm py-3 px-4 flex-1 rounded-xl">
                               Register
                             </button>
                             <button
@@ -648,7 +757,7 @@ const HomePage = () => {
                                 setRegistering(null)
                                 setRegisterError(null)
                               }}
-                              className="btn btn-outline text-sm py-1 px-3"
+                              className="glass-button text-sm py-3 px-4 rounded-xl"
                             >
                               Cancel
                             </button>
@@ -657,7 +766,7 @@ const HomePage = () => {
                       ) : (
                         <button
                           onClick={() => setRegistering(publicEvent.id)}
-                          className="btn btn-primary w-full"
+                          className="glass-button-primary w-full py-3 rounded-xl font-semibold transition-all duration-300 hover:scale-105"
                           disabled={
                             publicEvent.registration_deadline &&
                             new Date() > new Date(publicEvent.registration_deadline)
@@ -673,12 +782,14 @@ const HomePage = () => {
                 </div>
               ))
             ) : (
-              <div className="col-span-1 md:col-span-3 text-center py-12">
-                <Calendar className="h-12 w-12 text-gray-400 mx-auto" />
-                <h4 className="mt-4 text-lg font-medium text-gray-900">No upcoming events</h4>
-                <p className="mt-2 text-gray-500">
-                  Check back later for new events or contact us for more information.
-                </p>
+              <div className="col-span-1 md:col-span-3 text-center py-16">
+                <div className="glass-card max-w-md mx-auto p-8">
+                  <Calendar className="h-16 w-16 text-amber-400 mx-auto mb-4" />
+                  <h4 className="text-xl font-semibold text-gray-900 mb-2">No upcoming events</h4>
+                  <p className="text-gray-600">
+                    Check back later for new events or contact us for more information.
+                  </p>
+                </div>
               </div>
             )}
           </div>
@@ -686,11 +797,15 @@ const HomePage = () => {
       </section>
 
       {/* Features Section */}
-      <section id="about" className="py-16 bg-white">
+      <section id="about" className="py-20 relative">
         <div className="container mx-auto px-4">
-          <div className="text-center mb-12">
-            <h3 className="text-3xl font-bold text-gray-900 mb-4">What We Offer</h3>
-            <p className="text-gray-600 max-w-2xl mx-auto">
+          <div className="text-center mb-16">
+            <div className="inline-flex items-center gap-2 bg-gradient-to-r from-purple-100 to-indigo-100 rounded-full px-6 py-3 mb-6">
+              <Sparkles className="h-5 w-5 text-purple-600" />
+              <span className="text-purple-800 font-semibold">What We Offer</span>
+            </div>
+            <h3 className="text-4xl font-bold text-gray-900 mb-4">What We Offer</h3>
+            <p className="text-gray-600 max-w-2xl mx-auto text-lg">
               TFPS provides a comprehensive platform for photography and film enthusiasts to grow their skills and
               collaborate on projects.
             </p>
@@ -701,95 +816,95 @@ const HomePage = () => {
               icon={<Camera className="h-8 w-8" />}
               title="Equipment Access"
               description="Access professional cameras, lenses, and filming equipment for your projects."
+              delay={0}
             />
             <FeatureCard
               icon={<Users className="h-8 w-8" />}
               title="Community"
               description="Connect with like-minded photographers and filmmakers in our vibrant community."
+              delay={100}
             />
             <FeatureCard
               icon={<Calendar className="h-8 w-8" />}
               title="Events & Shoots"
               description="Participate in organized shoots, screenings, and photography workshops."
+              delay={200}
             />
             <FeatureCard
               icon={<Package className="h-8 w-8" />}
               title="Project Management"
               description="Organize and manage your creative projects with our integrated tools."
+              delay={300}
             />
           </div>
         </div>
       </section>
 
       {/* Stats Section */}
-      <section className="py-16 bg-primary-50">
-        <div className="container mx-auto px-4">
+      <section className="py-20 bg-gradient-to-br from-amber-600 via-orange-600 to-amber-700 relative overflow-hidden">
+        {/* Background effects */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-white/10"></div>
+        <div className="absolute top-0 left-0 w-full h-full bg-white/5 backdrop-blur-sm"></div>
+        
+        <div className="container mx-auto px-4 relative z-10">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8 text-center">
-            <div>
-              <div className="text-4xl font-bold text-primary-600 mb-2">150+</div>
-              <div className="text-gray-600">Active Members</div>
-            </div>
-            <div>
-              <div className="text-4xl font-bold text-primary-600 mb-2">50+</div>
-              <div className="text-gray-600">Equipment Items</div>
-            </div>
-            <div>
-              <div className="text-4xl font-bold text-primary-600 mb-2">200+</div>
-              <div className="text-gray-600">Projects Completed</div>
-            </div>
-            <div>
-              <div className="text-4xl font-bold text-primary-600 mb-2">25+</div>
-              <div className="text-gray-600">Awards Won</div>
-            </div>
+            <StatCard number="150+" label="Active Members" delay={0} />
+            <StatCard number="50+" label="Equipment Items" delay={100} />
+            <StatCard number="200+" label="Projects Completed" delay={200} />
+            <StatCard number="25+" label="Awards Won" delay={300} />
           </div>
         </div>
       </section>
 
       {/* Inquiry Form Section */}
-      <section id="inquiry" className="py-16 bg-white">
+      <section id="inquiry" className="py-20 relative">
         <div className="container mx-auto px-4">
-          <div className="max-w-4xl mx-auto">
-            <div className="text-center mb-12">
-              <h3 className="text-3xl font-bold text-gray-900 mb-4">Get in Touch</h3>
-              <p className="text-gray-600">
+          <div className="max-w-6xl mx-auto">
+            <div className="text-center mb-16">
+              <div className="inline-flex items-center gap-2 bg-gradient-to-r from-teal-100 to-cyan-100 rounded-full px-6 py-3 mb-6">
+                <Mail className="h-5 w-5 text-teal-600" />
+                <span className="text-teal-800 font-semibold">Get in Touch</span>
+              </div>
+              <h3 className="text-4xl font-bold text-gray-900 mb-4">Get in Touch</h3>
+              <p className="text-gray-600 text-lg">
                 Have questions about joining TFPS or need more information? We'd love to hear from you!
               </p>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
               {/* Contact Info */}
-              <div>
-                <h4 className="text-xl font-semibold text-gray-900 mb-6">Contact Information</h4>
-                <div className="space-y-4">
-                  <div className="flex items-center gap-3">
-                    <Mail className="h-5 w-5 text-primary-600" />
-                    <span className="text-gray-600">contact@tfps.edu</span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <Phone className="h-5 w-5 text-primary-600" />
-                    <span className="text-gray-600">+91 98765 43210</span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <MapPin className="h-5 w-5 text-primary-600" />
-                    <span className="text-gray-600">Student Activity Center, Campus</span>
-                  </div>
+              <div className="glass-card p-8">
+                <h4 className="text-2xl font-semibold text-gray-900 mb-8">Contact Information</h4>
+                <div className="space-y-6">
+                  <ContactItem icon={<Mail className="h-6 w-6 text-amber-600" />} text="contact@tfps.edu" />
+                  <ContactItem icon={<Phone className="h-6 w-6 text-amber-600" />} text="+91 98765 43210" />
+                  <ContactItem icon={<MapPin className="h-6 w-6 text-amber-600" />} text="Student Activity Center, Campus" />
                 </div>
 
-                <div className="mt-8">
-                  <h5 className="font-semibold text-gray-900 mb-3">Office Hours</h5>
-                  <div className="text-gray-600 space-y-1">
-                    <div>Monday - Friday: 9:00 AM - 6:00 PM</div>
-                    <div>Saturday: 10:00 AM - 4:00 PM</div>
-                    <div>Sunday: Closed</div>
+                <div className="mt-10">
+                  <h5 className="font-semibold text-gray-900 mb-4 text-lg">Office Hours</h5>
+                  <div className="text-gray-600 space-y-2 bg-amber-50 rounded-xl p-4">
+                    <div className="flex justify-between">
+                      <span>Monday - Friday:</span>
+                      <span className="font-medium">9:00 AM - 6:00 PM</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Saturday:</span>
+                      <span className="font-medium">10:00 AM - 4:00 PM</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Sunday:</span>
+                      <span className="font-medium">Closed</span>
+                    </div>
                   </div>
                 </div>
               </div>
 
               {/* Inquiry Form */}
-              <div>
+              <div className="glass-card p-8">
                 <form onSubmit={handleInquirySubmit} className="space-y-6">
                   {submitSuccess && (
-                    <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                    <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl p-4">
                       <div className="flex items-center">
                         <div className="flex-shrink-0">
                           <svg className="h-5 w-5 text-green-400\" viewBox="0 0 20 20\" fill="currentColor">
@@ -811,7 +926,7 @@ const HomePage = () => {
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
+                      <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
                         Full Name *
                       </label>
                       <input
@@ -819,13 +934,13 @@ const HomePage = () => {
                         id="name"
                         name="name"
                         required
-                        className="input"
+                        className="glass-input"
                         value={inquiryForm.name}
                         onChange={handleInquiryChange}
                       />
                     </div>
                     <div>
-                      <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+                      <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
                         Email *
                       </label>
                       <input
@@ -833,7 +948,7 @@ const HomePage = () => {
                         id="email"
                         name="email"
                         required
-                        className="input"
+                        className="glass-input"
                         value={inquiryForm.email}
                         onChange={handleInquiryChange}
                       />
@@ -841,28 +956,28 @@ const HomePage = () => {
                   </div>
 
                   <div>
-                    <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">
+                    <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
                       Phone Number
                     </label>
                     <input
                       type="tel"
                       id="phone"
                       name="phone"
-                      className="input"
+                      className="glass-input"
                       value={inquiryForm.phone}
                       onChange={handleInquiryChange}
                     />
                   </div>
 
                   <div>
-                    <label htmlFor="inquiryType" className="block text-sm font-medium text-gray-700 mb-1">
+                    <label htmlFor="inquiryType" className="block text-sm font-medium text-gray-700 mb-2">
                       Inquiry Type *
                     </label>
                     <select
                       id="inquiryType"
                       name="inquiryType"
                       required
-                      className="select"
+                      className="glass-input"
                       value={inquiryForm.inquiryType}
                       onChange={handleInquiryChange}
                     >
@@ -877,7 +992,7 @@ const HomePage = () => {
                   </div>
 
                   <div>
-                    <label htmlFor="subject" className="block text-sm font-medium text-gray-700 mb-1">
+                    <label htmlFor="subject" className="block text-sm font-medium text-gray-700 mb-2">
                       Subject *
                     </label>
                     <input
@@ -885,14 +1000,14 @@ const HomePage = () => {
                       id="subject"
                       name="subject"
                       required
-                      className="input"
+                      className="glass-input"
                       value={inquiryForm.subject}
                       onChange={handleInquiryChange}
                     />
                   </div>
 
                   <div>
-                    <label htmlFor="message" className="block text-sm font-medium text-gray-700 mb-1">
+                    <label htmlFor="message" className="block text-sm font-medium text-gray-700 mb-2">
                       Message *
                     </label>
                     <textarea
@@ -900,7 +1015,7 @@ const HomePage = () => {
                       name="message"
                       rows={4}
                       required
-                      className="input"
+                      className="glass-input"
                       value={inquiryForm.message}
                       onChange={handleInquiryChange}
                     />
@@ -909,17 +1024,17 @@ const HomePage = () => {
                   <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="w-full btn btn-primary flex items-center justify-center"
+                    className="w-full glass-button-primary py-4 rounded-xl font-semibold text-lg transition-all duration-300 hover:scale-105 flex items-center justify-center"
                   >
                     {isSubmitting ? (
                       <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-white mr-2"></div>
+                        <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-white mr-3"></div>
                         Sending...
                       </>
                     ) : (
                       <>
                         Send Message
-                        <ChevronRight className="ml-1 h-4 w-4" />
+                        <ChevronRight className="ml-2 h-5 w-5" />
                       </>
                     )}
                   </button>
@@ -931,43 +1046,52 @@ const HomePage = () => {
       </section>
 
       {/* Footer */}
-      <footer className="bg-gray-900 text-white py-12">
-        <div className="container mx-auto px-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+      <footer className="bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white py-16 relative overflow-hidden">
+        {/* Background effects */}
+        <div className="absolute inset-0 bg-gradient-to-t from-amber-900/20 via-transparent to-transparent"></div>
+        
+        <div className="container mx-auto px-4 relative z-10">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
             <div>
-              <div className="flex items-center gap-3 mb-4">
-                <Camera className="h-8 w-8" />
+              <div className="flex items-center gap-4 mb-6">
+                <div className="p-3 bg-gradient-to-r from-amber-500 to-orange-500 rounded-2xl shadow-xl">
+                  <Camera className="h-8 w-8 text-white" />
+                </div>
                 <div>
-                  <h3 className="text-xl font-bold">TFPS</h3>
+                  <h3 className="text-2xl font-bold">TFPS</h3>
                   <p className="text-gray-400 text-sm">Technology Film and Photography Society</p>
                 </div>
               </div>
-              <p className="text-gray-400">
+              <p className="text-gray-300 leading-relaxed">
                 Empowering creativity through technology, fostering a community of passionate photographers and
                 filmmakers.
               </p>
             </div>
 
             <div>
-              <h4 className="font-semibold mb-4">Quick Links</h4>
-              <ul className="space-y-2 text-gray-400">
+              <h4 className="font-semibold mb-6 text-lg">Quick Links</h4>
+              <ul className="space-y-3 text-gray-300">
                 <li>
-                  <a href="#about" className="hover:text-white transition-colors">
+                  <a href="#about" className="hover:text-amber-400 transition-colors duration-300 flex items-center group">
+                    <ChevronRight className="h-4 w-4 mr-2 group-hover:translate-x-1 transition-transform" />
                     About Us
                   </a>
                 </li>
                 <li>
-                  <a href="#register" className="hover:text-white transition-colors">
+                  <a href="#register" className="hover:text-amber-400 transition-colors duration-300 flex items-center group">
+                    <ChevronRight className="h-4 w-4 mr-2 group-hover:translate-x-1 transition-transform" />
                     Register for Events
                   </a>
                 </li>
                 <li>
-                  <a href="#inquiry" className="hover:text-white transition-colors">
+                  <a href="#inquiry" className="hover:text-amber-400 transition-colors duration-300 flex items-center group">
+                    <ChevronRight className="h-4 w-4 mr-2 group-hover:translate-x-1 transition-transform" />
                     Contact
                   </a>
                 </li>
                 <li>
-                  <Link to="/login" className="hover:text-white transition-colors">
+                  <Link to="/login" className="hover:text-amber-400 transition-colors duration-300 flex items-center group">
+                    <ChevronRight className="h-4 w-4 mr-2 group-hover:translate-x-1 transition-transform" />
                     Member Login
                   </Link>
                 </li>
@@ -975,27 +1099,30 @@ const HomePage = () => {
             </div>
 
             <div>
-              <h4 className="font-semibold mb-4">Connect With Us</h4>
-              <div className="text-gray-400 space-y-2">
-                <div>Email: contact@tfps.edu</div>
-                <div>Phone: +91 98765 43210</div>
-                <div>Location: Student Activity Center</div>
+              <h4 className="font-semibold mb-6 text-lg">Connect With Us</h4>
+              <div className="text-gray-300 space-y-4 mb-6">
+                <div className="flex items-center gap-3">
+                  <Mail className="h-5 w-5 text-amber-400" />
+                  <span>contact@tfps.edu</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Phone className="h-5 w-5 text-amber-400" />
+                  <span>+91 98765 43210</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <MapPin className="h-5 w-5 text-amber-400" />
+                  <span>Student Activity Center</span>
+                </div>
               </div>
-              <div className="mt-4 flex space-x-4">
-                <a href="https://instagram.com/tfps_official" className="text-gray-400 hover:text-white">
-                  <Instagram className="h-5 w-5" />
-                </a>
-                <a href="https://medium.com/@tfps" className="text-gray-400 hover:text-white">
-                  <BookOpen className="h-5 w-5" />
-                </a>
-                <a href="https://letterboxd.com/tfps" className="text-gray-400 hover:text-white">
-                  <Star className="h-5 w-5" />
-                </a>
+              <div className="flex space-x-4">
+                <SocialLink href="https://instagram.com/tfps_official" icon={<Instagram className="h-5 w-5" />} />
+                <SocialLink href="https://medium.com/@tfps" icon={<BookOpen className="h-5 w-5" />} />
+                <SocialLink href="https://letterboxd.com/tfps" icon={<Star className="h-5 w-5" />} />
               </div>
             </div>
           </div>
 
-          <div className="border-t border-gray-800 mt-8 pt-8 text-center text-gray-400">
+          <div className="border-t border-gray-700 mt-12 pt-8 text-center text-gray-400">
             <p>&copy; {new Date().getFullYear()} Technology Film and Photography Society. All rights reserved.</p>
           </div>
         </div>
@@ -1008,16 +1135,66 @@ interface FeatureCardProps {
   icon: React.ReactNode
   title: string
   description: string
+  delay: number
 }
 
-const FeatureCard = ({ icon, title, description }: FeatureCardProps) => (
-  <div className="text-center p-6 rounded-lg hover:shadow-lg transition-shadow">
-    <div className="inline-flex items-center justify-center w-16 h-16 bg-primary-100 text-primary-600 rounded-full mb-4">
+const FeatureCard = ({ icon, title, description, delay }: FeatureCardProps) => (
+  <div 
+    className="glass-card text-center p-8 group hover:scale-105 transition-all duration-500"
+    style={{ animationDelay: `${delay}ms` }}
+  >
+    <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-2xl mb-6 group-hover:scale-110 transition-transform duration-300 shadow-xl">
       {icon}
     </div>
-    <h4 className="text-xl font-semibold text-gray-900 mb-2">{title}</h4>
-    <p className="text-gray-600">{description}</p>
+    <h4 className="text-xl font-semibold text-gray-900 mb-4 group-hover:text-amber-700 transition-colors">{title}</h4>
+    <p className="text-gray-600 leading-relaxed">{description}</p>
   </div>
+)
+
+interface StatCardProps {
+  number: string
+  label: string
+  delay: number
+}
+
+const StatCard = ({ number, label, delay }: StatCardProps) => (
+  <div 
+    className="text-center group"
+    style={{ animationDelay: `${delay}ms` }}
+  >
+    <div className="text-5xl font-bold text-white mb-3 group-hover:scale-110 transition-transform duration-300 drop-shadow-lg">
+      {number}
+    </div>
+    <div className="text-amber-100 font-medium text-lg">{label}</div>
+  </div>
+)
+
+interface ContactItemProps {
+  icon: React.ReactNode
+  text: string
+}
+
+const ContactItem = ({ icon, text }: ContactItemProps) => (
+  <div className="flex items-center gap-4 p-4 bg-amber-50 rounded-xl hover:bg-amber-100 transition-colors duration-300">
+    <div className="flex-shrink-0">{icon}</div>
+    <span className="text-gray-700 font-medium">{text}</span>
+  </div>
+)
+
+interface SocialLinkProps {
+  href: string
+  icon: React.ReactNode
+}
+
+const SocialLink = ({ href, icon }: SocialLinkProps) => (
+  <a 
+    href={href} 
+    className="p-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-xl hover:from-amber-600 hover:to-orange-600 transition-all duration-300 hover:scale-110 shadow-lg"
+    target="_blank"
+    rel="noopener noreferrer"
+  >
+    {icon}
+  </a>
 )
 
 export default HomePage
