@@ -21,11 +21,19 @@ const EquipmentPage = () => {
   useEffect(() => {
     const fetchEquipment = async () => {
       try {
-        const { data, error } = await supabase
-          .from("equipment")
-          .select("*")
-          .is("parent_id", null) // Only top-level equipment (not lenses)
-          .order("name")
+        let query = supabase.from("equipment").select("*")
+
+        // Filter based on selected type
+        if (selectedType === "lens") {
+          // Show ALL lenses regardless of parent_id when filtering by lens type
+          query = query.eq("type", "lens")
+        } else {
+          // For all other cases, only show top-level equipment (parent_id is null)
+          // This includes cameras, unassociated lenses, and other equipment
+          query = query.is("parent_id", null)
+        }
+
+        const { data, error } = await query.order("name")
 
         if (error) {
           throw error
@@ -43,7 +51,7 @@ const EquipmentPage = () => {
     }
 
     fetchEquipment()
-  }, [supabase])
+  }, [supabase, selectedType])
 
   useEffect(() => {
     // Filter equipment based on search query and filters
@@ -53,9 +61,8 @@ const EquipmentPage = () => {
       filtered = filtered.filter((item) => item.name.toLowerCase().includes(searchQuery.toLowerCase()))
     }
 
-    if (selectedType !== "all") {
-      filtered = filtered.filter((item) => item.type === selectedType)
-    }
+    // Type filtering is now handled in the main query above
+    // This ensures we get the right base dataset before applying other filters
 
     if (selectedStatus !== "all") {
       filtered = filtered.filter((item) => item.status === selectedStatus)
@@ -66,7 +73,7 @@ const EquipmentPage = () => {
     }
 
     setFilteredEquipment(filtered)
-  }, [searchQuery, selectedType, selectedStatus, selectedOwnership, equipment])
+  }, [searchQuery, selectedStatus, selectedOwnership, equipment])
 
   const getEquipmentIcon = (type: string) => {
     switch (type) {
@@ -140,6 +147,22 @@ const EquipmentPage = () => {
         </div>
       </div>
 
+      {/* Show info message when viewing lenses */}
+      {selectedType === "lens" && (
+        <div className="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="flex items-center">
+            <div className="flex-shrink-0">
+              <Package className="h-5 w-5 text-blue-400" />
+            </div>
+            <div className="ml-3">
+              <p className="text-sm text-blue-800">
+                Showing all lenses. Lenses associated with cameras can also be viewed by clicking on the camera in the equipment list.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {loading ? (
         <div className="flex justify-center items-center py-12">
           <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-600"></div>
@@ -170,7 +193,12 @@ const EquipmentPage = () => {
                   <h3 className="text-lg font-semibold text-gray-900 group-hover:text-primary-600 transition-colors">
                     {item.name}
                   </h3>
-                  <p className="text-sm text-gray-600">{item.type.charAt(0).toUpperCase() + item.type.slice(1)}</p>
+                  <p className="text-sm text-gray-600">
+                    {item.type.charAt(0).toUpperCase() + item.type.slice(1)}
+                    {item.parent_id && (
+                      <span className="text-xs text-blue-600 ml-1">(Associated with camera)</span>
+                    )}
+                  </p>
                   <div className="mt-2 flex items-center space-x-2">
                     <span
                       className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
