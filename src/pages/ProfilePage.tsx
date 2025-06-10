@@ -14,6 +14,7 @@ const ProfilePage = () => {
   const [success, setSuccess] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [userEquipment, setUserEquipment] = useState<Equipment[]>([])
+  const [cameras, setCameras] = useState<{ id: string; name: string }[]>([])
 
   // Profile form state
   const [profileForm, setProfileForm] = useState({
@@ -39,6 +40,7 @@ const ProfilePage = () => {
     name: "",
     type: "camera",
     subtype: "",
+    parent_id: "",
     status: "available",
     image_url: "",
     details: "",
@@ -57,6 +59,7 @@ const ProfilePage = () => {
         letterboxd_link: user.letterboxd_link || "",
       })
       fetchUserEquipment()
+      fetchCameras()
     }
   }, [user])
 
@@ -75,6 +78,22 @@ const ProfilePage = () => {
       setUserEquipment(data || [])
     } catch (error) {
       console.error("Error fetching user equipment:", error)
+    }
+  }
+
+  const fetchCameras = async () => {
+    try {
+      // Fetch all cameras (both hall-owned and student-owned) for lens association
+      const { data, error } = await supabase
+        .from("equipment")
+        .select("id, name")
+        .eq("type", "camera")
+        .order("name")
+
+      if (error) throw error
+      setCameras(data || [])
+    } catch (error) {
+      console.error("Error fetching cameras:", error)
     }
   }
 
@@ -202,6 +221,7 @@ const ProfilePage = () => {
         name: equipmentForm.name,
         type: equipmentForm.type,
         subtype: equipmentForm.subtype || null,
+        parent_id: equipmentForm.parent_id || null,
         ownership_type: "student",
         owner_id: user?.id,
         status: equipmentForm.status,
@@ -216,6 +236,7 @@ const ProfilePage = () => {
         name: "",
         type: "camera",
         subtype: "",
+        parent_id: "",
         status: "available",
         image_url: "",
         details: "",
@@ -566,7 +587,7 @@ const ProfilePage = () => {
                       id="equipmentType"
                       className="select"
                       value={equipmentForm.type}
-                      onChange={(e) => setEquipmentForm((prev) => ({ ...prev, type: e.target.value }))}
+                      onChange={(e) => setEquipmentForm((prev) => ({ ...prev, type: e.target.value, parent_id: "" }))}
                       required
                     >
                       <option value="camera">Camera</option>
@@ -577,6 +598,32 @@ const ProfilePage = () => {
                       <option value="other">Other</option>
                     </select>
                   </div>
+                  
+                  {/* Show parent camera selection for lenses */}
+                  {equipmentForm.type === "lens" && (
+                    <div>
+                      <label htmlFor="parentCamera" className="block text-sm font-medium text-gray-700 mb-1">
+                        Associate with Camera (Optional)
+                      </label>
+                      <select
+                        id="parentCamera"
+                        className="select"
+                        value={equipmentForm.parent_id}
+                        onChange={(e) => setEquipmentForm((prev) => ({ ...prev, parent_id: e.target.value }))}
+                      >
+                        <option value="">No association (standalone lens)</option>
+                        {cameras.map((camera) => (
+                          <option key={camera.id} value={camera.id}>
+                            {camera.name}
+                          </option>
+                        ))}
+                      </select>
+                      <p className="mt-1 text-xs text-gray-500">
+                        Associate this lens with a specific camera or leave unassociated
+                      </p>
+                    </div>
+                  )}
+
                   <div>
                     <label htmlFor="equipmentSubtype" className="block text-sm font-medium text-gray-700 mb-1">
                       Subtype (Optional)
@@ -649,46 +696,61 @@ const ProfilePage = () => {
                       <th className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6">Name</th>
                       <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Type</th>
                       <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Status</th>
+                      <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Association</th>
                       <th className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200 bg-white">
-                    {userEquipment.map((item) => (
-                      <tr key={item.id}>
-                        <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
-                          {item.name}
-                        </td>
-                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                          {item.type}
-                          {item.subtype && <span className="text-xs text-gray-400 ml-1">({item.subtype})</span>}
-                        </td>
-                        <td className="whitespace-nowrap px-3 py-4 text-sm">
-                          <span
-                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                              item.status === "available"
-                                ? "bg-green-100 text-green-800"
+                    {userEquipment.map((item) => {
+                      const associatedCamera = cameras.find(camera => camera.id === item.parent_id)
+                      return (
+                        <tr key={item.id}>
+                          <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
+                            {item.name}
+                          </td>
+                          <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                            {item.type}
+                            {item.subtype && <span className="text-xs text-gray-400 ml-1">({item.subtype})</span>}
+                          </td>
+                          <td className="whitespace-nowrap px-3 py-4 text-sm">
+                            <span
+                              className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                item.status === "available"
+                                  ? "bg-green-100 text-green-800"
+                                  : item.status === "in_use"
+                                    ? "bg-yellow-100 text-yellow-800"
+                                    : "bg-red-100 text-red-800"
+                              }`}
+                            >
+                              {item.status === "available"
+                                ? "Available"
                                 : item.status === "in_use"
-                                  ? "bg-yellow-100 text-yellow-800"
-                                  : "bg-red-100 text-red-800"
-                            }`}
-                          >
-                            {item.status === "available"
-                              ? "Available"
-                              : item.status === "in_use"
-                                ? "In Use"
-                                : "Maintenance"}
-                          </span>
-                        </td>
-                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                          <button
-                            onClick={() => handleDeleteEquipment(item.id)}
-                            className="text-red-600 hover:text-red-900"
-                          >
-                            Delete
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
+                                  ? "In Use"
+                                  : "Maintenance"}
+                            </span>
+                          </td>
+                          <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                            {item.type === "lens" && associatedCamera ? (
+                              <span className="text-blue-600 text-xs">
+                                Associated with {associatedCamera.name}
+                              </span>
+                            ) : item.type === "lens" ? (
+                              <span className="text-gray-400 text-xs">Standalone lens</span>
+                            ) : (
+                              <span className="text-gray-400 text-xs">-</span>
+                            )}
+                          </td>
+                          <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                            <button
+                              onClick={() => handleDeleteEquipment(item.id)}
+                              className="text-red-600 hover:text-red-900"
+                            >
+                              Delete
+                            </button>
+                          </td>
+                        </tr>
+                      )
+                    })}
                   </tbody>
                 </table>
               </div>
