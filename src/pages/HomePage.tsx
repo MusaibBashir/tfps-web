@@ -309,7 +309,6 @@ const HomePage = () => {
             <div className="glass-card p-4 hover-lift animate-fade-in">
               <blockquote 
                 className="instagram-media" 
-                data-instgrm-captioned 
                 data-instgrm-permalink="https://www.instagram.com/p/DKjzVjJsU9B/?utm_source=ig_embed&utm_campaign=loading" 
                 data-instgrm-version="14" 
                 style={{ 
@@ -363,11 +362,6 @@ const HomePage = () => {
                       </div>
                     </div>
                   </a>
-                  <p style={{ color: '#c9c8cd', fontFamily: 'Arial,sans-serif', fontSize: '14px', lineHeight: '17px', marginBottom: 0, marginTop: '8px', overflow: 'hidden', padding: '8px 0 7px', textAlign: 'center', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    <a href="https://www.instagram.com/p/DKjzVjJsU9B/?utm_source=ig_embed&utm_campaign=loading" style={{ color: '#c9c8cd', fontFamily: 'Arial,sans-serif', fontSize: '14px', fontStyle: 'normal', fontWeight: 'normal', lineHeight: '17px', textDecoration: 'none' }} target="_blank" rel="noopener noreferrer">
-                      A post shared by TFPS | IIT Kharagpur (@tfps.iitkgp)
-                    </a>
-                  </p>
                 </div>
               </blockquote>
             </div>
@@ -376,7 +370,6 @@ const HomePage = () => {
             <div className="glass-card p-4 hover-lift animate-fade-in" style={{ animationDelay: '0.2s' }}>
               <blockquote 
                 className="instagram-media" 
-                data-instgrm-captioned 
                 data-instgrm-permalink="https://www.instagram.com/p/DJtvbjnT1eS/?utm_source=ig_embed&utm_campaign=loading" 
                 data-instgrm-version="14" 
                 style={{ 
@@ -430,11 +423,6 @@ const HomePage = () => {
                       </div>
                     </div>
                   </a>
-                  <p style={{ color: '#c9c8cd', fontFamily: 'Arial,sans-serif', fontSize: '14px', lineHeight: '17px', marginBottom: 0, marginTop: '8px', overflow: 'hidden', padding: '8px 0 7px', textAlign: 'center', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    <a href="https://www.instagram.com/p/DJtvbjnT1eS/?utm_source=ig_embed&utm_campaign=loading" style={{ color: '#c9c8cd', fontFamily: 'Arial,sans-serif', fontSize: '14px', fontStyle: 'normal', fontWeight: 'normal', lineHeight: '17px', textDecoration: 'none' }} target="_blank" rel="noopener noreferrer">
-                      A post shared by TFPS | IIT Kharagpur (@tfps.iitkgp)
-                    </a>
-                  </p>
                 </div>
               </blockquote>
             </div>
@@ -443,7 +431,6 @@ const HomePage = () => {
             <div className="glass-card p-4 hover-lift animate-fade-in" style={{ animationDelay: '0.4s' }}>
               <blockquote 
                 className="instagram-media" 
-                data-instgrm-captioned 
                 data-instgrm-permalink="https://www.instagram.com/p/DJtvbjnT1eS/?utm_source=ig_embed&utm_campaign=loading" 
                 data-instgrm-version="14" 
                 style={{ 
@@ -497,11 +484,6 @@ const HomePage = () => {
                       </div>
                     </div>
                   </a>
-                  <p style={{ color: '#c9c8cd', fontFamily: 'Arial,sans-serif', fontSize: '14px', lineHeight: '17px', marginBottom: 0, marginTop: '8px', overflow: 'hidden', padding: '8px 0 7px', textAlign: 'center', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    <a href="https://www.instagram.com/p/DJtvbjnT1eS/?utm_source=ig_embed&utm_campaign=loading" style={{ color: '#c9c8cd', fontFamily: 'Arial,sans-serif', fontSize: '14px', fontStyle: 'normal', fontWeight: 'normal', lineHeight: '17px', textDecoration: 'none' }} target="_blank" rel="noopener noreferrer">
-                      A post shared by TFPS | IIT Kharagpur (@tfps.iitkgp)
-                    </a>
-                  </p>
                 </div>
               </blockquote>
             </div>
