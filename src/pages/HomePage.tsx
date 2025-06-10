@@ -579,7 +579,7 @@ const HomePage = () => {
                 {/* Image Section */}
                 <div className="relative h-64 lg:h-auto">
                   <img
-                    src="/HometownHues.png"
+                    src="/HometownHuesPoster.png"
                     alt="Hometown Hues Photography Competition"
                     className="w-full h-full object-cover"
                   />
