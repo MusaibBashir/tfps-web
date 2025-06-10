@@ -1,4 +1,8 @@
-import React, { useState, useEffect, type FormEvent } from "react"
+"use client"
+
+import type React from "react"
+
+import { useState, useEffect, type FormEvent } from "react"
 import { Link, useNavigate } from "react-router-dom"
 import {
   Camera,
@@ -122,23 +126,23 @@ const HomePage = () => {
   const recentMovies = [
     {
       id: 1,
-      title: "TFPS Showreel 2024",
+      title: "NAKSHA | GC SFM 2025 | LBS HALL",
       youtubeId: "Ekuy8Ymvk68",
-      description: "A showcase of our best photography and cinematography work from 2024, featuring stunning visuals and creative storytelling techniques.",
+      description: "We are well aware of the saying that 'opposites attract'. But is it really true all the time? Two professional thieves, are brought together to pull off an impossible heist. Both being polar opposite to each other, will they be able to put aside their differences? Will they make it possible or will it be their last heist?",
       duration: "3:45",
     },
     {
       id: 2,
-      title: "Behind the Scenes: Documentary Production",
+      title: "CHANDRA | GC SFM 2025 | SNVH HALL",
       youtubeId: "7Ay0bQemOs8",
-      description: "Get an inside look at how we create our stunning visual content, from pre-production planning to final editing.",
+      description: "Chandra, an obedient girl raised to follow tradition, awaits her arranged marriage without question—until she meets Nisha, the groom's bold and free-spirited sister. Their growing bond stirs something unexpected in Chandra, forcing her to confront the limits of obedience, identity, and love. When tradition demands silence, will she choose her truth or turn away?",
       duration: "5:20",
     },
     {
       id: 3,
-      title: "TFPS Documentary: A Journey Through Visual Arts",
+      title: "Before I Forget || Runner-up | Inter IIT Cultural Meet 6.0",
       youtubeId: "V3cechi6Ovk",
-      description: "The story of TFPS and our journey in visual storytelling, featuring interviews with members and showcasing our evolution.",
+      description: "A once renowned musician grapples with the challenges of Alzheimer's disease, losing not only his memories but his music. His supportive wife, struggles with a profound question : Is he really the man she once fell in love with? As his grip on reality weakens, their memories become a portal to their past. Is he a merely the sum of his forgotten memories or there is something more to him?",
       duration: "8:15",
     },
   ]
@@ -373,7 +377,7 @@ const HomePage = () => {
               <blockquote 
                 className="instagram-media" 
                 data-instgrm-captioned 
-                data-instgrm-permalink="https://www.instagram.com/p/DJ9KYr3pp08/?utm_source=ig_embed&utm_campaign=loading" 
+                data-instgrm-permalink="https://www.instagram.com/p/DJtvbjnT1eS/?utm_source=ig_embed&utm_campaign=loading" 
                 data-instgrm-version="14" 
                 style={{ 
                   background: 'transparent', 
@@ -389,7 +393,7 @@ const HomePage = () => {
               >
                 <div style={{ padding: '16px' }}>
                   <a 
-                    href="https://www.instagram.com/p/DJ9KYr3pp08/?utm_source=ig_embed&utm_campaign=loading" 
+                    href="https://www.instagram.com/p/DJtvbjnT1eS/?utm_source=ig_embed&utm_campaign=loading" 
                     style={{ 
                       background: '#FFFFFF', 
                       lineHeight: 0, 
@@ -427,8 +431,8 @@ const HomePage = () => {
                     </div>
                   </a>
                   <p style={{ color: '#c9c8cd', fontFamily: 'Arial,sans-serif', fontSize: '14px', lineHeight: '17px', marginBottom: 0, marginTop: '8px', overflow: 'hidden', padding: '8px 0 7px', textAlign: 'center', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    <a href="https://www.instagram.com/p/DJ9KYr3pp08/?utm_source=ig_embed&utm_campaign=loading" style={{ color: '#c9c8cd', fontFamily: 'Arial,sans-serif', fontSize: '14px', fontStyle: 'normal', fontWeight: 'normal', lineHeight: '17px', textDecoration: 'none' }} target="_blank" rel="noopener noreferrer">
-                      A post shared by ClickKGP (@click_kgp)
+                    <a href="https://www.instagram.com/p/DJtvbjnT1eS/?utm_source=ig_embed&utm_campaign=loading" style={{ color: '#c9c8cd', fontFamily: 'Arial,sans-serif', fontSize: '14px', fontStyle: 'normal', fontWeight: 'normal', lineHeight: '17px', textDecoration: 'none' }} target="_blank" rel="noopener noreferrer">
+                      A post shared by TFPS | IIT Kharagpur (@tfps.iitkgp)
                     </a>
                   </p>
                 </div>
@@ -530,7 +534,7 @@ const HomePage = () => {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             {movieReviews.map((review, index) => (
               <div 
                 key={review.id} 
@@ -575,70 +579,81 @@ const HomePage = () => {
         </div>
       </section>
 
-      {/* Hometown Hues Event Section */}
-      <section id="register" className="py-16 bg-gradient-to-r from-amber-50 to-orange-50">
+      {/* Current Event Section */}
+      <section id="current-event" className="py-16 bg-gradient-to-r from-amber-50 to-orange-50">
         <div className="container mx-auto px-4">
           <div className="text-center mb-12 animate-fade-in">
             <h3 className="text-4xl font-bold bg-gradient-to-r from-amber-600 to-orange-600 bg-clip-text text-transparent mb-4">
               Current Event
             </h3>
             <p className="text-gray-600 max-w-2xl mx-auto text-lg">
-              Join our ongoing photography competition and showcase your hometown through your lens.
+              Join our ongoing photography competition and showcase your creative vision.
             </p>
           </div>
 
-          <div className="max-w-4xl mx-auto">
+          <div className="max-w-6xl mx-auto">
             <div className="glass-card overflow-hidden hover-lift animate-fade-in">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-0">
                 {/* Image Section */}
                 <div className="relative h-64 lg:h-auto">
                   <img
-                    src="https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=600&h=400&fit=crop&crop=center"
+                    src="/HometownHues.png"
                     alt="Hometown Hues Photography Competition"
                     className="w-full h-full object-cover"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"></div>
-                  <div className="absolute bottom-4 left-4 text-white">
-                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gradient-to-r from-orange-400 to-orange-500">
-                      Competition
-                    </span>
-                  </div>
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
                 </div>
 
                 {/* Content Section */}
-                <div className="p-8">
-                  <h4 className="text-2xl font-bold text-gray-900 mb-2">Hometown Hues</h4>
-                  <p className="text-amber-600 font-medium mb-4">June 7-15</p>
-                  
-                  <div className="space-y-4 text-gray-600 leading-relaxed">
+                <div className="p-8 lg:p-12 flex flex-col justify-center">
+                  <div className="mb-6">
+                    <h4 className="text-3xl font-bold text-gray-900 mb-3">Hometown Hues</h4>
+                    <p className="text-lg text-amber-600 font-medium mb-4">June 7-15</p>
+                  </div>
+
+                  <div className="space-y-4 text-gray-600 leading-relaxed mb-8">
                     <p>
                       HOMETOWN HUES is back for its 2nd edition with more hues and ways to tell your stories.
                     </p>
                     <p>
                       From chai stalls to quiet rooftops, from bustling sounds of streets to your grandfather's stories tell us everything that makes your Hometown special for you through the lens, be it your camera's or phone's.
                     </p>
-                    <div className="flex items-center gap-2 text-sm">
-                      <Camera className="h-4 w-4 text-amber-500" />
-                      <span>Submit your photos and videos at:</span>
-                    </div>
-                    <p className="text-sm">
+                    <p>
+                      📸 Submit your photos and videos at:
+                    </p>
+                    <p>
+                      🔗 <a href="https://forms.gle/tJWG7f4fHfBPUPVt5" target="_blank" rel="noopener noreferrer" className="text-amber-600 hover:text-amber-800 font-medium underline">https://forms.gle/tJWG7f4fHfBPUPVt5</a>
+                    </p>
+                    <p>
                       Top picks will be featured on TFPS's official Instagram handle.
                     </p>
-                    <p className="text-sm font-medium">
-                      So go on capturing people as much as the place. All lenses are welcome.
+                    <p>
+                      So go on capturing people as much as the place.
+                    </p>
+                    <p className="font-medium text-gray-900">
+                      All lenses are welcome.
                     </p>
                   </div>
 
-                  <div className="mt-6">
+                  <div className="flex flex-col sm:flex-row gap-4">
                     <a
                       href="https://forms.gle/tJWG7f4fHfBPUPVt5"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="glass-button-primary w-full py-3 rounded-lg font-medium inline-flex items-center justify-center gap-2 hover:scale-105 transition-all duration-300"
+                      className="glass-button-primary px-8 py-4 rounded-xl font-medium inline-flex items-center justify-center gap-3 hover:scale-105 transition-all duration-300"
                     >
                       <Camera className="h-5 w-5" />
                       Submit Your Entry
                       <ExternalLink className="h-4 w-4" />
+                    </a>
+                    <a
+                      href="https://www.instagram.com/tfps.iitkgp/"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="glass-button-secondary px-8 py-4 rounded-xl font-medium inline-flex items-center justify-center gap-3 hover:scale-105 transition-all duration-300"
+                    >
+                      <Instagram className="h-5 w-5" />
+                      Follow for Updates
                     </a>
                   </div>
                 </div>
@@ -690,164 +705,6 @@ const HomePage = () => {
         </div>
       </section>
 
-      {/* Stats Section */}
-      <section className="py-16 bg-gradient-to-br from-amber-500 to-orange-600 relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-r from-amber-600/20 to-orange-600/20 animate-gradient"></div>
-        <div className="container mx-auto px-4 relative z-10">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8 text-center">
-            <div className="animate-fade-in">
-              <div className="text-5xl font-bold text-white mb-2">150+</div>
-              <div className="text-amber-100 text-lg">Active Members</div>
-            </div>
-            <div className="animate-fade-in" style={{ animationDelay: '0.2s' }}>
-              <div className="text-5xl font-bold text-white mb-2">50+</div>
-              <div className="text-amber-100 text-lg">Equipment Items</div>
-            </div>
-            <div className="animate-fade-in" style={{ animationDelay: '0.4s' }}>
-              <div className="text-5xl font-bold text-white mb-2">200+</div>
-              <div className="text-amber-100 text-lg">Projects Completed</div>
-            </div>
-            <div className="animate-fade-in" style={{ animationDelay: '0.6s' }}>
-              <div className="text-5xl font-bold text-white mb-2">25+</div>
-              <div className="text-amber-100 text-lg">Awards Won</div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Contact Section */}
-      <section id="contact" className="py-16 relative">
-        <div className="container mx-auto px-4">
-          <div className="max-w-4xl mx-auto">
-            <div className="text-center mb-12 animate-fade-in">
-              <h3 className="text-4xl font-bold bg-gradient-to-r from-amber-600 to-orange-600 bg-clip-text text-transparent mb-4">
-                Get in Touch
-              </h3>
-              <p className="text-gray-600 text-lg">
-                Have questions about joining TFPS or need more information? We'd love to hear from you!
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-              {/* Contact Info */}
-              <div className="glass-card p-8 animate-fade-in">
-                <h4 className="text-2xl font-semibold text-gray-900 mb-6">Contact Information</h4>
-                <div className="space-y-6">
-                  <div className="flex items-center gap-4">
-                    <div className="p-3 bg-gradient-to-r from-amber-500 to-orange-500 rounded-xl text-white">
-                      <Mail className="h-5 w-5" />
-                    </div>
-                    <span className="text-gray-700 font-medium">contact@tfps.edu</span>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <div className="p-3 bg-gradient-to-r from-amber-500 to-orange-500 rounded-xl text-white">
-                      <Phone className="h-5 w-5" />
-                    </div>
-                    <span className="text-gray-700 font-medium">+91 98765 43210</span>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <div className="p-3 bg-gradient-to-r from-amber-500 to-orange-500 rounded-xl text-white">
-                      <MapPin className="h-5 w-5" />
-                    </div>
-                    <span className="text-gray-700 font-medium">Student Activity Center, Campus</span>
-                  </div>
-                </div>
-
-                <div className="mt-8">
-                  <h5 className="font-semibold text-gray-900 mb-4 text-lg">Office Hours</h5>
-                  <div className="text-gray-600 space-y-2">
-                    <div className="flex justify-between">
-                      <span>Monday - Friday:</span>
-                      <span className="font-medium">9:00 AM - 6:00 PM</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Saturday:</span>
-                      <span className="font-medium">10:00 AM - 4:00 PM</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Sunday:</span>
-                      <span className="font-medium">Closed</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mt-8">
-                  <h5 className="font-semibold text-gray-900 mb-4 text-lg">Follow Us</h5>
-                  <div className="flex space-x-4">
-                    <a 
-                      href="https://www.instagram.com/tfps.iitkgp/" 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="p-3 bg-gradient-to-r from-pink-500 to-purple-600 rounded-xl text-white hover:scale-110 transition-transform duration-300"
-                    >
-                      <Instagram className="h-5 w-5" />
-                    </a>
-                    <a 
-                      href="https://www.youtube.com/@TFPSIITKgp" 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="p-3 bg-gradient-to-r from-red-500 to-red-600 rounded-xl text-white hover:scale-110 transition-transform duration-300"
-                    >
-                      <Youtube className="h-5 w-5" />
-                    </a>
-                    <a 
-                      href="https://medium.com/@tfps" 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="p-3 bg-gradient-to-r from-gray-700 to-gray-800 rounded-xl text-white hover:scale-110 transition-transform duration-300"
-                    >
-                      <BookOpen className="h-5 w-5" />
-                    </a>
-                    <a 
-                      href="https://letterboxd.com/tfps" 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="p-3 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl text-white hover:scale-110 transition-transform duration-300"
-                    >
-                      <Star className="h-5 w-5" />
-                    </a>
-                  </div>
-                </div>
-              </div>
-
-              {/* Quick Links */}
-              <div className="glass-card p-8 animate-fade-in" style={{ animationDelay: '0.2s' }}>
-                <h4 className="text-2xl font-semibold text-gray-900 mb-6">Quick Links</h4>
-                <div className="space-y-4">
-                  <a 
-                    href="#about" 
-                    className="block p-4 rounded-xl bg-gradient-to-r from-amber-50 to-orange-50 hover:from-amber-100 hover:to-orange-100 transition-all duration-300 group"
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="font-medium text-gray-900 group-hover:text-amber-600">About Us</span>
-                      <ChevronRight className="h-4 w-4 text-gray-400 group-hover:text-amber-600 group-hover:translate-x-1 transition-all duration-300" />
-                    </div>
-                  </a>
-                  <a 
-                    href="#register" 
-                    className="block p-4 rounded-xl bg-gradient-to-r from-amber-50 to-orange-50 hover:from-amber-100 hover:to-orange-100 transition-all duration-300 group"
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="font-medium text-gray-900 group-hover:text-amber-600">Current Event</span>
-                      <ChevronRight className="h-4 w-4 text-gray-400 group-hover:text-amber-600 group-hover:translate-x-1 transition-all duration-300" />
-                    </div>
-                  </a>
-                  <Link 
-                    to="/login" 
-                    className="block p-4 rounded-xl bg-gradient-to-r from-amber-50 to-orange-50 hover:from-amber-100 hover:to-orange-100 transition-all duration-300 group"
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="font-medium text-gray-900 group-hover:text-amber-600">Member Login</span>
-                      <ChevronRight className="h-4 w-4 text-gray-400 group-hover:text-amber-600 group-hover:translate-x-1 transition-all duration-300" />
-                    </div>
-                  </Link>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
       {/* Footer */}
       <footer className="bg-gradient-to-br from-gray-900 to-gray-800 text-white py-12 relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-r from-amber-600/10 to-orange-600/10"></div>
@@ -878,13 +735,8 @@ const HomePage = () => {
                   </a>
                 </li>
                 <li>
-                  <a href="#register" className="hover:text-white transition-colors hover:translate-x-1 inline-block duration-300">
+                  <a href="#current-event" className="hover:text-white transition-colors hover:translate-x-1 inline-block duration-300">
                     Current Event
-                  </a>
-                </li>
-                <li>
-                  <a href="#contact" className="hover:text-white transition-colors hover:translate-x-1 inline-block duration-300">
-                    Contact
                   </a>
                 </li>
                 <li>
