@@ -153,7 +153,7 @@ const HomePage = () => {
       id: 1,
       title: "The Cost of the Hollywood dream",
       platform: "Medium",
-      author: "Manas mehta",
+      author: "Manas Mehta",
       excerpt: "David Foster Wallace(great writer, do check out his essays) once described \"Lynchian\" as \"a particular kind of irony where the very macabre and the very mundane combine in such a way as to reveal the former's perpetual containment within the latter...",
       readTime: "8 min read",
       url: "https://manas1811.medium.com/the-cost-of-the-hollywood-dream-6e219d509645",
@@ -757,22 +757,6 @@ const HomePage = () => {
                   className="text-gray-400 hover:text-white hover:scale-110 transition-all duration-300"
                 >
                   <Youtube className="h-5 w-5" />
-                </a>
-                <a 
-                  href="https://medium.com/@tfps" 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="text-gray-400 hover:text-white hover:scale-110 transition-all duration-300"
-                >
-                  <BookOpen className="h-5 w-5" />
-                </a>
-                <a 
-                  href="https://letterboxd.com/tfps" 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="text-gray-400 hover:text-white hover:scale-110 transition-all duration-300"
-                >
-                  <Star className="h-5 w-5" />
                 </a>
               </div>
             </div>
