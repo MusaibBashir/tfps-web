@@ -734,15 +734,11 @@ const HomePage = () => {
               <div className="text-gray-400 space-y-3 mb-6">
                 <div className="flex items-center gap-2">
                   <Mail className="h-4 w-4" />
-                  <span>contact@tfps.edu</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Phone className="h-4 w-4" />
-                  <span>+91 98765 43210</span>
+                  <span>tfps.iitkgp@gmail.com</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <MapPin className="h-4 w-4" />
-                  <span>Student Activity Center</span>
+                  <span>IIT Kharagpur</span>
                 </div>
               </div>
               <div className="flex space-x-4">
