@@ -6,6 +6,8 @@ export interface User {
   hostel: string
   year: number
   domain: string
+  branch?: string
+  batch?: string
   is_admin: boolean
   favorite_movie?: string
   instagram_link?: string
