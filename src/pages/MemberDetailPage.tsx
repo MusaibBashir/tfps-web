@@ -3,7 +3,18 @@
 import { useState, useEffect } from "react"
 import { useParams, Link } from "react-router-dom"
 import { useSupabase } from "../contexts/SupabaseContext"
-import { Camera, Mail, Calendar, User, MapPin, Film, Instagram, ExternalLink } from "lucide-react"
+import {
+  Camera,
+  Mail,
+  Calendar,
+  User,
+  MapPin,
+  Film,
+  Instagram,
+  ExternalLink,
+  GraduationCap,
+  BookOpen,
+} from "lucide-react"
 import type { Equipment } from "../types"
 import { formatToIST } from "../utils/timezone"
 
@@ -15,6 +26,8 @@ interface Member {
   hostel: string
   year: number
   domain: string
+  branch?: string
+  batch?: string
   favorite_movie?: string
   instagram_link?: string
   letterboxd_link?: string
@@ -148,6 +161,24 @@ const MemberDetailPage = () => {
                     </p>
                   </div>
                 </div>
+                {member.branch && (
+                  <div className="flex items-center">
+                    <GraduationCap className="h-5 w-5 text-gray-400 mr-3" />
+                    <div>
+                      <p className="text-sm font-medium text-gray-500">Branch</p>
+                      <p className="text-gray-900">{member.branch}</p>
+                    </div>
+                  </div>
+                )}
+                {member.batch && (
+                  <div className="flex items-center">
+                    <BookOpen className="h-5 w-5 text-gray-400 mr-3" />
+                    <div>
+                      <p className="text-sm font-medium text-gray-500">Batch</p>
+                      <p className="text-gray-900">{member.batch}</p>
+                    </div>
+                  </div>
+                )}
                 <div className="flex items-center">
                   <Calendar className="h-5 w-5 text-gray-400 mr-3" />
                   <div>
@@ -250,7 +281,6 @@ const MemberDetailPage = () => {
   )
 }
 
-// Helper function to get ordinal suffix for numbers
 function getOrdinalSuffix(num: number): string {
   const j = num % 10
   const k = num % 100
