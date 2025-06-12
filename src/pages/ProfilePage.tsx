@@ -1,18 +1,7 @@
 "use client"
 
 import { useState, useEffect, type FormEvent } from "react"
-import {
-  User,
-  Lock,
-  Camera,
-  Save,
-  AlertCircle,
-  Film,
-  Instagram,
-  ExternalLink,
-  GraduationCap,
-  BookOpen,
-} from "lucide-react"
+import { User, Lock, Camera, Save, AlertCircle, Film, Instagram, ExternalLink } from "lucide-react"
 import { useAuth } from "../contexts/AuthContext"
 import { useSupabase } from "../contexts/SupabaseContext"
 import type { Equipment } from "../types"
@@ -34,8 +23,6 @@ const ProfilePage = () => {
     hostel: user?.hostel || "",
     year: user?.year || 1,
     domain: user?.domain || "Photography",
-    branch: user?.branch || "",
-    batch: user?.batch || "",
     favorite_movie: user?.favorite_movie || "",
     instagram_link: user?.instagram_link || "",
     letterboxd_link: user?.letterboxd_link || "",
@@ -67,8 +54,6 @@ const ProfilePage = () => {
         hostel: user.hostel,
         year: user.year,
         domain: user.domain,
-        branch: user.branch || "",
-        batch: user.batch || "",
         favorite_movie: user.favorite_movie || "",
         instagram_link: user.instagram_link || "",
         letterboxd_link: user.letterboxd_link || "",
@@ -99,7 +84,11 @@ const ProfilePage = () => {
   const fetchCameras = async () => {
     try {
       // Fetch all cameras (both hall-owned and student-owned) for lens association
-      const { data, error } = await supabase.from("equipment").select("id, name").eq("type", "camera").order("name")
+      const { data, error } = await supabase
+        .from("equipment")
+        .select("id, name")
+        .eq("type", "camera")
+        .order("name")
 
       if (error) throw error
       setCameras(data || [])
@@ -129,18 +118,18 @@ const ProfilePage = () => {
           return
         }
       }
-      //validation
-      let instagramLink = profileForm.instagram_link
-      if (instagramLink && !instagramLink.includes("instagram.com")) {
-        if (!instagramLink.startsWith("http")) {
-          instagramLink = `https://instagram.com/${instagramLink.replace("@", "")}`
+
+      // Validate Instagram link format if provided
+      if (profileForm.instagram_link && !profileForm.instagram_link.includes("instagram.com")) {
+        if (!profileForm.instagram_link.startsWith("http")) {
+          profileForm.instagram_link = `https://instagram.com/${profileForm.instagram_link.replace("@", "")}`
         }
       }
 
-      let letterboxdLink = profileForm.letterboxd_link
-      if (letterboxdLink && !letterboxdLink.includes("letterboxd.com")) {
-        if (!letterboxdLink.startsWith("http")) {
-          letterboxdLink = `https://letterboxd.com/${letterboxdLink}`
+      // Validate Letterboxd link format if provided
+      if (profileForm.letterboxd_link && !profileForm.letterboxd_link.includes("letterboxd.com")) {
+        if (!profileForm.letterboxd_link.startsWith("http")) {
+          profileForm.letterboxd_link = `https://letterboxd.com/${profileForm.letterboxd_link}`
         }
       }
 
@@ -152,11 +141,9 @@ const ProfilePage = () => {
           hostel: profileForm.hostel,
           year: profileForm.year,
           domain: profileForm.domain,
-          branch: profileForm.branch || null,
-          batch: profileForm.batch || null,
           favorite_movie: profileForm.favorite_movie || null,
-          instagram_link: instagramLink || null,
-          letterboxd_link: letterboxdLink || null,
+          instagram_link: profileForm.instagram_link || null,
+          letterboxd_link: profileForm.letterboxd_link || null,
         })
         .eq("id", user?.id)
 
@@ -255,6 +242,7 @@ const ProfilePage = () => {
         details: "",
       })
 
+      // Refresh equipment list
       await fetchUserEquipment()
     } catch (error) {
       console.error("Error adding equipment:", error)
@@ -394,41 +382,6 @@ const ProfilePage = () => {
                     required
                   />
                 </div>
-
-                {/* Academic Information */}
-                <div>
-                  <label htmlFor="branch" className="block text-sm font-medium text-gray-700 mb-1">
-                    Branch
-                  </label>
-                  <div className="flex items-center">
-                    <GraduationCap className="h-4 w-4 text-gray-400 mr-2" />
-                    <input
-                      type="text"
-                      id="branch"
-                      className="input"
-                      value={profileForm.branch}
-                      onChange={(e) => setProfileForm((prev) => ({ ...prev, branch: e.target.value }))}
-                      placeholder="e.g., Computer Science, Mechanical, etc."
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label htmlFor="batch" className="block text-sm font-medium text-gray-700 mb-1">
-                    Batch
-                  </label>
-                  <div className="flex items-center">
-                    <BookOpen className="h-4 w-4 text-gray-400 mr-2" />
-                    <input
-                      type="text"
-                      id="batch"
-                      className="input"
-                      value={profileForm.batch}
-                      onChange={(e) => setProfileForm((prev) => ({ ...prev, batch: e.target.value }))}
-                      placeholder="e.g., Smurfs, Oompa, Jedis, etc."
-                    />
-                  </div>
-                </div>
-
                 <div>
                   <label htmlFor="hostel" className="block text-sm font-medium text-gray-700 mb-1">
                     Hostel
@@ -473,9 +426,9 @@ const ProfilePage = () => {
                   >
                     <option value="Photography">Photography</option>
                     <option value="Cinematography">Cinematography</option>
-                    <option value="Scriptwriting">Scriptwriting</option>
                     <option value="Editing">Editing</option>
                     <option value="Sound">Sound</option>
+                    <option value="Direction">Direction</option>
                     <option value="Other">Other</option>
                   </select>
                 </div>
@@ -645,8 +598,8 @@ const ProfilePage = () => {
                       <option value="other">Other</option>
                     </select>
                   </div>
-
-                  {/* Show parent camera selection for lenses */}
+                  
+                  {/* Parent camera selection for lenses */}
                   {equipmentForm.type === "lens" && (
                     <div>
                       <label htmlFor="parentCamera" className="block text-sm font-medium text-gray-700 mb-1">
@@ -749,7 +702,7 @@ const ProfilePage = () => {
                   </thead>
                   <tbody className="divide-y divide-gray-200 bg-white">
                     {userEquipment.map((item) => {
-                      const associatedCamera = cameras.find((camera) => camera.id === item.parent_id)
+                      const associatedCamera = cameras.find(camera => camera.id === item.parent_id)
                       return (
                         <tr key={item.id}>
                           <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
@@ -778,7 +731,9 @@ const ProfilePage = () => {
                           </td>
                           <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
                             {item.type === "lens" && associatedCamera ? (
-                              <span className="text-blue-600 text-xs">Associated with {associatedCamera.name}</span>
+                              <span className="text-blue-600 text-xs">
+                                Associated with {associatedCamera.name}
+                              </span>
                             ) : item.type === "lens" ? (
                               <span className="text-gray-400 text-xs">Standalone lens</span>
                             ) : (
