@@ -60,7 +60,7 @@ export interface Event {
   created_at: string
   creator?: User
   approver?: User
-  participants?: EventParticipant[]
+  event_participants?: EventParticipant[]
 }
 
 export interface PublicEvent {

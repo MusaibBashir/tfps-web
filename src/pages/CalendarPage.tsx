@@ -8,6 +8,7 @@ import { useAuth } from "../contexts/AuthContext"
 import type { Event } from "../types"
 import EventModal from "../components/EventModal"
 import { formatToIST, formatDateToIST, getCurrentIST, isSameDayIST } from "../utils/timezone"
+import { useSearchParams } from "react-router-dom"
 
 const CalendarPage = () => {
   const { supabase } = useSupabase()
@@ -18,6 +19,7 @@ const CalendarPage = () => {
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isCreating, setIsCreating] = useState(false)
+  const [searchParams, setSearchParams] = useSearchParams()
 
   const start = startOfMonth(currentMonth)
   const end = endOfMonth(currentMonth)
@@ -51,6 +53,20 @@ const CalendarPage = () => {
 
     fetchEvents()
   }, [currentMonth, supabase])
+
+  useEffect(() => {
+    const editEventId = searchParams.get("edit")
+    if (editEventId && events.length > 0) {
+      const eventToEdit = events.find((e) => e.id === editEventId)
+      if (eventToEdit) {
+        setSelectedEvent(eventToEdit)
+        setIsCreating(false)
+        setIsModalOpen(true)
+        // Remove the edit parameter from URL
+        setSearchParams({})
+      }
+    }
+  }, [searchParams, events, setSearchParams])
 
   const getEventsForDay = (day: Date) => {
     return events.filter((event) => {
@@ -153,10 +169,16 @@ const CalendarPage = () => {
                         key={event.id}
                         onClick={() => openEventDetails(event)}
                         className={`w-full text-left text-xs mb-1 px-1 py-1 rounded truncate ${
-                          event.event_type === "shoot" ? "bg-blue-100 text-blue-800" : "bg-purple-100 text-purple-800"
-                        }`}
+                          event.event_type === "shoot"
+                            ? "bg-blue-100 text-blue-800"
+                            : event.event_type === "screening"
+                              ? "bg-purple-100 text-purple-800"
+                              : "bg-gray-100 text-gray-800"
+                        } ${!event.is_open ? "opacity-75" : ""}`}
+                        title={`${event.title} ${!event.is_open ? "(Private)" : ""}`}
                       >
                         {formatToIST(event.start_time, "h:mm a")} - {event.title}
+                        {!event.is_open && <span className="ml-1">🔒</span>}
                       </button>
                     ))}
                   </div>

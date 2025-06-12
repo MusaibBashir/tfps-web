@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useEffect, type FormEvent } from "react"
+import { useState, useEffect, useRef, type FormEvent } from "react"
 import { X } from "lucide-react"
 import { useSupabase } from "../contexts/SupabaseContext"
 import type { Event } from "../types"
@@ -29,6 +29,7 @@ const EventModal: React.FC<EventModalProps> = ({
   const { supabase } = useSupabase()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const modalRef = useRef<HTMLDivElement>(null)
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -38,7 +39,34 @@ const EventModal: React.FC<EventModalProps> = ({
     time: "",
     endDate: "",
     endTime: "",
+    is_open: true,
+    max_participants: "",
   })
+
+  // Handle clicking outside modal
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (modalRef.current && !modalRef.current.contains(event.target as Node)) {
+        onClose()
+      }
+    }
+
+    const handleEscapeKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        onClose()
+      }
+    }
+
+    if (isOpen) {
+      document.addEventListener("mousedown", handleClickOutside)
+      document.addEventListener("keydown", handleEscapeKey)
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside)
+      document.removeEventListener("keydown", handleEscapeKey)
+    }
+  }, [isOpen, onClose])
 
   useEffect(() => {
     if (event) {
@@ -54,6 +82,8 @@ const EventModal: React.FC<EventModalProps> = ({
         time: time,
         endDate: endDate,
         endTime: endTime,
+        is_open: event.is_open,
+        max_participants: event.max_participants?.toString() || "",
       })
     } else {
       // Set default values for new event
@@ -70,14 +100,27 @@ const EventModal: React.FC<EventModalProps> = ({
         time: defaultTime,
         endDate: defaultDate,
         endTime: defaultTime,
+        is_open: true,
+        max_participants: "",
       })
     }
     setError(null)
   }, [event, isOpen])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    const { name, value } = e.target
-    setFormData((prev) => ({ ...prev, [name]: value }))
+    const { name, value, type } = e.target
+    if (type === "checkbox") {
+      const checked = (e.target as HTMLInputElement).checked
+      setFormData((prev) => ({ ...prev, [name]: checked }))
+    } else {
+      setFormData((prev) => ({ ...prev, [name]: value }))
+    }
+  }
+
+  const canEditEvent = () => {
+    if (isCreating) return true
+    if (!event) return false
+    return event.created_by === currentUserId || isAdmin
   }
 
   const handleSubmit = async (e: FormEvent) => {
@@ -119,6 +162,8 @@ const EventModal: React.FC<EventModalProps> = ({
         created_by: currentUserId,
         is_approved: isAdmin, // Auto-approve if admin
         approved_by: isAdmin ? currentUserId : null,
+        is_open: formData.is_open,
+        max_participants: formData.max_participants ? Number.parseInt(formData.max_participants) : null,
       }
 
       if (event) {
@@ -127,7 +172,7 @@ const EventModal: React.FC<EventModalProps> = ({
           .from("events")
           .update(eventData)
           .eq("id", event.id)
-          .select("*, creator:created_by(*), approver:approved_by(*)")
+          .select("*, creator:created_by(*), approver:approved_by(*), event_participants(*)")
           .single()
 
         if (error) throw error
@@ -137,7 +182,7 @@ const EventModal: React.FC<EventModalProps> = ({
         const { data, error } = await supabase
           .from("events")
           .insert(eventData)
-          .select("*, creator:created_by(*), approver:approved_by(*)")
+          .select("*, creator:created_by(*), approver:approved_by(*), event_participants(*)")
           .single()
 
         if (error) throw error
@@ -155,7 +200,10 @@ const EventModal: React.FC<EventModalProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-md animate-fade-in max-h-[90vh] overflow-y-auto">
+      <div
+        ref={modalRef}
+        className="bg-white rounded-lg shadow-xl w-full max-w-md animate-fade-in max-h-[90vh] overflow-y-auto"
+      >
         <div className="flex items-center justify-between p-4 border-b">
           <h2 className="text-lg font-semibold text-gray-900">{isCreating ? "Create New Event" : "Edit Event"}</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-500">
@@ -178,6 +226,7 @@ const EventModal: React.FC<EventModalProps> = ({
                 value={formData.title}
                 onChange={handleChange}
                 placeholder="Enter event title"
+                disabled={!canEditEvent()}
               />
             </div>
 
@@ -191,6 +240,7 @@ const EventModal: React.FC<EventModalProps> = ({
                 className="select"
                 value={formData.event_type}
                 onChange={handleChange}
+                disabled={!canEditEvent()}
               >
                 <option value="shoot">Shoot</option>
                 <option value="screening">Screening</option>
@@ -211,6 +261,7 @@ const EventModal: React.FC<EventModalProps> = ({
                   className="input"
                   value={formData.date}
                   onChange={handleChange}
+                  disabled={!canEditEvent()}
                 />
               </div>
               <div>
@@ -225,6 +276,7 @@ const EventModal: React.FC<EventModalProps> = ({
                   className="input"
                   value={formData.time}
                   onChange={handleChange}
+                  disabled={!canEditEvent()}
                 />
               </div>
             </div>
@@ -242,6 +294,7 @@ const EventModal: React.FC<EventModalProps> = ({
                   className="input"
                   value={formData.endDate}
                   onChange={handleChange}
+                  disabled={!canEditEvent()}
                 />
               </div>
               <div>
@@ -256,6 +309,7 @@ const EventModal: React.FC<EventModalProps> = ({
                   className="input"
                   value={formData.endTime}
                   onChange={handleChange}
+                  disabled={!canEditEvent()}
                 />
               </div>
             </div>
@@ -272,6 +326,7 @@ const EventModal: React.FC<EventModalProps> = ({
                 value={formData.location}
                 onChange={handleChange}
                 placeholder="Enter event location"
+                disabled={!canEditEvent()}
               />
             </div>
 
@@ -287,20 +342,59 @@ const EventModal: React.FC<EventModalProps> = ({
                 value={formData.description}
                 onChange={handleChange}
                 placeholder="Enter event description"
+                disabled={!canEditEvent()}
               />
             </div>
+
+            <div className="flex items-center space-x-4">
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="is_open"
+                  name="is_open"
+                  checked={formData.is_open}
+                  onChange={handleChange}
+                  className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+                  disabled={!canEditEvent()}
+                />
+                <label htmlFor="is_open" className="ml-2 block text-sm text-gray-700">
+                  Open for participants to join
+                </label>
+              </div>
+            </div>
+
+            {formData.is_open && (
+              <div>
+                <label htmlFor="max_participants" className="block text-sm font-medium text-gray-700 mb-1">
+                  Maximum Participants (optional)
+                </label>
+                <input
+                  type="number"
+                  id="max_participants"
+                  name="max_participants"
+                  min="1"
+                  className="input"
+                  value={formData.max_participants}
+                  onChange={handleChange}
+                  placeholder="Leave empty for unlimited"
+                  disabled={!canEditEvent()}
+                />
+              </div>
+            )}
 
             {error && <div className="bg-red-50 text-red-700 p-3 rounded-md text-sm">{error}</div>}
           </div>
 
-          <div className="px-4 py-3 bg-gray-50 flex justify-end space-x-3 rounded-b-lg">
-            <button type="button" onClick={onClose} className="btn btn-outline" disabled={loading}>
-              Cancel
-            </button>
-            <button type="submit" className="btn btn-primary" disabled={loading}>
-              {loading ? "Saving..." : isCreating ? "Create Event" : "Update Event"}
-            </button>
-          </div>
+          {canEditEvent() && (
+            <div className="px-4 py-3 bg-gray-50 flex justify-end space-x-3 rounded-b-lg">
+              <button type="button" onClick={onClose} className="btn btn-outline" disabled={loading}>
+                Cancel
+              </button>
+              <button type="submit" className="btn btn-primary" disabled={loading}>
+                {loading ? "Saving..." : isCreating ? "Create Event" : "Update Event"}
+              </button>
+            </div>
+          )}
         </form>
       </div>
     </div>
