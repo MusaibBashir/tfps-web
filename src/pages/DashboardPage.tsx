@@ -8,7 +8,7 @@ import { Users, Calendar, Package, ClipboardList, MapPin, Clock, UserPlus, Edit3
 import { useAuth } from "../contexts/AuthContext"
 import { useSupabase } from "../contexts/SupabaseContext"
 import type { Event } from "../types"
-import { formatToIST, formatDateToIST } from "../utils/timezone"
+import { formatToIST, formatDateToIST, getCurrentIST } from "../utils/timezone"
 
 const DashboardPage = () => {
   const { user } = useAuth()
@@ -63,7 +63,7 @@ const DashboardPage = () => {
           event_participants (user_id)
         `,
         )
-        .gte("start_time", new Date().toISOString())
+        .gte("start_time", getCurrentIST().toISOString())
         .order("start_time", { ascending: true })
         .limit(6)
 
@@ -300,21 +300,25 @@ const DashboardPage = () => {
                             <Edit3 size={12} />
                             Edit
                           </Link>
-                        ) : isUserJoined(event) ? (
-                          <button
-                            onClick={() => handleLeaveEvent(event.id)}
-                            className="btn btn-secondary text-xs px-3 py-1"
-                          >
-                            Leave
-                          </button>
+                        ) : event.is_open ? (
+                          isUserJoined(event) ? (
+                            <button
+                              onClick={() => handleLeaveEvent(event.id)}
+                              className="btn btn-secondary text-xs px-3 py-1"
+                            >
+                              Leave
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => handleJoinEvent(event.id)}
+                              className="btn btn-primary text-xs px-3 py-1 flex items-center gap-1"
+                            >
+                              <UserPlus size={12} />
+                              Join
+                            </button>
+                          )
                         ) : (
-                          <button
-                            onClick={() => handleJoinEvent(event.id)}
-                            className="btn btn-primary text-xs px-3 py-1 flex items-center gap-1"
-                          >
-                            <UserPlus size={12} />
-                            Join
-                          </button>
+                          <span className="text-xs text-gray-500 px-3 py-1">Private Event</span>
                         )}
                       </div>
                     </div>
