@@ -19,7 +19,6 @@ interface Member {
   favorite_movie?: string
   instagram_link?: string
   letterboxd_link?: string
-  created_at: string
 }
 
 const MemberDetailPage = () => {
@@ -263,6 +262,7 @@ const MemberDetailPage = () => {
 }
 
 function getOrdinalSuffix(num: number): string {
+  const j = num % 10
   if (j === 1) {
     return "st"
   }
