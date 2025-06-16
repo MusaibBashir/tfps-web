@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { Link } from "react-router-dom"
-import { Package, Search, Camera, Lightbulb, Mic, Plus } from "lucide-react"
+import { Package, Search, Camera, Lightbulb, Mic, Plus, User, Building2 } from "lucide-react"
 import { useSupabase } from "../contexts/SupabaseContext"
 import { useAuth } from "../contexts/AuthContext"
 import type { Equipment } from "../types"
@@ -17,19 +17,37 @@ const EquipmentPage = () => {
   const [selectedType, setSelectedType] = useState<string>("all")
   const [selectedStatus, setSelectedStatus] = useState<string>("all")
   const [selectedOwnership, setSelectedOwnership] = useState<string>("all")
+  const [selectedHall, setSelectedHall] = useState<string>("all")
+
+  const halls = [
+    "LBS",
+    "RP",
+    "RK",
+    "Azad",
+    "Patel",
+    "Nehru",
+    "MMM",
+    "LLR",
+    "MS",
+    "VS",
+    "SNVH",
+    "IGH",
+    "MT",
+  ]
 
   useEffect(() => {
     const fetchEquipment = async () => {
       try {
-        let query = supabase.from("equipment").select("*")
+        let query = supabase.from("equipment").select(`
+          *,
+          owner:users(name, hostel, batch, year, domain)
+        `)
 
         // Filter based on selected type
         if (selectedType === "lens") {
-          // Show ALL lenses regardless of parent_id when filtering by lens type
+          // Show ALL lenses
           query = query.eq("type", "lens")
         } else {
-          // For all other cases, only show top-level equipment (parent_id is null)
-          // This includes cameras, unassociated lenses, and other equipment
           query = query.is("parent_id", null)
         }
 
@@ -54,15 +72,12 @@ const EquipmentPage = () => {
   }, [supabase, selectedType])
 
   useEffect(() => {
-    // Filter equipment based on search query and filters
+    // Filter equipment 
     let filtered = equipment
 
     if (searchQuery) {
       filtered = filtered.filter((item) => item.name.toLowerCase().includes(searchQuery.toLowerCase()))
     }
-
-    // Type filtering is now handled in the main query above
-    // This ensures we get the right base dataset before applying other filters
 
     if (selectedStatus !== "all") {
       filtered = filtered.filter((item) => item.status === selectedStatus)
@@ -72,19 +87,56 @@ const EquipmentPage = () => {
       filtered = filtered.filter((item) => item.ownership_type === selectedOwnership)
     }
 
+    if (selectedHall !== "all") {
+      filtered = filtered.filter((item) => {
+        if (item.ownership_type === "hall") {
+          return item.hall === selectedHall
+        } else if (item.ownership_type === "student" && item.owner) {
+          return item.owner.hostel === selectedHall
+        }
+        return false
+      })
+    }
+
     setFilteredEquipment(filtered)
-  }, [searchQuery, selectedStatus, selectedOwnership, equipment])
+  }, [searchQuery, selectedStatus, selectedOwnership, selectedHall, equipment])
 
   const getEquipmentIcon = (type: string) => {
     switch (type) {
       case "camera":
-        return <Camera className="h-6 w-6" />
+        return <Camera className="h-5 w-5" />
       case "light":
-        return <Lightbulb className="h-6 w-6" />
+        return <Lightbulb className="h-5 w-5" />
       case "audio":
-        return <Mic className="h-6 w-6" />
+        return <Mic className="h-5 w-5" />
       default:
-        return <Package className="h-6 w-6" />
+        return <Package className="h-5 w-5" />
+    }
+  }
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "available":
+        return "text-green-600 bg-green-50"
+      case "in_use":
+        return "text-yellow-600 bg-yellow-50"
+      case "maintenance":
+        return "text-red-600 bg-red-50"
+      default:
+        return "text-gray-600 bg-gray-50"
+    }
+  }
+
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case "available":
+        return "Available"
+      case "in_use":
+        return "In Use"
+      case "maintenance":
+        return "Damaged"
+      default:
+        return status
     }
   }
 
@@ -105,8 +157,8 @@ const EquipmentPage = () => {
         )}
       </div>
 
-      <div className="mb-6 grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="md:col-span-2 relative">
+      <div className="mb-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+        <div className="lg:col-span-2 relative">
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
             <Search className="h-5 w-5 text-gray-400" />
           </div>
@@ -131,18 +183,29 @@ const EquipmentPage = () => {
           </select>
         </div>
 
-        <div className="grid grid-cols-2 gap-2">
+        <div>
           <select className="select" value={selectedStatus} onChange={(e) => setSelectedStatus(e.target.value)}>
             <option value="all">All Status</option>
             <option value="available">Available</option>
             <option value="in_use">In Use</option>
-            <option value="maintenance">Maintenance</option>
+            <option value="maintenance">Damaged</option>
           </select>
+        </div>
 
+        <div className="grid grid-cols-2 gap-2">
           <select className="select" value={selectedOwnership} onChange={(e) => setSelectedOwnership(e.target.value)}>
             <option value="all">All Ownership</option>
             <option value="hall">Hall Owned</option>
             <option value="student">Student Owned</option>
+          </select>
+
+          <select className="select" value={selectedHall} onChange={(e) => setSelectedHall(e.target.value)}>
+            <option value="all">All Halls</option>
+            {halls.map((hall) => (
+              <option key={hall} value={hall}>
+                {hall}
+              </option>
+            ))}
           </select>
         </div>
       </div>
@@ -156,7 +219,25 @@ const EquipmentPage = () => {
             </div>
             <div className="ml-3">
               <p className="text-sm text-blue-800">
-                Showing all lenses. Lenses associated with cameras can also be viewed by clicking on the camera in the equipment list.
+                Showing all lenses. Lenses associated with cameras can also be viewed by clicking on the camera in the
+                equipment list.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Show info message when filtering by hall */}
+      {selectedHall !== "all" && (
+        <div className="mb-6 bg-green-50 border border-green-200 rounded-lg p-4">
+          <div className="flex items-center">
+            <div className="flex-shrink-0">
+              <Package className="h-5 w-5 text-green-400" />
+            </div>
+            <div className="ml-3">
+              <p className="text-sm text-green-800">
+                Showing equipment from {selectedHall} hall (including hall-owned equipment and student-owned equipment
+                from {selectedHall} residents).
               </p>
             </div>
           </div>
@@ -168,60 +249,77 @@ const EquipmentPage = () => {
           <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-600"></div>
         </div>
       ) : filteredEquipment.length > 0 ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
           {filteredEquipment.map((item) => (
-            <Link key={item.id} to={`/equipment/${item.id}`} className="card group animate-fade-in">
-              <div
-                className={`p-4 flex justify-center ${
-                  item.status === "available" ? "bg-green-50" : item.status === "in_use" ? "bg-yellow-50" : "bg-red-50"
-                }`}
-              >
-                <div
-                  className={`p-4 rounded-full ${
-                    item.status === "available"
-                      ? "text-green-500"
-                      : item.status === "in_use"
-                        ? "text-yellow-500"
-                        : "text-red-500"
-                  }`}
-                >
-                  {getEquipmentIcon(item.type)}
-                </div>
-              </div>
-              <div className="p-4">
-                <div className="flex flex-col items-start">
-                  <h3 className="text-lg font-semibold text-gray-900 group-hover:text-primary-600 transition-colors">
-                    {item.name}
-                  </h3>
-                  <p className="text-sm text-gray-600">
-                    {item.type.charAt(0).toUpperCase() + item.type.slice(1)}
-                    {item.parent_id && (
-                      <span className="text-xs text-blue-600 ml-1">(Associated with camera)</span>
-                    )}
-                  </p>
-                  <div className="mt-2 flex items-center space-x-2">
-                    <span
-                      className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
-                        item.status === "available"
-                          ? "bg-green-100 text-green-800"
-                          : item.status === "in_use"
-                            ? "bg-yellow-100 text-yellow-800"
-                            : "bg-red-100 text-red-800"
-                      }`}
-                    >
-                      {item.status === "maintenance"
-                        ? "Damaged"
-                        : item.status.replace("_", " ").charAt(0).toUpperCase() +
-                          item.status.replace("_", " ").slice(1)}
-                    </span>
-                    <span
-                      className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
-                        item.ownership_type === "hall" ? "bg-blue-100 text-blue-800" : "bg-purple-100 text-purple-800"
-                      }`}
-                    >
-                      {item.ownership_type.charAt(0).toUpperCase() + item.ownership_type.slice(1)} Owned
-                    </span>
+            <Link
+              key={item.id}
+              to={`/equipment/${item.id}`}
+              className="card group animate-fade-in hover:shadow-lg transition-shadow"
+            >
+              <div className="p-6">
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-center space-x-3">
+                    <div className={`p-2 rounded-lg ${getStatusColor(item.status)}`}>{getEquipmentIcon(item.type)}</div>
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900 group-hover:text-primary-600 transition-colors">
+                        {item.name}
+                      </h3>
+                      <p className="text-sm text-gray-600">
+                        {item.type.charAt(0).toUpperCase() + item.type.slice(1)}
+                        {item.parent_id && <span className="text-xs text-blue-600 ml-1">(Lens)</span>}
+                      </p>
+                    </div>
                   </div>
+                  <span
+                    className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
+                      item.status === "available"
+                        ? "bg-green-100 text-green-800"
+                        : item.status === "in_use"
+                          ? "bg-yellow-100 text-yellow-800"
+                          : "bg-red-100 text-red-800"
+                    }`}
+                  >
+                    {getStatusText(item.status)}
+                  </span>
+                </div>
+
+                <div className="space-y-3">
+                  {/* Ownership Information */}
+                  <div className="flex items-center space-x-2">
+                    {item.ownership_type === "hall" ? (
+                      <Building2 className="h-4 w-4 text-blue-500" />
+                    ) : (
+                      <User className="h-4 w-4 text-purple-500" />
+                    )}
+                    <div className="flex-1">
+                      {item.ownership_type === "hall" ? (
+                        <div>
+                          <p className="text-sm font-medium text-gray-900">{item.hall} Hall</p>
+                          <p className="text-xs text-gray-500">Hall Owned</p>
+                        </div>
+                      ) : item.owner ? (
+                        <div>
+                          <p className="text-sm font-medium text-gray-900">{item.owner.name}</p>
+                          <p className="text-xs text-gray-500">
+                            {item.owner.hostel} • {item.owner.batch || `${item.owner.year}th Year`} •{" "}
+                            {item.owner.domain}
+                          </p>
+                        </div>
+                      ) : (
+                        <div>
+                          <p className="text-sm font-medium text-gray-900">Student Owned</p>
+                          <p className="text-xs text-gray-500">Owner details not available</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Additional Details */}
+                  {item.details && (
+                    <div className="pt-2 border-t border-gray-100">
+                      <p className="text-xs text-gray-600 line-clamp-2">{item.details}</p>
+                    </div>
+                  )}
                 </div>
               </div>
             </Link>
