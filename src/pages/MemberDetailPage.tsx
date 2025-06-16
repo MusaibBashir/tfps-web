@@ -3,20 +3,8 @@
 import { useState, useEffect } from "react"
 import { useParams, Link } from "react-router-dom"
 import { useSupabase } from "../contexts/SupabaseContext"
-import {
-  Camera,
-  Mail,
-  Calendar,
-  User,
-  MapPin,
-  Film,
-  Instagram,
-  ExternalLink,
-  GraduationCap,
-  BookOpen,
-} from "lucide-react"
+import { Camera, Mail, User, MapPin, Film, Instagram, ExternalLink, GraduationCap, Users } from "lucide-react"
 import type { Equipment } from "../types"
-import { formatToIST } from "../utils/timezone"
 
 interface Member {
   id: string
@@ -31,7 +19,6 @@ interface Member {
   favorite_movie?: string
   instagram_link?: string
   letterboxd_link?: string
-  created_at: string
 }
 
 const MemberDetailPage = () => {
@@ -152,7 +139,7 @@ const MemberDetailPage = () => {
                   </div>
                 </div>
                 <div className="flex items-center">
-                  <Calendar className="h-5 w-5 text-gray-400 mr-3" />
+                  <GraduationCap className="h-5 w-5 text-gray-400 mr-3" />
                   <div>
                     <p className="text-sm font-medium text-gray-500">Year</p>
                     <p className="text-gray-900">
@@ -172,20 +159,13 @@ const MemberDetailPage = () => {
                 )}
                 {member.batch && (
                   <div className="flex items-center">
-                    <BookOpen className="h-5 w-5 text-gray-400 mr-3" />
+                    <Users className="h-5 w-5 text-gray-400 mr-3" />
                     <div>
                       <p className="text-sm font-medium text-gray-500">Batch</p>
                       <p className="text-gray-900">{member.batch}</p>
                     </div>
                   </div>
                 )}
-                <div className="flex items-center">
-                  <Calendar className="h-5 w-5 text-gray-400 mr-3" />
-                  <div>
-                    <p className="text-sm font-medium text-gray-500">Member Since</p>
-                    <p className="text-gray-900">{formatToIST(member.created_at, "MMM d, yyyy")} IST</p>
-                  </div>
-                </div>
 
                 {member.favorite_movie && (
                   <div className="flex items-center">
@@ -282,15 +262,13 @@ const MemberDetailPage = () => {
 }
 
 function getOrdinalSuffix(num: number): string {
-  const j = num % 10
-  const k = num % 100
-  if (j === 1 && k !== 11) {
+  if (j === 1) {
     return "st"
   }
-  if (j === 2 && k !== 12) {
+  if (j === 2) {
     return "nd"
   }
-  if (j === 3 && k !== 13) {
+  if (j === 3) {
     return "rd"
   }
   return "th"
