@@ -122,14 +122,18 @@ const RequestEquipmentModal: React.FC<RequestEquipmentModalProps> = ({ equipment
   useEffect(() => {
     if (selectedEvent) {
       const event = events.find((e) => e.id === selectedEvent)
-      if (event) {
-        // Convert UTC times to IST for display in datetime-local inputs
-        const { date: startDate, time: startTime } = convertUTCToLocal(event.start_time)
-        const { date: endDate, time: endTime } = convertUTCToLocal(event.end_time)
+      if (event && event.start_time && event.end_time) {
+        try {
+          // Convert UTC times to IST for display in datetime-local inputs
+          const { date: startDate, time: startTime } = convertUTCToLocal(event.start_time)
+          const { date: endDate, time: endTime } = convertUTCToLocal(event.end_time)
 
-        // Combine date and time for datetime-local input format
-        setStartTime(`${startDate}T${startTime}`)
-        setEndTime(`${endDate}T${endTime}`)
+          // Combine date and time for datetime-local input format
+          setStartTime(`${startDate}T${startTime}`)
+          setEndTime(`${endDate}T${endTime}`)
+        } catch (error) {
+          console.error("Error setting event times:", error)
+        }
       }
     }
   }, [selectedEvent, events])
@@ -287,7 +291,7 @@ const RequestEquipmentModal: React.FC<RequestEquipmentModalProps> = ({ equipment
                     <option value="">Select an event (optional)...</option>
                     {events.map((event) => (
                       <option key={event.id} value={event.id}>
-                        {event.title} ({format(new Date(event.start_time), "MMM d, yyyy")})
+                        {event.title} {event.start_time ? `(${format(new Date(event.start_time), "MMM d, yyyy")})` : ""}
                       </option>
                     ))}
                   </select>
@@ -350,8 +354,11 @@ const RequestEquipmentModal: React.FC<RequestEquipmentModalProps> = ({ equipment
                         <ul className="mt-1 list-disc list-inside">
                           {timeConflicts.map((conflict) => (
                             <li key={conflict.conflicting_request_id}>
-                              {conflict.requester_name}: {format(new Date(conflict.start_time), "MMM d, HH:mm")} -{" "}
-                              {format(new Date(conflict.end_time), "HH:mm")}
+                              {conflict.requester_name}:{" "}
+                              {conflict.start_time
+                                ? format(new Date(conflict.start_time), "MMM d, HH:mm")
+                                : "Unknown time"}{" "}
+                              - {conflict.end_time ? format(new Date(conflict.end_time), "HH:mm") : "Unknown time"}
                             </li>
                           ))}
                         </ul>

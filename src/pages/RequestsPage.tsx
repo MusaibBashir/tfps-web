@@ -118,7 +118,6 @@ const RequestsPage = () => {
         setTimeout(() => {
           fixMissingForwards(userRequests)
         }, 1000)
-
       } catch (error) {
         console.error("Error fetching requests:", error)
       } finally {
@@ -748,7 +747,7 @@ const RequestsPage = () => {
         if (currentLog && currentLog.user_id !== request.requester_id) {
           // This request should be forwarded to the current holder
           console.log(`Auto-forwarding request ${request.id} to current holder: ${currentLog.user?.name}`)
-          
+
           await supabase
             .from("equipment_requests")
             .update({
@@ -904,7 +903,7 @@ const RequestsPage = () => {
                   equipmentName: log.equipment?.name,
                   userId: user?.id,
                   handoverRequests: handoverRequests.length,
-                  requestDetails: handoverRequests.map(r => ({ id: r.id, requester: r.requester?.name })),
+                  requestDetails: handoverRequests.map((r) => ({ id: r.id, requester: r.requester?.name })),
                 })
 
                 return (
@@ -912,11 +911,16 @@ const RequestsPage = () => {
                     <div>
                       <span className="font-medium text-gray-900">{log.equipment?.name}</span>
                       <span className="text-sm text-gray-500 ml-2">
-                        Since {formatToIST(log.checkout_time, "MMM d, yyyy HH:mm")} IST
+                        Since {log.checkout_time ? formatToIST(log.checkout_time, "MMM d, yyyy HH:mm") : "Unknown time"}{" "}
+                        IST
                       </span>
                       {log.expected_return_time && (
                         <span className="text-xs text-gray-400 ml-2">
-                          Expected return: {formatToIST(log.expected_return_time, "MMM d, HH:mm")} IST
+                          Expected return:{" "}
+                          {log.expected_return_time
+                            ? formatToIST(log.expected_return_time, "MMM d, HH:mm")
+                            : "Unknown time"}{" "}
+                          IST
                         </span>
                       )}
                       {handoverRequests.length > 0 && (
@@ -1144,7 +1148,7 @@ const RequestsPage = () => {
                             clipRule="evenodd"
                           />
                         </svg>
-                        {formatToIST(request.created_at, "MMM d, yyyy")} IST
+                        {request.created_at ? formatToIST(request.created_at, "MMM d, yyyy") : "Unknown date"} IST
                       </div>
                     </div>
 

@@ -70,23 +70,44 @@ const EventModal: React.FC<EventModalProps> = ({
 
   useEffect(() => {
     if (event) {
-      const { date, time } = convertUTCToLocal(event.start_time)
-      const { date: endDate, time: endTime } = convertUTCToLocal(event.end_time)
+      try {
+        const { date, time } = event.start_time ? convertUTCToLocal(event.start_time) : { date: "", time: "" }
+        const { date: endDate, time: endTime } = event.end_time
+          ? convertUTCToLocal(event.end_time)
+          : { date: "", time: "" }
 
-      setFormData({
-        title: event.title,
-        description: event.description || "",
-        location: event.location || "",
-        event_type: event.event_type,
-        date: date,
-        time: time,
-        endDate: endDate,
-        endTime: endTime,
-        is_open: event.is_open,
-        max_participants: event.max_participants?.toString() || "",
-      })
+        setFormData({
+          title: event.title || "",
+          description: event.description || "",
+          location: event.location || "",
+          event_type: event.event_type || "shoot",
+          date: date,
+          time: time,
+          endDate: endDate,
+          endTime: endTime,
+          is_open: event.is_open ?? true,
+          max_participants: event.max_participants?.toString() || "",
+        })
+      } catch (error) {
+        console.error("Error setting event data:", error)
+        const now = new Date()
+        const defaultDate = now.toISOString().split("T")[0]
+        const defaultTime = now.toTimeString().slice(0, 5)
+
+        setFormData({
+          title: event.title || "",
+          description: event.description || "",
+          location: event.location || "",
+          event_type: event.event_type || "shoot",
+          date: defaultDate,
+          time: defaultTime,
+          endDate: defaultDate,
+          endTime: defaultTime,
+          is_open: event.is_open ?? true,
+          max_participants: event.max_participants?.toString() || "",
+        })
+      }
     } else {
-      // Set default values for new event
       const now = new Date()
       const defaultDate = now.toISOString().split("T")[0]
       const defaultTime = now.toTimeString().slice(0, 5)
@@ -167,7 +188,6 @@ const EventModal: React.FC<EventModalProps> = ({
       }
 
       if (event) {
-        // Update existing event
         const { data, error } = await supabase
           .from("events")
           .update(eventData)
@@ -178,7 +198,6 @@ const EventModal: React.FC<EventModalProps> = ({
         if (error) throw error
         onSave(data)
       } else {
-        // Create new event
         const { data, error } = await supabase
           .from("events")
           .insert(eventData)

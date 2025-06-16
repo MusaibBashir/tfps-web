@@ -1,8 +1,7 @@
 import { format, parse, parseISO } from "date-fns"
 
-const INDIA_TIMEZONE_OFFSET = 5.5 * 60 * 60 * 1000 // IST is UTC+5:30
+const INDIA_TIMEZONE_OFFSET = 5.5 * 60 * 60 * 1000 
 
-// Simple IST conversion without external timezone library
 const toIST = (date: Date): Date => {
   const utc = date.getTime() + date.getTimezoneOffset() * 60000
   return new Date(utc + INDIA_TIMEZONE_OFFSET)
@@ -16,7 +15,9 @@ const fromIST = (date: Date): Date => {
 // Format a date/time string to IST display
 export const formatToIST = (dateString: string, formatString = "MMM d, yyyy HH:mm") => {
   try {
+    if (!dateString) return "Invalid date"
     const date = parseISO(dateString)
+    if (isNaN(date.getTime())) return "Invalid date"
     const istDate = toIST(date)
     return format(istDate, formatString)
   } catch (error) {
@@ -27,17 +28,21 @@ export const formatToIST = (dateString: string, formatString = "MMM d, yyyy HH:m
 
 // Format a date object to IST display
 export const formatDateToIST = (date: Date, formatString = "MMM d, yyyy HH:mm") => {
-  const istDate = toIST(date)
-  return format(istDate, formatString)
+  try {
+    if (!date || isNaN(date.getTime())) return "Invalid date"
+    const istDate = toIST(date)
+    return format(istDate, formatString)
+  } catch (error) {
+    console.error("Error formatting date to IST:", error)
+    return "Invalid date"
+  }
 }
 
 // Convert local date/time inputs to UTC for storage
 export const convertLocalToUTC = (dateStr: string, timeStr: string) => {
   try {
-    // Create a date object from the local date/time inputs (treating as IST)
     const localDateTime = parse(`${dateStr} ${timeStr}`, "yyyy-MM-dd HH:mm", new Date())
 
-    // Convert from IST to UTC for storage
     const utcDate = fromIST(localDateTime)
 
     return utcDate.toISOString()
@@ -50,7 +55,21 @@ export const convertLocalToUTC = (dateStr: string, timeStr: string) => {
 // Convert UTC date to IST for form inputs
 export const convertUTCToLocal = (isoString: string) => {
   try {
+    if (!isoString) {
+      const now = new Date()
+      return {
+        date: format(now, "yyyy-MM-dd"),
+        time: format(now, "HH:mm"),
+      }
+    }
     const utcDate = parseISO(isoString)
+    if (isNaN(utcDate.getTime())) {
+      const now = new Date()
+      return {
+        date: format(now, "yyyy-MM-dd"),
+        time: format(now, "HH:mm"),
+      }
+    }
     const istDate = toIST(utcDate)
 
     return {
@@ -67,12 +86,10 @@ export const convertUTCToLocal = (isoString: string) => {
   }
 }
 
-// Get current IST time
 export const getCurrentIST = () => {
   return toIST(new Date())
 }
 
-// Get current IST time as ISO string
 export const getCurrentISTString = () => {
   return getCurrentIST().toISOString()
 }
@@ -80,7 +97,9 @@ export const getCurrentISTString = () => {
 // Check if a date is today in IST
 export const isToday = (dateString: string) => {
   try {
+    if (!dateString) return false
     const date = parseISO(dateString)
+    if (isNaN(date.getTime())) return false
     const istDate = toIST(date)
     const today = getCurrentIST()
 
@@ -93,7 +112,9 @@ export const isToday = (dateString: string) => {
 // Format relative time in IST
 export const formatRelativeTime = (dateString: string) => {
   try {
+    if (!dateString) return "Unknown time"
     const date = parseISO(dateString)
+    if (isNaN(date.getTime())) return "Unknown time"
     const istDate = toIST(date)
     const now = getCurrentIST()
 
@@ -114,9 +135,13 @@ export const formatRelativeTime = (dateString: string) => {
   }
 }
 
-// Check if two dates are the same day in IST
 export const isSameDayIST = (date1: Date, date2: Date) => {
-  const ist1 = toIST(date1)
-  const ist2 = toIST(date2)
-  return format(ist1, "yyyy-MM-dd") === format(ist2, "yyyy-MM-dd")
+  try {
+    if (!date1 || !date2 || isNaN(date1.getTime()) || isNaN(date2.getTime())) return false
+    const ist1 = toIST(date1)
+    const ist2 = toIST(date2)
+    return format(ist1, "yyyy-MM-dd") === format(ist2, "yyyy-MM-dd")
+  } catch (error) {
+    return false
+  }
 }

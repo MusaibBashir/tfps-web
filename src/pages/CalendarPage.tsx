@@ -25,7 +25,6 @@ const CalendarPage = () => {
   const end = endOfMonth(currentMonth)
   const days = eachDayOfInterval({ start, end })
 
-  // First day of month (0 = Sunday, 1 = Monday, etc.)
   const firstDayOfMonth = getDay(start)
 
   useEffect(() => {
@@ -70,9 +69,16 @@ const CalendarPage = () => {
 
   const getEventsForDay = (day: Date) => {
     return events.filter((event) => {
-      // Convert UTC event time to IST for comparison
-      const eventDate = new Date(event.start_time)
-      return isSameDayIST(eventDate, day)
+      try {
+        if (!event.start_time) return false
+        // Convert UTC event time to IST for comparison
+        const eventDate = new Date(event.start_time)
+        if (isNaN(eventDate.getTime())) return false
+        return isSameDayIST(eventDate, day)
+      } catch (error) {
+        console.error("Error filtering events for day:", error)
+        return false
+      }
     })
   }
 
@@ -103,10 +109,8 @@ const CalendarPage = () => {
 
   const handleEventSaved = (savedEvent: Event) => {
     if (selectedEvent) {
-      // Update existing event in the list
       setEvents(events.map((event) => (event.id === savedEvent.id ? savedEvent : event)))
     } else {
-      // Add new event to the list
       setEvents([...events, savedEvent])
     }
     setIsModalOpen(false)

@@ -10,12 +10,9 @@ import {
   Calendar,
   Package,
   Mail,
-  Phone,
   MapPin,
-  ChevronRight,
   Instagram,
   ExternalLink,
-  Play,
   Star,
   BookOpen,
   Youtube,
@@ -60,8 +57,8 @@ const HomePage = () => {
     fetchPublicEvents()
 
     // Load Instagram embed script
-    const script = document.createElement('script')
-    script.src = '//www.instagram.com/embed.js'
+    const script = document.createElement("script")
+    script.src = "//www.instagram.com/embed.js"
     script.async = true
     document.body.appendChild(script)
 
@@ -114,33 +111,30 @@ const HomePage = () => {
     }
   }
 
-  // If user is logged in, redirect to dashboard
-  if (user) {
-    navigate("/")
-    return null
-  }
-
   // Recent movies
   const recentMovies = [
     {
       id: 1,
       title: "NAKSHA | GC SFM 2025 | LBS HALL",
       youtubeId: "Ekuy8Ymvk68",
-      description: "We are well aware of the saying that 'opposites attract'. But is it really true all the time? Two professional thieves, are brought together to pull off an impossible heist. Both being polar opposite to each other, will they be able to put aside their differences? Will they make it possible or will it be their last heist?",
+      description:
+        "We are well aware of the saying that 'opposites attract'. But is it really true all the time? Two professional thieves, are brought together to pull off an impossible heist. Both being polar opposite to each other, will they be able to put aside their differences? Will they make it possible or will it be their last heist?",
       duration: "3:45",
     },
     {
       id: 2,
       title: "CHANDRA | GC SFM 2025 | SNVH HALL",
       youtubeId: "7Ay0bQemOs8",
-      description: "Chandra, an obedient girl raised to follow tradition, awaits her arranged marriage without question—until she meets Nisha, the groom's bold and free-spirited sister. Their growing bond stirs something unexpected in Chandra, forcing her to confront the limits of obedience, identity, and love. When tradition demands silence, will she choose her truth or turn away?",
+      description:
+        "Chandra, an obedient girl raised to follow tradition, awaits her arranged marriage without question—until she meets Nisha, the groom's bold and free-spirited sister. Their growing bond stirs something unexpected in Chandra, forcing her to confront the limits of obedience, identity, and love. When tradition demands silence, will she choose her truth or turn away?",
       duration: "5:20",
     },
     {
       id: 3,
       title: "Before I Forget || Runner-up | Inter IIT Cultural Meet 6.0",
       youtubeId: "V3cechi6Ovk",
-      description: "A once renowned musician grapples with the challenges of Alzheimer's disease, losing not only his memories but his music. His supportive wife, struggles with a profound question : Is he really the man she once fell in love with? As his grip on reality weakens, their memories become a portal to their past. Is he a merely the sum of his forgotten memories or there is something more to him?",
+      description:
+        "A once renowned musician grapples with the challenges of Alzheimer's disease, losing not only his memories but his music. His supportive wife, struggles with a profound question : Is he really the man she once fell in love with? As his grip on reality weakens, their memories become a portal to their past. Is he a merely the sum of his forgotten memories or there is something more to him?",
       duration: "8:15",
     },
   ]
@@ -152,7 +146,8 @@ const HomePage = () => {
       title: "The Cost of the Hollywood dream",
       platform: "Medium",
       author: "Manas Mehta",
-      excerpt: "David Foster Wallace(great writer, do check out his essays) once described \"Lynchian\" as \"a particular kind of irony where the very macabre and the very mundane combine in such a way as to reveal the former's perpetual containment within the latter...",
+      excerpt:
+        'David Foster Wallace(great writer, do check out his essays) once described "Lynchian" as "a particular kind of irony where the very macabre and the very mundane combine in such a way as to reveal the former\'s perpetual containment within the latter...',
       readTime: "8 min read",
       url: "https://manas1811.medium.com/the-cost-of-the-hollywood-dream-6e219d509645",
       platformIcon: <BookOpen className="h-4 w-4" />,
@@ -162,7 +157,8 @@ const HomePage = () => {
       title: "Katiyabaaz Review",
       platform: "Letterboxd",
       author: "Rahul Ranwa",
-      excerpt: "The editing shines like crazy, it was the best thing about this documentary so many unexpected match cuts. A matchstick cutting to sun, then water sprinklers, uff...So good.Cross cutting between Conversation and Use of B-rolls was peak, Great. Cinematography was dirty...",
+      excerpt:
+        "The editing shines like crazy, it was the best thing about this documentary so many unexpected match cuts. A matchstick cutting to sun, then water sprinklers, uff...So good.Cross cutting between Conversation and Use of B-rolls was peak, Great. Cinematography was dirty...",
       rating: 5,
       url: "https://boxd.it/9H08hX",
       platformIcon: <Star className="h-4 w-4" />,
@@ -214,7 +210,8 @@ const HomePage = () => {
             </h2>
             <p className="text-3xl text-gray-700 mb-4 font-light">Technology Film and Photography Society</p>
             <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto leading-relaxed">
-              Where creativity meets technology. Join our vibrant community of photographers and filmmakers as we capture stories, create art, and push the boundaries of visual expression.
+              Where creativity meets technology. Join our vibrant community of photographers and filmmakers as we
+              capture stories, create art, and push the boundaries of visual expression.
             </p>
           </div>
         </div>
@@ -234,8 +231,8 @@ const HomePage = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {recentMovies.map((movie, index) => (
-              <div 
-                key={movie.id} 
+              <div
+                key={movie.id}
                 className="glass-card group hover-lift animate-fade-in"
                 style={{ animationDelay: `${index * 0.2}s` }}
               >
@@ -303,46 +300,78 @@ const HomePage = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {/* Instagram Post 1 */}
             <div className="glass-card p-4 hover-lift animate-fade-in">
-              <blockquote 
-                className="instagram-media" 
-                data-instgrm-permalink="https://www.instagram.com/p/DKjzVjJsU9B/?utm_source=ig_embed&utm_campaign=loading" 
-                data-instgrm-version="14" 
-                style={{ 
-                  background: 'transparent', 
-                  border: 0, 
-                  borderRadius: '3px', 
-                  boxShadow: 'none', 
-                  margin: '1px', 
-                  maxWidth: '100%', 
-                  minWidth: '326px', 
-                  padding: 0, 
-                  width: '100%' 
+              <blockquote
+                className="instagram-media"
+                data-instgrm-permalink="https://www.instagram.com/p/DKjzVjJsU9B/?utm_source=ig_embed&utm_campaign=loading"
+                data-instgrm-version="14"
+                style={{
+                  background: "transparent",
+                  border: 0,
+                  borderRadius: "3px",
+                  boxShadow: "none",
+                  margin: "1px",
+                  maxWidth: "100%",
+                  minWidth: "326px",
+                  padding: 0,
+                  width: "100%",
                 }}
               >
-                <div style={{ padding: '16px' }}>
-                  <a 
-                    href="https://www.instagram.com/p/DKjzVjJsU9B/?utm_source=ig_embed&utm_campaign=loading" 
-                    style={{ 
-                      background: '#FFFFFF', 
-                      lineHeight: 0, 
-                      padding: '0 0', 
-                      textAlign: 'center', 
-                      textDecoration: 'none', 
-                      width: '100%' 
-                    }} 
+                <div style={{ padding: "16px" }}>
+                  <a
+                    href="https://www.instagram.com/p/DKjzVjJsU9B/?utm_source=ig_embed&utm_campaign=loading"
+                    style={{
+                      background: "#FFFFFF",
+                      lineHeight: 0,
+                      padding: "0 0",
+                      textAlign: "center",
+                      textDecoration: "none",
+                      width: "100%",
+                    }}
                     target="_blank"
                     rel="noopener noreferrer"
                   >
-                    <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center' }}>
-                      <div style={{ backgroundColor: '#F4F4F4', borderRadius: '50%', flexGrow: 0, height: '40px', marginRight: '14px', width: '40px' }}></div>
-                      <div style={{ display: 'flex', flexDirection: 'column', flexGrow: 1, justifyContent: 'center' }}>
-                        <div style={{ backgroundColor: '#F4F4F4', borderRadius: '4px', flexGrow: 0, height: '14px', marginBottom: '6px', width: '100px' }}></div>
-                        <div style={{ backgroundColor: '#F4F4F4', borderRadius: '4px', flexGrow: 0, height: '14px', width: '60px' }}></div>
+                    <div style={{ display: "flex", flexDirection: "row", alignItems: "center" }}>
+                      <div
+                        style={{
+                          backgroundColor: "#F4F4F4",
+                          borderRadius: "50%",
+                          flexGrow: 0,
+                          height: "40px",
+                          marginRight: "14px",
+                          width: "40px",
+                        }}
+                      ></div>
+                      <div style={{ display: "flex", flexDirection: "column", flexGrow: 1, justifyContent: "center" }}>
+                        <div
+                          style={{
+                            backgroundColor: "#F4F4F4",
+                            borderRadius: "4px",
+                            flexGrow: 0,
+                            height: "14px",
+                            marginBottom: "6px",
+                            width: "100px",
+                          }}
+                        ></div>
+                        <div
+                          style={{
+                            backgroundColor: "#F4F4F4",
+                            borderRadius: "4px",
+                            flexGrow: 0,
+                            height: "14px",
+                            width: "60px",
+                          }}
+                        ></div>
                       </div>
                     </div>
-                    <div style={{ padding: '19% 0' }}></div>
-                    <div style={{ display: 'block', height: '50px', margin: '0 auto 12px', width: '50px' }}>
-                      <svg width="50px" height="50px" viewBox="0 0 60 60" version="1.1" xmlns="http://www.w3.org/2000/svg">
+                    <div style={{ padding: "19% 0" }}></div>
+                    <div style={{ display: "block", height: "50px", margin: "0 auto 12px", width: "50px" }}>
+                      <svg
+                        width="50px"
+                        height="50px"
+                        viewBox="0 0 60 60"
+                        version="1.1"
+                        xmlns="http://www.w3.org/2000/svg"
+                      >
                         <g stroke="none" strokeWidth="1" fill="none" fillRule="evenodd">
                           <g transform="translate(-511.000000, -20.000000)" fill="#000000">
                             <g>
@@ -352,8 +381,17 @@ const HomePage = () => {
                         </g>
                       </svg>
                     </div>
-                    <div style={{ paddingTop: '8px' }}>
-                      <div style={{ color: '#3897f0', fontFamily: 'Arial,sans-serif', fontSize: '14px', fontStyle: 'normal', fontWeight: '550', lineHeight: '18px' }}>
+                    <div style={{ paddingTop: "8px" }}>
+                      <div
+                        style={{
+                          color: "#3897f0",
+                          fontFamily: "Arial,sans-serif",
+                          fontSize: "14px",
+                          fontStyle: "normal",
+                          fontWeight: "550",
+                          lineHeight: "18px",
+                        }}
+                      >
                         View this post on Instagram
                       </div>
                     </div>
@@ -363,47 +401,79 @@ const HomePage = () => {
             </div>
 
             {/* Instagram Post 2 */}
-            <div className="glass-card p-4 hover-lift animate-fade-in" style={{ animationDelay: '0.2s' }}>
-              <blockquote 
-                className="instagram-media" 
-                data-instgrm-permalink="https://www.instagram.com/p/DJ9KYr3pp08/?utm_source=ig_embed&utm_campaign=loading" 
-                data-instgrm-version="14" 
-                style={{ 
-                  background: '#FFF', 
-                  border: 0, 
-                  borderRadius: '3px', 
-                  boxShadow: '0 0 1px 0 rgba(0,0,0,0.5),0 1px 10px 0 rgba(0,0,0,0.15)', 
-                  margin: '1px', 
-                  maxWidth: '540px', 
-                  minWidth: '326px', 
-                  padding: 0, 
-                  width: '99.375%' 
+            <div className="glass-card p-4 hover-lift animate-fade-in" style={{ animationDelay: "0.2s" }}>
+              <blockquote
+                className="instagram-media"
+                data-instgrm-permalink="https://www.instagram.com/p/DJ9KYr3pp08/?utm_source=ig_embed&utm_campaign=loading"
+                data-instgrm-version="14"
+                style={{
+                  background: "#FFF",
+                  border: 0,
+                  borderRadius: "3px",
+                  boxShadow: "0 0 1px 0 rgba(0,0,0,0.5),0 1px 10px 0 rgba(0,0,0,0.15)",
+                  margin: "1px",
+                  maxWidth: "540px",
+                  minWidth: "326px",
+                  padding: 0,
+                  width: "99.375%",
                 }}
               >
-                <div style={{ padding: '16px' }}>
-                  <a 
-                    href="https://www.instagram.com/p/DJ9KYr3pp08/?utm_source=ig_embed&utm_campaign=loading" 
-                    style={{ 
-                      background: '#FFFFFF', 
-                      lineHeight: 0, 
-                      padding: '0 0', 
-                      textAlign: 'center', 
-                      textDecoration: 'none', 
-                      width: '100%' 
-                    }} 
+                <div style={{ padding: "16px" }}>
+                  <a
+                    href="https://www.instagram.com/p/DJ9KYr3pp08/?utm_source=ig_embed&utm_campaign=loading"
+                    style={{
+                      background: "#FFFFFF",
+                      lineHeight: 0,
+                      padding: "0 0",
+                      textAlign: "center",
+                      textDecoration: "none",
+                      width: "100%",
+                    }}
                     target="_blank"
                     rel="noopener noreferrer"
                   >
-                    <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center' }}>
-                      <div style={{ backgroundColor: '#F4F4F4', borderRadius: '50%', flexGrow: 0, height: '40px', marginRight: '14px', width: '40px' }}></div>
-                      <div style={{ display: 'flex', flexDirection: 'column', flexGrow: 1, justifyContent: 'center' }}>
-                        <div style={{ backgroundColor: '#F4F4F4', borderRadius: '4px', flexGrow: 0, height: '14px', marginBottom: '6px', width: '100px' }}></div>
-                        <div style={{ backgroundColor: '#F4F4F4', borderRadius: '4px', flexGrow: 0, height: '14px', width: '60px' }}></div>
+                    <div style={{ display: "flex", flexDirection: "row", alignItems: "center" }}>
+                      <div
+                        style={{
+                          backgroundColor: "#F4F4F4",
+                          borderRadius: "50%",
+                          flexGrow: 0,
+                          height: "40px",
+                          marginRight: "14px",
+                          width: "40px",
+                        }}
+                      ></div>
+                      <div style={{ display: "flex", flexDirection: "column", flexGrow: 1, justifyContent: "center" }}>
+                        <div
+                          style={{
+                            backgroundColor: "#F4F4F4",
+                            borderRadius: "4px",
+                            flexGrow: 0,
+                            height: "14px",
+                            marginBottom: "6px",
+                            width: "100px",
+                          }}
+                        ></div>
+                        <div
+                          style={{
+                            backgroundColor: "#F4F4F4",
+                            borderRadius: "4px",
+                            flexGrow: 0,
+                            height: "14px",
+                            width: "60px",
+                          }}
+                        ></div>
                       </div>
                     </div>
-                    <div style={{ padding: '19% 0' }}></div>
-                    <div style={{ display: 'block', height: '50px', margin: '0 auto 12px', width: '50px' }}>
-                      <svg width="50px" height="50px" viewBox="0 0 60 60" version="1.1" xmlns="https://www.w3.org/2000/svg">
+                    <div style={{ padding: "19% 0" }}></div>
+                    <div style={{ display: "block", height: "50px", margin: "0 auto 12px", width: "50px" }}>
+                      <svg
+                        width="50px"
+                        height="50px"
+                        viewBox="0 0 60 60"
+                        version="1.1"
+                        xmlns="https://www.w3.org/2000/svg"
+                      >
                         <g stroke="none" strokeWidth="1" fill="none" fillRule="evenodd">
                           <g transform="translate(-511.000000, -20.000000)" fill="#000000">
                             <g>
@@ -413,35 +483,162 @@ const HomePage = () => {
                         </g>
                       </svg>
                     </div>
-                    <div style={{ paddingTop: '8px' }}>
-                      <div style={{ color: '#3897f0', fontFamily: 'Arial,sans-serif', fontSize: '14px', fontStyle: 'normal', fontWeight: '550', lineHeight: '18px' }}>
+                    <div style={{ paddingTop: "8px" }}>
+                      <div
+                        style={{
+                          color: "#3897f0",
+                          fontFamily: "Arial,sans-serif",
+                          fontSize: "14px",
+                          fontStyle: "normal",
+                          fontWeight: "550",
+                          lineHeight: "18px",
+                        }}
+                      >
                         View this post on Instagram
                       </div>
                     </div>
-                    <div style={{ padding: '12.5% 0' }}></div>
-                    <div style={{ display: 'flex', flexDirection: 'row', marginBottom: '14px', alignItems: 'center' }}>
+                    <div style={{ padding: "12.5% 0" }}></div>
+                    <div style={{ display: "flex", flexDirection: "row", marginBottom: "14px", alignItems: "center" }}>
                       <div>
-                        <div style={{ backgroundColor: '#F4F4F4', borderRadius: '50%', height: '12.5px', width: '12.5px', transform: 'translateX(0px) translateY(7px)' }}></div>
-                        <div style={{ backgroundColor: '#F4F4F4', height: '12.5px', transform: 'rotate(-45deg) translateX(3px) translateY(1px)', width: '12.5px', flexGrow: 0, marginRight: '14px', marginLeft: '2px' }}></div>
-                        <div style={{ backgroundColor: '#F4F4F4', borderRadius: '50%', height: '12.5px', width: '12.5px', transform: 'translateX(9px) translateY(-18px)' }}></div>
+                        <div
+                          style={{
+                            backgroundColor: "#F4F4F4",
+                            borderRadius: "50%",
+                            height: "12.5px",
+                            width: "12.5px",
+                            transform: "translateX(0px) translateY(7px)",
+                          }}
+                        ></div>
+                        <div
+                          style={{
+                            backgroundColor: "#F4F4F4",
+                            height: "12.5px",
+                            transform: "rotate(-45deg) translateX(3px) translateY(1px)",
+                            width: "12.5px",
+                            flexGrow: 0,
+                            marginRight: "14px",
+                            marginLeft: "2px",
+                          }}
+                        ></div>
+                        <div
+                          style={{
+                            backgroundColor: "#F4F4F4",
+                            borderRadius: "50%",
+                            height: "12.5px",
+                            width: "12.5px",
+                            transform: "translateX(9px) translateY(-18px)",
+                          }}
+                        ></div>
                       </div>
-                      <div style={{ marginLeft: '8px' }}>
-                        <div style={{ backgroundColor: '#F4F4F4', borderRadius: '50%', flexGrow: 0, height: '20px', width: '20px' }}></div>
-                        <div style={{ width: 0, height: 0, borderTop: '2px solid transparent', borderLeft: '6px solid #f4f4f4', borderBottom: '2px solid transparent', transform: 'translateX(16px) translateY(-4px) rotate(30deg)' }}></div>
+                      <div style={{ marginLeft: "8px" }}>
+                        <div
+                          style={{
+                            backgroundColor: "#F4F4F4",
+                            borderRadius: "50%",
+                            flexGrow: 0,
+                            height: "20px",
+                            width: "20px",
+                          }}
+                        ></div>
+                        <div
+                          style={{
+                            width: 0,
+                            height: 0,
+                            borderTop: "2px solid transparent",
+                            borderLeft: "6px solid #f4f4f4",
+                            borderBottom: "2px solid transparent",
+                            transform: "translateX(16px) translateY(-4px) rotate(30deg)",
+                          }}
+                        ></div>
                       </div>
-                      <div style={{ marginLeft: 'auto' }}>
-                        <div style={{ width: '0px', borderTop: '8px solid #F4F4F4', borderRight: '8px solid transparent', transform: 'translateY(16px)' }}></div>
-                        <div style={{ backgroundColor: '#F4F4F4', flexGrow: 0, height: '12px', width: '16px', transform: 'translateY(-4px)' }}></div>
-                        <div style={{ width: 0, height: 0, borderTop: '8px solid #F4F4F4', borderLeft: '8px solid transparent', transform: 'translateY(-4px) translateX(8px)' }}></div>
+                      <div style={{ marginLeft: "auto" }}>
+                        <div
+                          style={{
+                            width: "0px",
+                            borderTop: "8px solid #F4F4F4",
+                            borderRight: "8px solid transparent",
+                            transform: "translateY(16px)",
+                          }}
+                        ></div>
+                        <div
+                          style={{
+                            backgroundColor: "#F4F4F4",
+                            flexGrow: 0,
+                            height: "12px",
+                            width: "16px",
+                            transform: "translateY(-4px)",
+                          }}
+                        ></div>
+                        <div
+                          style={{
+                            width: 0,
+                            height: 0,
+                            borderTop: "8px solid #F4F4F4",
+                            borderLeft: "8px solid transparent",
+                            transform: "translateY(-4px) translateX(8px)",
+                          }}
+                        ></div>
                       </div>
                     </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', flexGrow: 1, justifyContent: 'center', marginBottom: '24px' }}>
-                      <div style={{ backgroundColor: '#F4F4F4', borderRadius: '4px', flexGrow: 0, height: '14px', marginBottom: '6px', width: '224px' }}></div>
-                      <div style={{ backgroundColor: '#F4F4F4', borderRadius: '4px', flexGrow: 0, height: '14px', width: '144px' }}></div>
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        flexGrow: 1,
+                        justifyContent: "center",
+                        marginBottom: "24px",
+                      }}
+                    >
+                      <div
+                        style={{
+                          backgroundColor: "#F4F4F4",
+                          borderRadius: "4px",
+                          flexGrow: 0,
+                          height: "14px",
+                          marginBottom: "6px",
+                          width: "224px",
+                        }}
+                      ></div>
+                      <div
+                        style={{
+                          backgroundColor: "#F4F4F4",
+                          borderRadius: "4px",
+                          flexGrow: 0,
+                          height: "14px",
+                          width: "144px",
+                        }}
+                      ></div>
                     </div>
                   </a>
-                  <p style={{ color: '#c9c8cd', fontFamily: 'Arial,sans-serif', fontSize: '14px', lineHeight: '17px', marginBottom: 0, marginTop: '8px', overflow: 'hidden', padding: '8px 0 7px', textAlign: 'center', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    <a href="https://www.instagram.com/p/DJ9KYr3pp08/?utm_source=ig_embed&utm_campaign=loading" style={{ color: '#c9c8cd', fontFamily: 'Arial,sans-serif', fontSize: '14px', fontStyle: 'normal', fontWeight: 'normal', lineHeight: '17px', textDecoration: 'none' }} target="_blank" rel="noopener noreferrer">
+                  <p
+                    style={{
+                      color: "#c9c8cd",
+                      fontFamily: "Arial,sans-serif",
+                      fontSize: "14px",
+                      lineHeight: "17px",
+                      marginBottom: 0,
+                      marginTop: "8px",
+                      overflow: "hidden",
+                      padding: "8px 0 7px",
+                      textAlign: "center",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    <a
+                      href="https://www.instagram.com/p/DJ9KYr3pp08/?utm_source=ig_embed&utm_campaign=loading"
+                      style={{
+                        color: "#c9c8cd",
+                        fontFamily: "Arial,sans-serif",
+                        fontSize: "14px",
+                        fontStyle: "normal",
+                        fontWeight: "normal",
+                        lineHeight: "17px",
+                        textDecoration: "none",
+                      }}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
                       A post shared by ClickKGP (@click_kgp)
                     </a>
                   </p>
@@ -450,47 +647,79 @@ const HomePage = () => {
             </div>
 
             {/* Instagram Post 3 */}
-            <div className="glass-card p-4 hover-lift animate-fade-in" style={{ animationDelay: '0.4s' }}>
-              <blockquote 
-                className="instagram-media" 
-                data-instgrm-permalink="https://www.instagram.com/p/DJtvbjnT1eS/?utm_source=ig_embed&utm_campaign=loading" 
-                data-instgrm-version="14" 
-                style={{ 
-                  background: 'transparent', 
-                  border: 0, 
-                  borderRadius: '3px', 
-                  boxShadow: 'none', 
-                  margin: '1px', 
-                  maxWidth: '100%', 
-                  minWidth: '326px', 
-                  padding: 0, 
-                  width: '100%' 
+            <div className="glass-card p-4 hover-lift animate-fade-in" style={{ animationDelay: "0.4s" }}>
+              <blockquote
+                className="instagram-media"
+                data-instgrm-permalink="https://www.instagram.com/p/DJtvbjnT1eS/?utm_source=ig_embed&utm_campaign=loading"
+                data-instgrm-version="14"
+                style={{
+                  background: "transparent",
+                  border: 0,
+                  borderRadius: "3px",
+                  boxShadow: "none",
+                  margin: "1px",
+                  maxWidth: "100%",
+                  minWidth: "326px",
+                  padding: 0,
+                  width: "100%",
                 }}
               >
-                <div style={{ padding: '16px' }}>
-                  <a 
-                    href="https://www.instagram.com/p/DJtvbjnT1eS/?utm_source=ig_embed&utm_campaign=loading" 
-                    style={{ 
-                      background: '#FFFFFF', 
-                      lineHeight: 0, 
-                      padding: '0 0', 
-                      textAlign: 'center', 
-                      textDecoration: 'none', 
-                      width: '100%' 
-                    }} 
+                <div style={{ padding: "16px" }}>
+                  <a
+                    href="https://www.instagram.com/p/DJtvbjnT1eS/?utm_source=ig_embed&utm_campaign=loading"
+                    style={{
+                      background: "#FFFFFF",
+                      lineHeight: 0,
+                      padding: "0 0",
+                      textAlign: "center",
+                      textDecoration: "none",
+                      width: "100%",
+                    }}
                     target="_blank"
                     rel="noopener noreferrer"
                   >
-                    <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center' }}>
-                      <div style={{ backgroundColor: '#F4F4F4', borderRadius: '50%', flexGrow: 0, height: '40px', marginRight: '14px', width: '40px' }}></div>
-                      <div style={{ display: 'flex', flexDirection: 'column', flexGrow: 1, justifyContent: 'center' }}>
-                        <div style={{ backgroundColor: '#F4F4F4', borderRadius: '4px', flexGrow: 0, height: '14px', marginBottom: '6px', width: '100px' }}></div>
-                        <div style={{ backgroundColor: '#F4F4F4', borderRadius: '4px', flexGrow: 0, height: '14px', width: '60px' }}></div>
+                    <div style={{ display: "flex", flexDirection: "row", alignItems: "center" }}>
+                      <div
+                        style={{
+                          backgroundColor: "#F4F4F4",
+                          borderRadius: "50%",
+                          flexGrow: 0,
+                          height: "40px",
+                          marginRight: "14px",
+                          width: "40px",
+                        }}
+                      ></div>
+                      <div style={{ display: "flex", flexDirection: "column", flexGrow: 1, justifyContent: "center" }}>
+                        <div
+                          style={{
+                            backgroundColor: "#F4F4F4",
+                            borderRadius: "4px",
+                            flexGrow: 0,
+                            height: "14px",
+                            marginBottom: "6px",
+                            width: "100px",
+                          }}
+                        ></div>
+                        <div
+                          style={{
+                            backgroundColor: "#F4F4F4",
+                            borderRadius: "4px",
+                            flexGrow: 0,
+                            height: "14px",
+                            width: "60px",
+                          }}
+                        ></div>
                       </div>
                     </div>
-                    <div style={{ padding: '19% 0' }}></div>
-                    <div style={{ display: 'block', height: '50px', margin: '0 auto 12px', width: '50px' }}>
-                      <svg width="50px" height="50px" viewBox="0 0 60 60" version="1.1" xmlns="http://www.w3.org/2000/svg">
+                    <div style={{ padding: "19% 0" }}></div>
+                    <div style={{ display: "block", height: "50px", margin: "0 auto 12px", width: "50px" }}>
+                      <svg
+                        width="50px"
+                        height="50px"
+                        viewBox="0 0 60 60"
+                        version="1.1"
+                        xmlns="http://www.w3.org/2000/svg"
+                      >
                         <g stroke="none" strokeWidth="1" fill="none" fillRule="evenodd">
                           <g transform="translate(-511.000000, -20.000000)" fill="#000000">
                             <g>
@@ -500,8 +729,17 @@ const HomePage = () => {
                         </g>
                       </svg>
                     </div>
-                    <div style={{ paddingTop: '8px' }}>
-                      <div style={{ color: '#3897f0', fontFamily: 'Arial,sans-serif', fontSize: '14px', fontStyle: 'normal', fontWeight: '550', lineHeight: '18px' }}>
+                    <div style={{ paddingTop: "8px" }}>
+                      <div
+                        style={{
+                          color: "#3897f0",
+                          fontFamily: "Arial,sans-serif",
+                          fontSize: "14px",
+                          fontStyle: "normal",
+                          fontWeight: "550",
+                          lineHeight: "18px",
+                        }}
+                      >
                         View this post on Instagram
                       </div>
                     </div>
@@ -534,14 +772,15 @@ const HomePage = () => {
               Recent Movie Reviews
             </h3>
             <p className="text-gray-600 max-w-2xl mx-auto text-lg">
-              Read our members' thoughtful reviews and analyses of films, exploring cinematography, storytelling, and visual arts.
+              Read our members' thoughtful reviews and analyses of films, exploring cinematography, storytelling, and
+              visual arts.
             </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             {movieReviews.map((review, index) => (
-              <div 
-                key={review.id} 
+              <div
+                key={review.id}
                 className="glass-card p-6 hover-lift animate-fade-in"
                 style={{ animationDelay: `${index * 0.2}s` }}
               >
@@ -552,11 +791,11 @@ const HomePage = () => {
                   </div>
                   <span className="text-xs text-gray-500">{review.date}</span>
                 </div>
-                
+
                 <h4 className="text-lg font-semibold text-gray-900 mb-2 line-clamp-2">{review.title}</h4>
                 <p className="text-sm text-gray-500 mb-3">by {review.author}</p>
                 <p className="text-gray-600 mb-4 line-clamp-3">{review.excerpt}</p>
-                
+
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4 text-xs text-gray-500">
                     {review.readTime && <span>{review.readTime}</span>}
@@ -616,27 +855,27 @@ const HomePage = () => {
                   </div>
 
                   <div className="space-y-4 text-gray-600 leading-relaxed mb-8">
+                    <p>HOMETOWN HUES is back for its 2nd edition with more hues and ways to tell your stories.</p>
                     <p>
-                      HOMETOWN HUES is back for its 2nd edition with more hues and ways to tell your stories.
+                      From chai stalls to quiet rooftops, from bustling sounds of streets to your grandfather's stories
+                      tell us everything that makes your Hometown special for you through the lens, be it your camera's
+                      or phone's.
                     </p>
+                    <p>📸 Submit your photos and videos at:</p>
                     <p>
-                      From chai stalls to quiet rooftops, from bustling sounds of streets to your grandfather's stories tell us everything that makes your Hometown special for you through the lens, be it your camera's or phone's.
+                      🔗{" "}
+                      <a
+                        href="https://forms.gle/tJWG7f4fHfBPUPVt5"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-amber-600 hover:text-amber-800 font-medium underline"
+                      >
+                        https://forms.gle/tJWG7f4fHfBPUPVt5
+                      </a>
                     </p>
-                    <p>
-                      📸 Submit your photos and videos at:
-                    </p>
-                    <p>
-                      🔗 <a href="https://forms.gle/tJWG7f4fHfBPUPVt5" target="_blank" rel="noopener noreferrer" className="text-amber-600 hover:text-amber-800 font-medium underline">https://forms.gle/tJWG7f4fHfBPUPVt5</a>
-                    </p>
-                    <p>
-                      Top picks will be featured on TFPS's official Instagram handle.
-                    </p>
-                    <p>
-                      So go on capturing people as much as the place.
-                    </p>
-                    <p className="font-medium text-gray-900">
-                      All lenses are welcome.
-                    </p>
+                    <p>Top picks will be featured on TFPS's official Instagram handle.</p>
+                    <p>So go on capturing people as much as the place.</p>
+                    <p className="font-medium text-gray-900">All lenses are welcome.</p>
                   </div>
 
                   <div className="flex flex-col sm:flex-row gap-4">
@@ -730,28 +969,37 @@ const HomePage = () => {
               </p>
             </div>
 
-            <div className="animate-fade-in" style={{ animationDelay: '0.2s' }}>
+            <div className="animate-fade-in" style={{ animationDelay: "0.2s" }}>
               <h4 className="font-semibold mb-4 text-lg">Quick Links</h4>
               <ul className="space-y-3 text-gray-400">
                 <li>
-                  <a href="#about" className="hover:text-white transition-colors hover:translate-x-1 inline-block duration-300">
+                  <a
+                    href="#about"
+                    className="hover:text-white transition-colors hover:translate-x-1 inline-block duration-300"
+                  >
                     About Us
                   </a>
                 </li>
                 <li>
-                  <a href="#current-event" className="hover:text-white transition-colors hover:translate-x-1 inline-block duration-300">
+                  <a
+                    href="#current-event"
+                    className="hover:text-white transition-colors hover:translate-x-1 inline-block duration-300"
+                  >
                     Current Event
                   </a>
                 </li>
                 <li>
-                  <Link to="/login" className="hover:text-white transition-colors hover:translate-x-1 inline-block duration-300">
+                  <Link
+                    to="/login"
+                    className="hover:text-white transition-colors hover:translate-x-1 inline-block duration-300"
+                  >
                     Member Login
                   </Link>
                 </li>
               </ul>
             </div>
 
-            <div className="animate-fade-in" style={{ animationDelay: '0.4s' }}>
+            <div className="animate-fade-in" style={{ animationDelay: "0.4s" }}>
               <h4 className="font-semibold mb-4 text-lg">Connect With Us</h4>
               <div className="text-gray-400 space-y-3 mb-6">
                 <div className="flex items-center gap-2">
@@ -764,17 +1012,17 @@ const HomePage = () => {
                 </div>
               </div>
               <div className="flex space-x-4">
-                <a 
-                  href="https://www.instagram.com/tfps.iitkgp/" 
-                  target="_blank" 
+                <a
+                  href="https://www.instagram.com/tfps.iitkgp/"
+                  target="_blank"
                   rel="noopener noreferrer"
                   className="text-gray-400 hover:text-white hover:scale-110 transition-all duration-300"
                 >
                   <Instagram className="h-5 w-5" />
                 </a>
-                <a 
-                  href="https://www.youtube.com/@TFPSIITKgp" 
-                  target="_blank" 
+                <a
+                  href="https://www.youtube.com/@TFPSIITKgp"
+                  target="_blank"
                   rel="noopener noreferrer"
                   className="text-gray-400 hover:text-white hover:scale-110 transition-all duration-300"
                 >
@@ -801,16 +1049,11 @@ interface FeatureCardProps {
 }
 
 const FeatureCard = ({ icon, title, description, delay }: FeatureCardProps) => (
-  <div 
-    className="glass-card p-6 text-center hover-lift animate-fade-in group"
-    style={{ animationDelay: delay }}
-  >
+  <div className="glass-card p-6 text-center hover-lift animate-fade-in group" style={{ animationDelay: delay }}>
     <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-xl mb-4 group-hover:scale-110 transition-transform duration-300">
       {icon}
     </div>
-    <h4 className="text-xl font-semibold text-gray-900 mb-2 group-hover:text-amber-600 transition-colors">
-      {title}
-    </h4>
+    <h4 className="text-xl font-semibold text-gray-900 mb-2 group-hover:text-amber-600 transition-colors">{title}</h4>
     <p className="text-gray-600 leading-relaxed">{description}</p>
   </div>
 )
