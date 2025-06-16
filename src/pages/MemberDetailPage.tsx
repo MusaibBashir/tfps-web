@@ -19,6 +19,7 @@ interface Member {
   favorite_movie?: string
   instagram_link?: string
   letterboxd_link?: string
+  created_at: string
 }
 
 const MemberDetailPage = () => {
