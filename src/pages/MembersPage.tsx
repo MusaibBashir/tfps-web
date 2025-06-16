@@ -1,68 +1,73 @@
-import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { Search } from 'lucide-react';
-import { useSupabase } from '../contexts/SupabaseContext';
-import { User } from '../types';
+"use client"
+
+import { useState, useEffect } from "react"
+import { Link } from "react-router-dom"
+import { Search } from "lucide-react"
+import { useSupabase } from "../contexts/SupabaseContext"
+import type { User } from "../types"
 
 const MembersPage = () => {
-  const { supabase } = useSupabase();
-  const [members, setMembers] = useState<User[]>([]);
-  const [filteredMembers, setFilteredMembers] = useState<User[]>([]);
-  const [domains, setDomains] = useState<string[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedDomain, setSelectedDomain] = useState<string>('All Domains');
+  const { supabase } = useSupabase()
+  const [members, setMembers] = useState<User[]>([])
+  const [filteredMembers, setFilteredMembers] = useState<User[]>([])
+  const [domains, setDomains] = useState<string[]>([])
+  const [loading, setLoading] = useState(true)
+  const [searchQuery, setSearchQuery] = useState("")
+  const [selectedDomain, setSelectedDomain] = useState<string>("All Domains")
 
   useEffect(() => {
     const fetchMembers = async () => {
       try {
-        const { data, error } = await supabase
-          .from('users')
-          .select('*')
-          .order('name');
-          
+        const { data, error } = await supabase.from("users").select("*").order("name")
+
         if (error) {
-          throw error;
+          throw error
         }
-        
+
         if (data) {
-          setMembers(data);
-          setFilteredMembers(data);
-          
-          // Extract unique domains
-          const uniqueDomains = Array.from(new Set(data.map(user => user.domain)));
-          setDomains(uniqueDomains);
+          setMembers(data)
+          setFilteredMembers(data)
+
+          const uniqueDomains = Array.from(new Set(data.map((user) => user.domain)))
+          setDomains(uniqueDomains)
         }
       } catch (error) {
-        console.error('Error fetching members:', error);
+        console.error("Error fetching members:", error)
       } finally {
-        setLoading(false);
+        setLoading(false)
       }
-    };
+    }
 
-    fetchMembers();
-  }, [supabase]);
+    fetchMembers()
+  }, [supabase])
 
   useEffect(() => {
     // Filter members based on search query and selected domain
-    let filtered = members;
-    
+    let filtered = members
+
     if (searchQuery) {
-      filtered = filtered.filter(member => 
-        member.name.toLowerCase().includes(searchQuery.toLowerCase())
-      );
+      filtered = filtered.filter((member) => member.name.toLowerCase().includes(searchQuery.toLowerCase()))
     }
-    
-    if (selectedDomain !== 'All Domains') {
-      filtered = filtered.filter(member => member.domain === selectedDomain);
+
+    if (selectedDomain !== "All Domains") {
+      filtered = filtered.filter((member) => member.domain === selectedDomain)
     }
-    
-    setFilteredMembers(filtered);
-  }, [searchQuery, selectedDomain, members]);
+
+    setFilteredMembers(filtered)
+  }, [searchQuery, selectedDomain, members])
 
   const getInitial = (name: string) => {
-    return name.charAt(0).toUpperCase();
-  };
+    return name.charAt(0).toUpperCase()
+  }
+
+  const getYearSuffix = (year: number) => {
+    if (year === 1) return "1st"
+    if (year === 2) return "2nd"
+    if (year === 3) return "3rd"
+    if (year === 4) return "4th"
+    if (year === 5) return "5th"
+    return `${year}th`
+  }
 
   return (
     <div className="container mx-auto">
@@ -85,14 +90,12 @@ const MembersPage = () => {
           />
         </div>
         <div className="w-full md:w-64">
-          <select 
-            className="select"
-            value={selectedDomain}
-            onChange={(e) => setSelectedDomain(e.target.value)}
-          >
+          <select className="select" value={selectedDomain} onChange={(e) => setSelectedDomain(e.target.value)}>
             <option>All Domains</option>
-            {domains.map(domain => (
-              <option key={domain} value={domain}>{domain}</option>
+            {domains.map((domain) => (
+              <option key={domain} value={domain}>
+                {domain}
+              </option>
             ))}
           </select>
         </div>
@@ -105,15 +108,9 @@ const MembersPage = () => {
       ) : filteredMembers.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-6">
           {filteredMembers.map((member) => (
-            <Link 
-              key={member.id} 
-              to={`/members/${member.id}`}
-              className="card group animate-fade-in"
-            >
+            <Link key={member.id} to={`/members/${member.id}`} className="card group animate-fade-in">
               <div className="p-4 bg-primary-50 flex justify-center">
-                <div className="avatar h-20 w-20 text-xl">
-                  {getInitial(member.name)}
-                </div>
+                <div className="avatar h-20 w-20 text-xl">{getInitial(member.name)}</div>
               </div>
               <div className="p-4">
                 <div className="flex flex-col items-start">
@@ -127,9 +124,7 @@ const MembersPage = () => {
                     </span>
                   )}
                 </div>
-                <div className="mt-3 text-sm text-gray-500">
-                  {member.year}rd Year
-                </div>
+                <div className="mt-3 text-sm text-gray-500">{getYearSuffix(member.year)} Year</div>
               </div>
             </Link>
           ))}
@@ -146,7 +141,7 @@ const MembersPage = () => {
         </div>
       )}
     </div>
-  );
-};
+  )
+}
 
-export default MembersPage;
+export default MembersPage
