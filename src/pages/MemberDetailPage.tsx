@@ -1,233 +1,278 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Link } from "react-router-dom"
-import { Search, Users } from "lucide-react"
+import { useParams, Link } from "react-router-dom"
 import { useSupabase } from "../contexts/SupabaseContext"
-import type { User } from "../types"
+import { Camera, Mail, User, MapPin, Film, Instagram, ExternalLink, GraduationCap, Users } from "lucide-react"
+import type { Equipment } from "../types"
 
-const MembersPage = () => {
+interface Member {
+  id: string
+  name: string
+  username: string
+  email: string
+  hostel: string
+  year: number
+  domain: string
+  branch?: string
+  batch?: string
+  favorite_movie?: string
+  instagram_link?: string
+  letterboxd_link?: string
+}
+
+const MemberDetailPage = () => {
+  const { id } = useParams<{ id: string }>()
   const { supabase } = useSupabase()
-  const [members, setMembers] = useState<User[]>([])
-  const [filteredMembers, setFilteredMembers] = useState<User[]>([])
-  const [domains, setDomains] = useState<string[]>([])
-  const [batches, setBatches] = useState<string[]>([])
+  const [member, setMember] = useState<Member | null>(null)
+  const [memberEquipment, setMemberEquipment] = useState<Equipment[]>([])
   const [loading, setLoading] = useState(true)
-  const [searchQuery, setSearchQuery] = useState("")
-  const [selectedDomain, setSelectedDomain] = useState<string>("all")
-  const [selectedHall, setSelectedHall] = useState<string>("all")
-  const [selectedBatch, setSelectedBatch] = useState<string>("all")
-  const [selectedYear, setSelectedYear] = useState<string>("all")
-
-  const halls = [
-    "LBS",
-    "RK",
-    "RP",
-    "Azad",
-    "Patel",
-    "Nehru",
-    "MMM",
-    "VS",
-    "MS",
-    "LLR",
-    "SNVH",
-    "MT",
-    "SNIG",
-  ]
-
-  const years = [1, 2, 3, 4, 5]
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    const fetchMembers = async () => {
+    const fetchMember = async () => {
       try {
-        const { data, error } = await supabase.from("users").select("*").order("name")
+        const { data, error } = await supabase.from("users").select("*").eq("id", id).single()
 
-        if (error) {
-          throw error
-        }
+        if (error) throw error
+        setMember(data)
 
-        if (data) {
-          setMembers(data)
-          setFilteredMembers(data)
+        // Fetch member's equipment
+        const { data: equipmentData, error: equipmentError } = await supabase
+          .from("equipment")
+          .select("*")
+          .eq("owner_id", id)
+          .eq("ownership_type", "student")
+          .order("name")
 
-          // Extract unique domains and batches
-          const uniqueDomains = Array.from(new Set(data.map((user) => user.domain).filter(Boolean)))
-          const uniqueBatches = Array.from(new Set(data.map((user) => user.batch).filter(Boolean)))
-          setDomains(uniqueDomains)
-          setBatches(uniqueBatches)
-        }
-      } catch (error) {
-        console.error("Error fetching members:", error)
+        if (equipmentError) throw equipmentError
+        setMemberEquipment(equipmentData || [])
+      } catch (err) {
+        console.error("Error fetching member:", err)
+        setError("Failed to load member details.")
       } finally {
         setLoading(false)
       }
     }
 
-    fetchMembers()
-  }, [supabase])
-
-  useEffect(() => {
-    // Filters
-    let filtered = members
-
-    if (searchQuery) {
-      filtered = filtered.filter((member) => member.name.toLowerCase().includes(searchQuery.toLowerCase()))
+    if (id) {
+      fetchMember()
     }
+  }, [id, supabase])
 
-    if (selectedDomain !== "all") {
-      filtered = filtered.filter((member) => member.domain === selectedDomain)
-    }
-
-    if (selectedHall !== "all") {
-      filtered = filtered.filter((member) => member.hostel === selectedHall)
-    }
-
-    if (selectedBatch !== "all") {
-      filtered = filtered.filter((member) => member.batch === selectedBatch)
-    }
-
-    if (selectedYear !== "all") {
-      filtered = filtered.filter((member) => member.year === Number.parseInt(selectedYear))
-    }
-
-    setFilteredMembers(filtered)
-  }, [searchQuery, selectedDomain, selectedHall, selectedBatch, selectedYear, members])
-
-  const getInitial = (name: string) => {
-    return name.charAt(0).toUpperCase()
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-500"></div>
+      </div>
+    )
   }
 
-  const getYearSuffix = (year: number) => {
-    if (year === 1) return "1st"
-    if (year === 2) return "2nd"
-    if (year === 3) return "3rd"
-    if (year === 4) return "4th"
-    if (year === 5) return "5th"
-    return `${year}th`
+  if (error || !member) {
+    return (
+      <div className="text-center py-12">
+        <h2 className="text-2xl font-bold text-gray-900 mb-2">Error</h2>
+        <p className="text-gray-600">{error || "Member not found."}</p>
+        <Link to="/members" className="mt-4 inline-block text-primary-600 hover:underline">
+          Back to Members
+        </Link>
+      </div>
+    )
   }
 
   return (
-    <div className="container mx-auto">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">Members Directory</h1>
-        <p className="text-gray-600 mt-2">Browse through all club members and their specializations</p>
+    <div className="container mx-auto max-w-4xl">
+      <div className="mb-6">
+        <Link to="/members" className="text-primary-600 hover:underline flex items-center">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            className="h-4 w-4 mr-1"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+          Back to Members
+        </Link>
       </div>
 
-      <div className="mb-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
-        <div className="lg:col-span-2 relative">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <Search className="h-5 w-5 text-gray-400" />
+      <div className="bg-white rounded-lg shadow-md overflow-hidden">
+        <div className="p-6">
+          <div className="flex flex-col md:flex-row md:items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">{member.name}</h1>
+              <p className="text-gray-600 mt-1">@{member.username}</p>
+            </div>
+            <div className="mt-4 md:mt-0">
+              <span
+                className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-primary-100 text-primary-800`}
+              >
+                {member.domain}
+              </span>
+            </div>
           </div>
-          <input
-            type="text"
-            className="input pl-10"
-            placeholder="Search members..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div>
 
-        <div>
-          <select className="select" value={selectedDomain} onChange={(e) => setSelectedDomain(e.target.value)}>
-            <option value="all">All Domains</option>
-            {domains.map((domain) => (
-              <option key={domain} value={domain}>
-                {domain}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <select className="select" value={selectedHall} onChange={(e) => setSelectedHall(e.target.value)}>
-            <option value="all">All Halls</option>
-            {halls.map((hall) => (
-              <option key={hall} value={hall}>
-                {hall}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <select className="select" value={selectedBatch} onChange={(e) => setSelectedBatch(e.target.value)}>
-            <option value="all">All Batches</option>
-            {batches.map((batch) => (
-              <option key={batch} value={batch}>
-                {batch}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <select className="select" value={selectedYear} onChange={(e) => setSelectedYear(e.target.value)}>
-            <option value="all">All Years</option>
-            {years.map((year) => (
-              <option key={year} value={year.toString()}>
-                {getYearSuffix(year)} Year
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      {loading ? (
-        <div className="flex justify-center items-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-600"></div>
-        </div>
-      ) : filteredMembers.length > 0 ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {filteredMembers.map((member) => (
-            <Link
-              key={member.id}
-              to={`/members/${member.id}`}
-              className="card group animate-fade-in hover:shadow-lg transition-shadow"
-            >
-              <div className="p-4 bg-primary-50 flex justify-center">
-                <div className="avatar h-20 w-20 text-xl">{getInitial(member.name)}</div>
-              </div>
-              <div className="p-4">
-                <div className="flex flex-col items-start">
-                  <h3 className="text-lg font-semibold text-gray-900 group-hover:text-primary-600 transition-colors">
-                    {member.name}
-                  </h3>
-                  <p className="text-sm text-gray-600">{member.domain}</p>
-                  {member.is_admin && (
-                    <span className="mt-1 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary-100 text-primary-800">
-                      Admin
-                    </span>
-                  )}
-                </div>
-                <div className="mt-3 space-y-1">
-                  <div className="text-sm text-gray-500">
-                    <span className="font-medium">{member.hostel}</span> • {getYearSuffix(member.year)} Year
+          <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900 mb-4">Member Information</h2>
+              <div className="space-y-3">
+                <div className="flex items-center">
+                  <User className="h-5 w-5 text-gray-400 mr-3" />
+                  <div>
+                    <p className="text-sm font-medium text-gray-500">Name</p>
+                    <p className="text-gray-900">{member.name}</p>
                   </div>
-                  {member.batch && (
-                    <div className="flex items-center space-x-1">
-                      <Users className="h-3 w-3 text-gray-400" />
-                      <span className="text-xs text-gray-500">{member.batch}</span>
-                    </div>
-                  )}
-                  {member.branch && <div className="text-xs text-gray-500">{member.branch}</div>}
                 </div>
+                <div className="flex items-center">
+                  <Mail className="h-5 w-5 text-gray-400 mr-3" />
+                  <div>
+                    <p className="text-sm font-medium text-gray-500">Email</p>
+                    <p className="text-gray-900">{member.email}</p>
+                  </div>
+                </div>
+                <div className="flex items-center">
+                  <MapPin className="h-5 w-5 text-gray-400 mr-3" />
+                  <div>
+                    <p className="text-sm font-medium text-gray-500">Hostel</p>
+                    <p className="text-gray-900">{member.hostel}</p>
+                  </div>
+                </div>
+                <div className="flex items-center">
+                  <GraduationCap className="h-5 w-5 text-gray-400 mr-3" />
+                  <div>
+                    <p className="text-sm font-medium text-gray-500">Year</p>
+                    <p className="text-gray-900">
+                      {member.year}
+                      {getOrdinalSuffix(member.year)} Year
+                    </p>
+                  </div>
+                </div>
+                {member.branch && (
+                  <div className="flex items-center">
+                    <GraduationCap className="h-5 w-5 text-gray-400 mr-3" />
+                    <div>
+                      <p className="text-sm font-medium text-gray-500">Branch</p>
+                      <p className="text-gray-900">{member.branch}</p>
+                    </div>
+                  </div>
+                )}
+                {member.batch && (
+                  <div className="flex items-center">
+                    <Users className="h-5 w-5 text-gray-400 mr-3" />
+                    <div>
+                      <p className="text-sm font-medium text-gray-500">Batch</p>
+                      <p className="text-gray-900">{member.batch}</p>
+                    </div>
+                  </div>
+                )}
+
+                {member.favorite_movie && (
+                  <div className="flex items-center">
+                    <Film className="h-5 w-5 text-gray-400 mr-3" />
+                    <div>
+                      <p className="text-sm font-medium text-gray-500">Favorite Movie</p>
+                      <p className="text-gray-900">{member.favorite_movie}</p>
+                    </div>
+                  </div>
+                )}
               </div>
-            </Link>
-          ))}
-        </div>
-      ) : (
-        <div className="text-center py-12 bg-white rounded-lg shadow">
-          <div className="mx-auto h-12 w-12 text-gray-400">
-            <Search className="h-12 w-12" />
+
+              {/* Social Media Links */}
+              {(member.instagram_link || member.letterboxd_link) && (
+                <div className="mt-6">
+                  <h3 className="text-md font-medium text-gray-900 mb-3">Social Media</h3>
+                  <div className="flex flex-wrap gap-3">
+                    {member.instagram_link && (
+                      <a
+                        href={member.instagram_link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center px-3 py-1.5 bg-pink-50 text-pink-700 rounded-md hover:bg-pink-100 transition-colors"
+                      >
+                        <Instagram className="h-4 w-4 mr-2" />
+                        Instagram
+                      </a>
+                    )}
+                    {member.letterboxd_link && (
+                      <a
+                        href={member.letterboxd_link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center px-3 py-1.5 bg-green-50 text-green-700 rounded-md hover:bg-green-100 transition-colors"
+                      >
+                        <ExternalLink className="h-4 w-4 mr-2" />
+                        Letterboxd
+                      </a>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900 mb-4">Equipment</h2>
+              {memberEquipment.length > 0 ? (
+                <div className="space-y-3">
+                  {memberEquipment.map((item) => (
+                    <div key={item.id} className="flex items-start p-3 border border-gray-200 rounded-lg">
+                      <div className="flex-shrink-0 bg-gray-100 p-2 rounded-md">
+                        <Camera className="h-6 w-6 text-gray-500" />
+                      </div>
+                      <div className="ml-3">
+                        <h4 className="text-sm font-medium text-gray-900">{item.name}</h4>
+                        <div className="flex items-center mt-1">
+                          <span className="text-xs text-gray-500">
+                            {item.type}
+                            {item.subtype && ` • ${item.subtype}`}
+                          </span>
+                          <span
+                            className={`ml-2 inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium ${
+                              item.status === "available"
+                                ? "bg-green-100 text-green-800"
+                                : item.status === "in_use"
+                                  ? "bg-yellow-100 text-yellow-800"
+                                  : "bg-red-100 text-red-800"
+                            }`}
+                          >
+                            {item.status === "available"
+                              ? "Available"
+                              : item.status === "in_use"
+                                ? "In Use"
+                                : "Maintenance"}
+                          </span>
+                        </div>
+                        {item.details && <p className="mt-1 text-xs text-gray-600">{item.details}</p>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 bg-gray-50 rounded-lg">
+                  <Camera className="mx-auto h-8 w-8 text-gray-400" />
+                  <p className="mt-2 text-sm text-gray-500">No equipment added by this member.</p>
+                </div>
+              )}
+            </div>
           </div>
-          <h3 className="mt-2 text-lg font-medium text-gray-900">No members found</h3>
-          <p className="mt-1 text-sm text-gray-500">
-            Try adjusting your search or filters to find what you're looking for.
-          </p>
         </div>
-      )}
+      </div>
     </div>
   )
 }
 
-export default MembersPage
+function getOrdinalSuffix(num: number): string {
+  const j = num % 10
+  if (j === 1) {
+    return "st"
+  }
+  if (j === 2) {
+    return "nd"
+  }
+  if (j === 3) {
+    return "rd"
+  }
+  return "th"
+}
+
+export default MemberDetailPage
