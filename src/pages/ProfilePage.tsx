@@ -16,7 +16,6 @@ const ProfilePage = () => {
   const [userEquipment, setUserEquipment] = useState<Equipment[]>([])
   const [cameras, setCameras] = useState<{ id: string; name: string }[]>([])
 
-  // Profile form state
   const [profileForm, setProfileForm] = useState({
     username: user?.username || "",
     email: user?.email || "",
@@ -28,14 +27,12 @@ const ProfilePage = () => {
     letterboxd_link: user?.letterboxd_link || "",
   })
 
-  // Password form state
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: "",
     newPassword: "",
     confirmPassword: "",
   })
 
-  // Equipment form state
   const [equipmentForm, setEquipmentForm] = useState({
     name: "",
     type: "camera",
@@ -83,7 +80,6 @@ const ProfilePage = () => {
 
   const fetchCameras = async () => {
     try {
-      // Fetch all cameras (both hall-owned and student-owned) for lens association
       const { data, error } = await supabase
         .from("equipment")
         .select("id, name")
@@ -104,7 +100,6 @@ const ProfilePage = () => {
     setSuccess(null)
 
     try {
-      // Check if username is already taken by another user
       if (profileForm.username !== user?.username) {
         const { data: existingUser } = await supabase
           .from("users")
@@ -119,14 +114,12 @@ const ProfilePage = () => {
         }
       }
 
-      // Validate Instagram link format if provided
+      // Link Validation
       if (profileForm.instagram_link && !profileForm.instagram_link.includes("instagram.com")) {
         if (!profileForm.instagram_link.startsWith("http")) {
           profileForm.instagram_link = `https://instagram.com/${profileForm.instagram_link.replace("@", "")}`
         }
       }
-
-      // Validate Letterboxd link format if provided
       if (profileForm.letterboxd_link && !profileForm.letterboxd_link.includes("letterboxd.com")) {
         if (!profileForm.letterboxd_link.startsWith("http")) {
           profileForm.letterboxd_link = `https://letterboxd.com/${profileForm.letterboxd_link}`
@@ -153,7 +146,6 @@ const ProfilePage = () => {
 
       // Update local storage if username changed
       if (profileForm.username !== user?.username) {
-        // Force a page reload to update the auth context
         window.location.reload()
       }
     } catch (error) {
@@ -182,8 +174,8 @@ const ProfilePage = () => {
       return
     }
 
+    //password updation
     try {
-      // Verify current password
       const { data: userData } = await supabase.from("users").select("password").eq("id", user?.id).single()
 
       if (userData?.password !== passwordForm.currentPassword) {
@@ -191,7 +183,6 @@ const ProfilePage = () => {
         return
       }
 
-      // Update password
       const { error } = await supabase.from("users").update({ password: passwordForm.newPassword }).eq("id", user?.id)
 
       if (error) throw error
@@ -242,7 +233,6 @@ const ProfilePage = () => {
         details: "",
       })
 
-      // Refresh equipment list
       await fetchUserEquipment()
     } catch (error) {
       console.error("Error adding equipment:", error)
@@ -426,9 +416,9 @@ const ProfilePage = () => {
                   >
                     <option value="Photography">Photography</option>
                     <option value="Cinematography">Cinematography</option>
+                    <option value="Scripwriting">Scripwriting</option>
                     <option value="Editing">Editing</option>
                     <option value="Sound">Sound</option>
-                    <option value="Direction">Direction</option>
                     <option value="Other">Other</option>
                   </select>
                 </div>
