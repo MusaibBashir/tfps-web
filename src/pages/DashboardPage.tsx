@@ -26,6 +26,7 @@ const DashboardPage = () => {
   const [recentActivity, setRecentActivity] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [joiningEvents, setJoiningEvents] = useState<Set<string>>(new Set())
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     fetchDashboardData()
@@ -95,6 +96,7 @@ const DashboardPage = () => {
       setRecentActivity(activityResult.data || [])
     } catch (error) {
       console.error("Error fetching dashboard data:", error)
+      setError("Failed to load dashboard data")
     } finally {
       setLoading(false)
     }
@@ -109,25 +111,51 @@ const DashboardPage = () => {
     if (!user?.id || joiningEvents.has(eventId)) return
 
     setJoiningEvents(prev => new Set(prev).add(eventId))
+    setError(null)
 
     try {
-      const { error } = await supabase.from("event_participants").insert({
-        event_id: eventId,
-        user_id: user.id,
-        role: "participant",
-      })
+      console.log('Attempting to join event:', eventId, 'for user:', user.id)
+      
+      // First check if user is already joined
+      const { data: existingParticipant, error: checkError } = await supabase
+        .from("event_participants")
+        .select("id")
+        .eq("event_id", eventId)
+        .eq("user_id", user.id)
+        .single()
 
-      if (error && error.code !== "23505") {
-        // 23505 is unique constraint violation (already joined)
-        console.error("Error joining event:", error)
-        throw error
+      if (checkError && checkError.code !== 'PGRST116') { // PGRST116 is "not found" error
+        console.error("Error checking existing participation:", checkError)
+        throw checkError
       }
+
+      if (existingParticipant) {
+        console.log('User already joined this event')
+        return
+      }
+
+      // Insert new participant
+      const { data: insertData, error: insertError } = await supabase
+        .from("event_participants")
+        .insert({
+          event_id: eventId,
+          user_id: user.id,
+          role: "participant",
+        })
+        .select()
+
+      if (insertError) {
+        console.error("Error inserting participant:", insertError)
+        throw insertError
+      }
+
+      console.log('Successfully joined event:', insertData)
 
       // Refresh events to show updated participant count
       await fetchDashboardData()
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error joining event:", error)
-      // You could add toast notification here for better UX
+      setError(`Failed to join event: ${error.message || 'Unknown error'}`)
     } finally {
       setJoiningEvents(prev => {
         const newSet = new Set(prev)
@@ -146,21 +174,29 @@ const DashboardPage = () => {
     if (!user?.id || joiningEvents.has(eventId)) return
 
     setJoiningEvents(prev => new Set(prev).add(eventId))
+    setError(null)
 
     try {
+      console.log('Attempting to leave event:', eventId, 'for user:', user.id)
+      
       const { error } = await supabase
         .from("event_participants")
         .delete()
         .eq("event_id", eventId)
         .eq("user_id", user.id)
 
-      if (error) throw error
+      if (error) {
+        console.error("Error leaving event:", error)
+        throw error
+      }
+
+      console.log('Successfully left event')
 
       // Refresh events to show updated participant count
       await fetchDashboardData()
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error leaving event:", error)
-      // You could add toast notification here for better UX
+      setError(`Failed to leave event: ${error.message || 'Unknown error'}`)
     } finally {
       setJoiningEvents(prev => {
         const newSet = new Set(prev)
@@ -230,6 +266,18 @@ const DashboardPage = () => {
           )}
         </div>
       </div>
+
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md">
+          {error}
+          <button 
+            onClick={() => setError(null)} 
+            className="ml-2 text-red-500 hover:text-red-700"
+          >
+            ×
+          </button>
+        </div>
+      )}
 
       {/* Stats Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
