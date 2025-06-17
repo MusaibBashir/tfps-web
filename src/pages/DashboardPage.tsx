@@ -114,8 +114,6 @@ const DashboardPage = () => {
     setError(null)
 
     try {
-      console.log('Attempting to join event:', eventId, 'for user:', user.id)
-      
       // First check if user is already joined
       const { data: existingParticipant, error: checkError } = await supabase
         .from("event_participants")
@@ -125,12 +123,10 @@ const DashboardPage = () => {
         .single()
 
       if (checkError && checkError.code !== 'PGRST116') { // PGRST116 is "not found" error
-        console.error("Error checking existing participation:", checkError)
         throw checkError
       }
 
       if (existingParticipant) {
-        console.log('User already joined this event')
         return
       }
 
@@ -145,11 +141,8 @@ const DashboardPage = () => {
         .select()
 
       if (insertError) {
-        console.error("Error inserting participant:", insertError)
         throw insertError
       }
-
-      console.log('Successfully joined event:', insertData)
 
       // Refresh events to show updated participant count
       await fetchDashboardData()
@@ -177,8 +170,6 @@ const DashboardPage = () => {
     setError(null)
 
     try {
-      console.log('Attempting to leave event:', eventId, 'for user:', user.id)
-      
       const { error } = await supabase
         .from("event_participants")
         .delete()
@@ -186,11 +177,8 @@ const DashboardPage = () => {
         .eq("user_id", user.id)
 
       if (error) {
-        console.error("Error leaving event:", error)
         throw error
       }
-
-      console.log('Successfully left event')
 
       // Refresh events to show updated participant count
       await fetchDashboardData()
