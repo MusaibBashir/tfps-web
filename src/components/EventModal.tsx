@@ -187,7 +187,7 @@ const EventModal: React.FC<EventModalProps> = ({
         start_time: startTime,
         end_time: endTime,
         created_by: currentUserId,
-        is_approved: isAdmin, // Auto-approve if admin
+        is_approved: isAdmin,
         approved_by: isAdmin ? currentUserId : null,
         is_open: formData.is_open,
         max_participants: formData.max_participants ? Number.parseInt(formData.max_participants) : null,
@@ -230,15 +230,11 @@ const EventModal: React.FC<EventModalProps> = ({
     setError(null)
 
     try {
-      console.log(`Attempting to ${action} event:`, event.id)
-      
       if (action === 'join') {
         await onJoinEvent(event.id)
       } else {
         await onLeaveEvent(event.id)
       }
-      
-      console.log(`Successfully ${action}ed event`)
       
       // Close modal after successful join/leave
       onClose()
