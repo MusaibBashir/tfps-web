@@ -25,6 +25,7 @@ const DashboardPage = () => {
   const [upcomingEvents, setUpcomingEvents] = useState<Event[]>([])
   const [recentActivity, setRecentActivity] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [joiningEvents, setJoiningEvents] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     fetchDashboardData()
@@ -99,11 +100,20 @@ const DashboardPage = () => {
     }
   }
 
-  const handleJoinEvent = async (eventId: string) => {
+  const handleJoinEvent = async (eventId: string, e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault()
+      e.stopPropagation()
+    }
+    
+    if (!user?.id || joiningEvents.has(eventId)) return
+
+    setJoiningEvents(prev => new Set(prev).add(eventId))
+
     try {
       const { error } = await supabase.from("event_participants").insert({
         event_id: eventId,
-        user_id: user?.id,
+        user_id: user.id,
         role: "participant",
       })
 
@@ -117,16 +127,32 @@ const DashboardPage = () => {
       await fetchDashboardData()
     } catch (error) {
       console.error("Error joining event:", error)
+      // You could add toast notification here for better UX
+    } finally {
+      setJoiningEvents(prev => {
+        const newSet = new Set(prev)
+        newSet.delete(eventId)
+        return newSet
+      })
     }
   }
 
-  const handleLeaveEvent = async (eventId: string) => {
+  const handleLeaveEvent = async (eventId: string, e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault()
+      e.stopPropagation()
+    }
+    
+    if (!user?.id || joiningEvents.has(eventId)) return
+
+    setJoiningEvents(prev => new Set(prev).add(eventId))
+
     try {
       const { error } = await supabase
         .from("event_participants")
         .delete()
         .eq("event_id", eventId)
-        .eq("user_id", user?.id)
+        .eq("user_id", user.id)
 
       if (error) throw error
 
@@ -134,6 +160,13 @@ const DashboardPage = () => {
       await fetchDashboardData()
     } catch (error) {
       console.error("Error leaving event:", error)
+      // You could add toast notification here for better UX
+    } finally {
+      setJoiningEvents(prev => {
+        const newSet = new Set(prev)
+        newSet.delete(eventId)
+        return newSet
+      })
     }
   }
 
@@ -312,18 +345,20 @@ const DashboardPage = () => {
                         ) : event.is_open ? (
                           isUserJoined(event) ? (
                             <button
-                              onClick={() => handleLeaveEvent(event.id)}
-                              className="btn btn-secondary text-xs px-3 py-1"
+                              onClick={(e) => handleLeaveEvent(event.id, e)}
+                              disabled={joiningEvents.has(event.id)}
+                              className="btn btn-secondary text-xs px-3 py-1 disabled:opacity-50"
                             >
-                              Leave
+                              {joiningEvents.has(event.id) ? "Leaving..." : "Leave"}
                             </button>
                           ) : (
                             <button
-                              onClick={() => handleJoinEvent(event.id)}
-                              className="btn btn-primary text-xs px-3 py-1 flex items-center gap-1"
+                              onClick={(e) => handleJoinEvent(event.id, e)}
+                              disabled={joiningEvents.has(event.id)}
+                              className="btn btn-primary text-xs px-3 py-1 flex items-center gap-1 disabled:opacity-50"
                             >
                               <UserPlus size={12} />
-                              Join
+                              {joiningEvents.has(event.id) ? "Joining..." : "Join"}
                             </button>
                           )
                         ) : (
