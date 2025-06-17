@@ -110,7 +110,7 @@ const MembersPage = () => {
     <div className="container mx-auto">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900">Members Directory</h1>
-        <p className="text-gray-600 mt-2">Browse through all club members and their specializations</p>
+        <p className="text-gray-600 mt-2">Browse through all society members and their domains</p>
       </div>
 
       <div className="mb-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
