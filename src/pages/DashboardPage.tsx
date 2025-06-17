@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { User } from "lucide-react" 
+import { User } from "lucide-react" // Import User component
 
 import { useState, useEffect } from "react"
 import { Link } from "react-router-dom"
@@ -54,7 +54,7 @@ const DashboardPage = () => {
           .eq("status", "pending"),
       ])
 
-      // Fetch upcoming events with creator info
+      // Fetch upcoming events with creator info and participants
       const upcomingEventsResult = await supabase
         .from("events")
         .select(
@@ -68,6 +68,7 @@ const DashboardPage = () => {
         .order("start_time", { ascending: true })
         .limit(6)
 
+      // Fetch recent activity
       const activityResult = await supabase
         .from("equipment_requests")
         .select(
@@ -107,11 +108,13 @@ const DashboardPage = () => {
       })
 
       if (error && error.code !== "23505") {
-        // already joined
+        // 23505 is unique constraint violation (already joined)
         console.error("Error joining event:", error)
         throw error
       }
-      fetchDashboardData()
+
+      // Refresh events to show updated participant count
+      await fetchDashboardData()
     } catch (error) {
       console.error("Error joining event:", error)
     }
@@ -127,7 +130,8 @@ const DashboardPage = () => {
 
       if (error) throw error
 
-      fetchDashboardData()
+      // Refresh events to show updated participant count
+      await fetchDashboardData()
     } catch (error) {
       console.error("Error leaving event:", error)
     }
@@ -228,7 +232,7 @@ const DashboardPage = () => {
 
       {/* Main Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8">
-        {/* Upcoming Events */}
+        {/* Upcoming Events - Takes 2 columns */}
         <div className="lg:col-span-2">
           <div className="dashboard-card p-4 sm:p-6">
             <div className="flex items-center justify-between mb-4 sm:mb-6">
@@ -343,6 +347,7 @@ const DashboardPage = () => {
           </div>
         </div>
 
+        {/* My Status - Takes 1 column */}
         <div className="space-y-6">
           {/* Personal Stats */}
           <div className="dashboard-card p-4 sm:p-6">
