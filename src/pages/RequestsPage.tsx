@@ -1,12 +1,23 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { Link } from "react-router-dom"
+import {
+  ClipboardList,
+  Search,
+  CheckCircle,
+  XCircle,
+  Package,
+  UserPlus,
+  Send,
+  ArrowRightLeft,
+  Clock,
+  User,
+} from "lucide-react"
 import { useSupabase } from "../contexts/SupabaseContext"
 import { useAuth } from "../contexts/AuthContext"
 import type { EquipmentRequest } from "../types"
 import { formatToIST } from "../utils/timezone"
-import { Link } from "react-router-dom"
-import { Clock, XCircle } from 'lucide-react'
 
 const RequestsPage = () => {
   const { supabase } = useSupabase()
@@ -881,10 +892,7 @@ const RequestsPage = () => {
 
     setProcessingId(requestId)
     try {
-      const { error } = await supabase
-        .from("equipment_requests")
-        .delete()
-        .eq("id", requestId)
+      const { error } = await supabase.from("equipment_requests").delete().eq("id", requestId)
 
       if (error) throw error
       await refreshRequests()
@@ -956,20 +964,69 @@ const RequestsPage = () => {
                             >
                               <option value="">Choose action...</option>
                               <option value={log.equipment?.owner_id || "admin"}>
-                                Return to{" "}
-                                {log.equipment?.owner_id
-                                  ? allUsers.find((u) => u.id === log.equipment.owner_id)?.name
-                                  : "Admin"}
+                                Return to {log.equipment?.owner_id ? "Owner" : "Admin"}
                               </option>
+                              {handoverRequests.map((req) => (
+                                <option key={req.id} value={req.requester_id}>
+                                  Handover to {req.requester?.name}
+                                </option>
+                              ))}
                             </select>
+
+                            <select
+                              className="text-xs border border-gray-300 rounded px-2 py-1"
+                              value={returnCondition}
+                              onChange={(e) => setReturnCondition(e.target.value as "perfect" | "damaged")}
+                            >
+                              <option value="perfect">Perfect Condition</option>
+                              <option value="damaged">Damaged</option>
+                            </select>
+                          </div>
+
+                          {returnCondition === "damaged" && (
+                            <textarea
+                              className="text-xs border border-gray-300 rounded px-2 py-1 w-full"
+                              placeholder="Describe the damage..."
+                              value={damageNotes}
+                              onChange={(e) => setDamageNotes(e.target.value)}
+                              rows={2}
+                            />
+                          )}
+
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => handleReturnFromPossession(log)}
+                              disabled={
+                                !!processingId || !returnToUser || (returnCondition === "damaged" && !damageNotes)
+                              }
+                              className="inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50"
+                            >
+                              <ArrowRightLeft className="mr-1 h-3 w-3" />
+                              {returnToUser === log.equipment?.owner_id || returnToUser === "admin"
+                                ? "Return"
+                                : "Handover"}
+                            </button>
+                            <button
+                              onClick={() => {
+                                setReturningId(null)
+                                setReturnToUser("")
+                                setReturnCondition("perfect")
+                                setDamageNotes("")
+                              }}
+                              className="inline-flex items-center px-2.5 py-1.5 border border-gray-300 text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+                            >
+                              Cancel
+                            </button>
                           </div>
                         </div>
                       ) : (
                         <button
-                          className="text-xs bg-blue-500 text-white px-2 py-1 rounded"
                           onClick={() => setReturningId(`possession-${log.id}`)}
+                          disabled={!!processingId}
+                          className="inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50"
                         >
-                          Return
+                          <ArrowRightLeft className="mr-1 h-4 w-4" />
+                          {handoverRequests.length > 0 ? "Return/Handover" : "Return Equipment"}
                         </button>
                       )}
                     </div>
@@ -981,100 +1038,357 @@ const RequestsPage = () => {
         </div>
       )}
 
-      {/* Requests Section */}
-      <div>
-        <h2 className="text-xl font-semibold text-gray-900 mb-4">Requests</h2>
-        <div className="bg-white border border-gray-200 rounded-lg p-4">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex gap-4">
-              <input
-                type="text"
-                className="border border-gray-300 rounded px-2 py-1"
-                placeholder="Search..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-              <select
-                className="text-xs border border-gray-300 rounded px-2 py-1"
-                value={selectedStatus}
-                onChange={(e) => setSelectedStatus(e.target.value)}
-              >
-                <option value="all">All</option>
-                <option value="pending">Pending</option>
-                <option value="approved">Approved</option>
-                <option value="rejected">Rejected</option>
-                <option value="received">In Use</option>
-                <option value="returned">Returned</option>
-              </select>
-            </div>
+      <div className="mb-6 flex flex-col md:flex-row gap-4">
+        <div className="relative flex-grow">
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <Search className="h-5 w-5 text-gray-400" />
           </div>
-          <div className="space-y-3">
-            {filteredRequests.map((request) => (
-              <div key={request.id} className="flex items-center justify-between bg-gray-50 p-3 rounded-md">
-                <div>
-                  <span className="font-medium text-gray-900">{request.equipment?.name}</span>
-                  <span className="text-sm text-gray-500 ml-2">Requested by {request.requester?.name}</span>
-                  <div className="text-sm text-gray-500">
-                    {request.events?.title ? (
-                      <>
-                        For event:{" "}
-                        <Link to="/calendar" className="hover:text-primary-600">
-                          {request.events.title}
-                        </Link>
-                        {request.events.creator && (
-                          <span className="text-xs text-gray-400 ml-1">(by {request.events.creator.name})</span>
+          <input
+            type="text"
+            className="input pl-10"
+            placeholder="Search requests..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
+        <div className="md:w-64">
+          <select className="select" value={selectedStatus} onChange={(e) => setSelectedStatus(e.target.value)}>
+            <option value="all">All Status</option>
+            <option value="pending">Pending</option>
+            <option value="approved">Approved</option>
+            <option value="rejected">Rejected</option>
+            <option value="received">In Use</option>
+            <option value="returned">Returned</option>
+          </select>
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="flex justify-center items-center py-12">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-600"></div>
+        </div>
+      ) : filteredRequests.length > 0 ? (
+        <div className="bg-white shadow overflow-hidden sm:rounded-md">
+          <ul className="divide-y divide-gray-200">
+            {filteredRequests.map((request) => {
+              const returnOptions = getReturnOptions(request)
+              const showReturnButton =
+                request.status === "received" &&
+                (request.current_holder_id === user?.id || request.requester_id === user?.id) &&
+                returnOptions.length > 0
+
+              // Check if this is an approved request that owner can give equipment to
+              const canGiveEquipment =
+                request.status === "approved" &&
+                !request.forwarded_to &&
+                request.equipment?.owner_id === user?.id &&
+                request.equipment?.status === "available"
+
+              return (
+                <li key={request.id}>
+                  <div className="px-4 py-4 sm:px-6 hover:bg-gray-50">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center">
+                        <div className="flex-shrink-0">
+                          <Package className="h-6 w-6 text-gray-400" />
+                        </div>
+                        <div className="ml-4">
+                          <div className="text-sm font-medium text-gray-900">
+                            <Link to={`/equipment/${request.equipment?.id}`} className="hover:text-primary-600">
+                              {request.equipment?.name}
+                            </Link>
+                            {request.equipment?.ownership_type === "student" &&
+                              request.equipment?.owner_id &&
+                              user?.is_admin && <span className="ml-2 text-xs text-blue-600">(Student-owned)</span>}
+                            {request.equipment?.ownership_type === "hall" && request.equipment?.hall && (
+                              <span className="ml-2 text-xs text-green-600">({request.equipment.hall})</span>
+                            )}
+                          </div>
+                          <div className="text-sm text-gray-500">
+                            {request.events?.title ? (
+                              <>
+                                For event:{" "}
+                                <Link to="/calendar" className="hover:text-primary-600">
+                                  {request.events.title}
+                                </Link>
+                                {request.events.creator && (
+                                  <span className="text-xs text-gray-400 ml-1">(by {request.events.creator.name})</span>
+                                )}
+                              </>
+                            ) : (
+                              "General use"
+                            )}
+                            {request.start_time && request.end_time && (
+                              <span className="ml-2 text-xs text-gray-400">
+                                <Clock className="inline h-3 w-3 mr-1" />
+                                {formatToIST(request.start_time, "MMM d, h:mm a")} -{" "}
+                                {formatToIST(request.end_time, "h:mm a")}
+                              </span>
+                            )}
+                          </div>
+                          {request.current_holder && (
+                            <div className="text-xs text-blue-600 mt-1">
+                              Equipment in use with: {request.current_holder?.name}
+                            </div>
+                          )}
+                          {request.notes && <div className="text-xs text-gray-500 mt-1">Note: {request.notes}</div>}
+                          {request.auto_declined && request.declined_reason && (
+                            <div className="text-xs text-orange-600 mt-1">{request.declined_reason}</div>
+                          )}
+                        </div>
+                      </div>
+                      <div className="ml-2 flex-shrink-0 flex">
+                        {getStatusBadge(request.status, request.auto_declined)}
+                      </div>
+                    </div>
+
+                    <div className="mt-2 sm:flex sm:justify-between">
+                      <div className="sm:flex">
+                        <div className="flex items-center text-sm text-gray-500">
+                          <div className="flex-shrink-0 mr-1.5">
+                            <User className="h-4 w-4 text-gray-400" />
+                          </div>
+                          <Link to={`/members/${request.requester?.id}`} className="hover:text-primary-600">
+                            {request.requester?.name}
+                          </Link>
+                        </div>
+                        {request.forwarded_user && (
+                          <div className="mt-2 flex items-center text-sm text-blue-600 sm:mt-0 sm:ml-6">
+                            <div className="flex-shrink-0 mr-1.5">
+                              <UserPlus className="h-4 w-4 text-blue-500" />
+                            </div>
+                            Forwarded to: {request.forwarded_user?.name}
+                          </div>
                         )}
-                      </>
-                    ) : (
-                      "General use"
-                    )}
-                    {request.start_time && request.end_time && (
-                      <span className="ml-2 text-xs text-gray-400">
-                        <Clock className="inline h-3 w-3 mr-1" />
-                        {formatToIST(request.start_time, "MMM d, h:mm a")} -{" "}
-                        {formatToIST(request.end_time, "h:mm a")}
-                      </span>
-                    )}
-                  </div>
-                  <div className="text-xs text-gray-400 mt-1">{getStatusBadge(request.status)}</div>
-                </div>
-                <div className="flex gap-2">
-                  {processingId === request.id ? (
-                    <span className="text-xs text-gray-500">Processing...</span>
-                  ) : (
-                    <>
-                      {canApprove(request) && (
-                        <button
-                          className="text-xs bg-green-500 text-white px-2 py-1 rounded"
-                          onClick={() => handleApprove(request.id)}
+                      </div>
+                      <div className="mt-2 flex items-center text-sm text-gray-500 sm:mt-0">
+                        <svg
+                          className="flex-shrink-0 mr-1.5 h-4 w-4 text-gray-400"
+                          xmlns="http://www.w3.org/2000/svg"
+                          viewBox="0 0 20 20"
+                          fill="currentColor"
                         >
-                          Approve
+                          <path
+                            fillRule="evenodd"
+                            d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z"
+                            clipRule="evenodd"
+                          />
+                        </svg>
+                        {request.created_at ? formatToIST(request.created_at, "MMM d, yyyy") : "Unknown date"}
+                      </div>
+                    </div>
+
+                    {/* Action buttons based on status and user role */}
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      {/* Approve/Reject for pending requests */}
+                      {request.status === "pending" && canApprove(request) && (
+                        <>
+                          <button
+                            onClick={() => handleApprove(request.id)}
+                            disabled={!!processingId}
+                            className="inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50"
+                          >
+                            <CheckCircle className="mr-1 h-4 w-4" />
+                            Approve
+                          </button>
+                          <button
+                            onClick={() => handleReject(request.id)}
+                            disabled={!!processingId}
+                            className="inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50"
+                          >
+                            <XCircle className="mr-1 h-4 w-4" />
+                            Reject
+                          </button>
+                        </>
+                      )}
+
+                      {/* Give Equipment button for owner when equipment is available */}
+                      {canGiveEquipment && (
+                        <button
+                          onClick={() => handleGiveEquipment(request.id)}
+                          disabled={!!processingId}
+                          className="inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50"
+                        >
+                          <Package className="mr-1 h-4 w-4" />
+                          Give Equipment
                         </button>
                       )}
-                      {request.status === "approved" && !request.received_time && (
+
+                      {/* Forward option for admins on hall equipment */}
+                      {request.status === "pending" &&
+                        user?.is_admin &&
+                        request.equipment?.ownership_type === "hall" &&
+                        !request.forwarded_to && (
+                          <>
+                            {forwardingId === request.id ? (
+                              <div className="flex flex-col gap-2">
+                                <div className="flex items-center gap-2">
+                                  <select
+                                    className="text-xs border border-gray-300 rounded px-2 py-1"
+                                    value={selectedForwardUser}
+                                    onChange={(e) => {
+                                      setSelectedForwardUser(e.target.value)
+                                      if (e.target.value === "other") {
+                                        setShowOtherUsers(true)
+                                        setHallUsers(getForwardingUsers(request))
+                                      } else {
+                                        setShowOtherUsers(false)
+                                      }
+                                    }}
+                                  >
+                                    <option value="">Select user...</option>
+                                    {getForwardingUsers(request).map((u) => (
+                                      <option key={u.id} value={u.id}>
+                                        {u.name} ({u.hostel})
+                                      </option>
+                                    ))}
+                                    <option value="other">Others...</option>
+                                  </select>
+
+                                  {showOtherUsers && (
+                                    <select
+                                      className="text-xs border border-gray-300 rounded px-2 py-1"
+                                      value={selectedForwardUser === "other" ? "" : selectedForwardUser}
+                                      onChange={(e) => setSelectedForwardUser(e.target.value)}
+                                    >
+                                      <option value="">Select from all users...</option>
+                                      {allUsers
+                                        .filter(
+                                          (u) =>
+                                            u.id !== user.id &&
+                                            !getForwardingUsers(request).find((hu) => hu.id === u.id),
+                                        )
+                                        .map((u) => (
+                                          <option key={u.id} value={u.id}>
+                                            {u.name} {u.is_admin ? "(Admin)" : ""}
+                                          </option>
+                                        ))}
+                                    </select>
+                                  )}
+
+                                  <button
+                                    onClick={() => handleForward(request.id)}
+                                    disabled={!selectedForwardUser || selectedForwardUser === "other" || !!processingId}
+                                    className="inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+                                  >
+                                    <Send className="mr-1 h-3 w-3" />
+                                    Forward
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      setForwardingId(null)
+                                      setSelectedForwardUser("")
+                                      setShowOtherUsers(false)
+                                    }}
+                                    className="inline-flex items-center px-2.5 py-1.5 border border-gray-300 text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+                                  >
+                                    Cancel
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => setForwardingId(request.id)}
+                                disabled={!!processingId}
+                                className="inline-flex items-center px-2.5 py-1.5 border border-gray-300 text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+                              >
+                                <UserPlus className="mr-1 h-4 w-4" />
+                                Forward to User
+                              </button>
+                            )}
+                          </>
+                        )}
+
+                      {/* Received button for approved requests (requester only) */}
+                      {request.status === "approved" && request.requester_id === user?.id && !request.forwarded_to && (
                         <button
-                          className="text-xs bg-blue-500 text-white px-2 py-1 rounded"
                           onClick={() => handleReceived(request.id)}
+                          disabled={!!processingId}
+                          className="inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
                         >
-                          Received
+                          <CheckCircle className="mr-1 h-4 w-4" />
+                          Mark as Received
                         </button>
                       )}
-                      {request.status === "received" && (
-                        <button
-                          className="text-xs bg-red-500 text-white px-2 py-1 rounded"
-                          onClick={() => setReturningId(request.id)}
-                        >
-                          Return
-                        </button>
+
+                      {/* Return button for received requests */}
+                      {showReturnButton && (
+                        <>
+                          {returningId === request.id ? (
+                            <div className="flex flex-col gap-2 w-full">
+                              <div className="flex items-center gap-2">
+                                <select
+                                  className="text-xs border border-gray-300 rounded px-2 py-1"
+                                  value={returnToUser}
+                                  onChange={(e) => setReturnToUser(e.target.value)}
+                                >
+                                  <option value="">Choose action...</option>
+                                  {returnOptions.map((option) => (
+                                    <option key={option.value} value={option.value}>
+                                      {option.label}
+                                    </option>
+                                  ))}
+                                </select>
+
+                                <select
+                                  className="text-xs border border-gray-300 rounded px-2 py-1"
+                                  value={returnCondition}
+                                  onChange={(e) => setReturnCondition(e.target.value as "perfect" | "damaged")}
+                                >
+                                  <option value="perfect">Perfect Condition</option>
+                                  <option value="damaged">Damaged</option>
+                                </select>
+                              </div>
+
+                              {returnCondition === "damaged" && (
+                                <textarea
+                                  className="text-xs border border-gray-300 rounded px-2 py-1 w-full"
+                                  placeholder="Describe the damage..."
+                                  value={damageNotes}
+                                  onChange={(e) => setDamageNotes(e.target.value)}
+                                  rows={2}
+                                />
+                              )}
+
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={() => handleReturn(request.id)}
+                                  disabled={
+                                    !returnToUser || !!processingId || (returnCondition === "damaged" && !damageNotes)
+                                  }
+                                  className="inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50"
+                                >
+                                  <ArrowRightLeft className="mr-1 h-3 w-3" />
+                                  {returnToUser === request.equipment?.owner_id || returnToUser === "admin"
+                                    ? "Return"
+                                    : "Handover"}
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setReturningId(null)
+                                    setReturnToUser("")
+                                    setReturnCondition("perfect")
+                                    setDamageNotes("")
+                                  }}
+                                  className="inline-flex items-center px-2.5 py-1.5 border border-gray-300 text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => setReturningId(request.id)}
+                              disabled={!!processingId}
+                              className="inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50"
+                            >
+                              <ArrowRightLeft className="mr-1 h-4 w-4" />
+                              Return/Handover
+                            </button>
+                          )}
+                        </>
                       )}
-                      {request.status === "pending" && user.is_admin && (
-                        <button
-                          className="text-xs bg-yellow-500 text-white px-2 py-1 rounded"
-                          onClick={() => setForwardingId(request.id)}
-                        >
-                          Forward
-                        </button>
-                      )}
+
                       {/* Delete button for own pending requests */}
                       {request.status === "pending" && request.requester_id === user?.id && (
                         <button
@@ -1086,109 +1400,55 @@ const RequestsPage = () => {
                           Delete
                         </button>
                       )}
-                    </>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
 
-      {/* Forwarding Modal */}
-      {forwardingId && (
-        <div className="fixed inset-0 flex items-center justify-center bg-gray-800 bg-opacity-75">
-          <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
-            <h3 className="text-lg font-bold mb-4">Forward Request</h3>
-            <select
-              className="text-xs border border-gray-300 rounded px-2 py-1 w-full mb-4"
-              value={selectedForwardUser}
-              onChange={(e) => setSelectedForwardUser(e.target.value)}
-            >
-              <option value="">Select User...</option>
-              {getForwardingUsers(requests.find((r) => r.id === forwardingId)).map((user) => (
-                <option key={user.id} value={user.id}>
-                  {user.name}
-                </option>
-              ))}
-            </select>
-            <div className="flex justify-end">
-              <button
-                className="text-xs bg-gray-500 text-white px-2 py-1 rounded mr-2"
-                onClick={() => {
-                  setForwardingId(null)
-                  setSelectedForwardUser("")
-                  setShowOtherUsers(false)
-                }}
-              >
-                Cancel
-              </button>
-              <button
-                className="text-xs bg-blue-500 text-white px-2 py-1 rounded"
-                onClick={() => handleForward(forwardingId)}
-              >
-                Forward
-              </button>
-            </div>
-          </div>
+                      {processingId === request.id && (
+                        <span className="inline-flex items-center text-xs text-gray-500">
+                          <svg
+                            className="animate-spin -ml-1 mr-2 h-4 w-4 text-gray-500"
+                            xmlns="http://www.w3.org/2000/svg"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                          >
+                            <circle
+                              className="opacity-25"
+                              cx="12"
+                              cy="12"
+                              r="10"
+                              stroke="currentColor"
+                              strokeWidth="4"
+                            ></circle>
+                            <path
+                              className="opacity-75"
+                              fill="currentColor"
+                              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                            ></path>
+                          </svg>
+                          Processing...
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </li>
+              )
+            })}
+          </ul>
         </div>
-      )}
-
-      {/* Returning Modal */}
-      {returningId && (
-        <div className="fixed inset-0 flex items-center justify-center bg-gray-800 bg-opacity-75">
-          <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
-            <h3 className="text-lg font-bold mb-4">Return Equipment</h3>
-            <select
-              className="text-xs border border-gray-300 rounded px-2 py-1 w-full mb-4"
-              value={returnToUser}
-              onChange={(e) => setReturnToUser(e.target.value)}
+      ) : (
+        <div className="text-center py-12 bg-white rounded-lg shadow">
+          <ClipboardList className="h-12 w-12 text-gray-400 mx-auto" />
+          <h3 className="mt-2 text-lg font-medium text-gray-900">No requests found</h3>
+          <p className="mt-1 text-sm text-gray-500">
+            {searchQuery || selectedStatus !== "all"
+              ? "Try adjusting your filters or search query."
+              : "There are no equipment requests to display."}
+          </p>
+          <div className="mt-6">
+            <Link
+              to="/equipment"
+              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700"
             >
-              <option value="">Select User...</option>
-              {getReturnOptions(requests.find((r) => r.id === returningId)).map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-            <div className="flex items-center gap-2 mb-4">
-              <span className="text-xs text-gray-500">Condition:</span>
-              <select
-                className="text-xs border border-gray-300 rounded px-2 py-1"
-                value={returnCondition}
-                onChange={(e) => setReturnCondition(e.target.value as "perfect" | "damaged")}
-              >
-                <option value="perfect">Perfect</option>
-                <option value="damaged">Damaged</option>
-              </select>
-            </div>
-            {returnCondition === "damaged" && (
-              <textarea
-                className="border border-gray-300 rounded px-2 py-1 w-full mb-4"
-                placeholder="Enter damage notes..."
-                value={damageNotes}
-                onChange={(e) => setDamageNotes(e.target.value)}
-              />
-            )}
-            <div className="flex justify-end">
-              <button
-                className="text-xs bg-gray-500 text-white px-2 py-1 rounded mr-2"
-                onClick={() => {
-                  setReturningId(null)
-                  setReturnToUser("")
-                  setReturnCondition("perfect")
-                  setDamageNotes("")
-                }}
-              >
-                Cancel
-              </button>
-              <button
-                className="text-xs bg-blue-500 text-white px-2 py-1 rounded"
-                onClick={() => handleReturn(returningId)}
-              >
-                Return
-              </button>
-            </div>
+              Browse Equipment
+            </Link>
           </div>
         </div>
       )}
