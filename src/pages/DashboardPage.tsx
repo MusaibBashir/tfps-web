@@ -1,6 +1,7 @@
 "use client"
 
 import type React from "react"
+import { User } from "lucide-react" 
 
 import { useState, useEffect } from "react"
 import { Link } from "react-router-dom"
@@ -31,6 +32,7 @@ const DashboardPage = () => {
 
   const fetchDashboardData = async () => {
     try {
+      // Fetch basic stats
       const [membersResult, equipmentResult, requestsResult, eventsResult] = await Promise.all([
         supabase.from("users").select("id", { count: "exact" }),
         supabase.from("equipment").select("id", { count: "exact" }),
@@ -38,6 +40,7 @@ const DashboardPage = () => {
         supabase.from("events").select("id", { count: "exact" }).gte("start_time", new Date().toISOString()),
       ])
 
+      // Fetch user-specific stats
       const [myActiveResult, myPendingResult] = await Promise.all([
         supabase
           .from("equipment_requests")
@@ -51,6 +54,7 @@ const DashboardPage = () => {
           .eq("status", "pending"),
       ])
 
+      // Fetch upcoming events with creator info
       const upcomingEventsResult = await supabase
         .from("events")
         .select(
@@ -99,9 +103,12 @@ const DashboardPage = () => {
       const { error } = await supabase.from("event_participants").insert({
         event_id: eventId,
         user_id: user?.id,
+        role: "participant",
       })
 
       if (error && error.code !== "23505") {
+        // already joined
+        console.error("Error joining event:", error)
         throw error
       }
       fetchDashboardData()
@@ -120,7 +127,6 @@ const DashboardPage = () => {
 
       if (error) throw error
 
-      // Refresh events to show updated participant count
       fetchDashboardData()
     } catch (error) {
       console.error("Error leaving event:", error)
@@ -277,6 +283,12 @@ const DashboardPage = () => {
                               {(event.event_participants?.length || 0) !== 1 ? "s" : ""}
                             </span>
                           </div>
+                          {event.creator && (
+                            <div className="flex items-center gap-2">
+                              <User size={14} /> {/* Use User component */}
+                              <span>Created by {event.creator.name}</span>
+                            </div>
+                          )}
                         </div>
 
                         {event.description && (
