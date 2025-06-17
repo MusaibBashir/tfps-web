@@ -8,7 +8,7 @@ import { Users, Calendar, Package, ClipboardList, MapPin, Clock, UserPlus, Edit3
 import { useAuth } from "../contexts/AuthContext"
 import { useSupabase } from "../contexts/SupabaseContext"
 import type { Event } from "../types"
-import { formatToIST, formatDateToIST, getCurrentIST } from "../utils/timezone"
+import { formatToIST, getCurrentIST } from "../utils/timezone"
 
 const DashboardPage = () => {
   const { user } = useAuth()
@@ -31,7 +31,6 @@ const DashboardPage = () => {
 
   const fetchDashboardData = async () => {
     try {
-      // Fetch basic stats
       const [membersResult, equipmentResult, requestsResult, eventsResult] = await Promise.all([
         supabase.from("users").select("id", { count: "exact" }),
         supabase.from("equipment").select("id", { count: "exact" }),
@@ -39,7 +38,6 @@ const DashboardPage = () => {
         supabase.from("events").select("id", { count: "exact" }).gte("start_time", new Date().toISOString()),
       ])
 
-      // Fetch user-specific stats
       const [myActiveResult, myPendingResult] = await Promise.all([
         supabase
           .from("equipment_requests")
@@ -53,7 +51,6 @@ const DashboardPage = () => {
           .eq("status", "pending"),
       ])
 
-      // Fetch upcoming events with creator info
       const upcomingEventsResult = await supabase
         .from("events")
         .select(
@@ -67,7 +64,6 @@ const DashboardPage = () => {
         .order("start_time", { ascending: true })
         .limit(6)
 
-      // Fetch recent activity
       const activityResult = await supabase
         .from("equipment_requests")
         .select(
@@ -106,11 +102,8 @@ const DashboardPage = () => {
       })
 
       if (error && error.code !== "23505") {
-        // 23505 is unique constraint violation (already joined)
         throw error
       }
-
-      // Refresh events to show updated participant count
       fetchDashboardData()
     } catch (error) {
       console.error("Error joining event:", error)
@@ -229,7 +222,7 @@ const DashboardPage = () => {
 
       {/* Main Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8">
-        {/* Upcoming Events - Takes 2 columns */}
+        {/* Upcoming Events */}
         <div className="lg:col-span-2">
           <div className="dashboard-card p-4 sm:p-6">
             <div className="flex items-center justify-between mb-4 sm:mb-6">
@@ -267,7 +260,7 @@ const DashboardPage = () => {
                           <div className="flex items-center gap-2">
                             <Clock size={14} />
                             <span>
-                              {formatDateToIST(event.start_time, "MMM d, yyyy")} at{" "}
+                              {formatToIST(event.start_time, "MMM d, yyyy")} at{" "}
                               {formatToIST(event.start_time, "h:mm a")}
                             </span>
                           </div>
@@ -338,7 +331,6 @@ const DashboardPage = () => {
           </div>
         </div>
 
-        {/* My Status - Takes 1 column */}
         <div className="space-y-6">
           {/* Personal Stats */}
           <div className="dashboard-card p-4 sm:p-6">
