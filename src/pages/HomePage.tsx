@@ -37,7 +37,6 @@ const HomePage = () => {
   const [registerError, setRegisterError] = useState<string | null>(null)
 
   useEffect(() => {
-    // Fetch upcoming public events
     const fetchPublicEvents = async () => {
       try {
         const { data } = await supabase
@@ -85,7 +84,6 @@ const HomePage = () => {
 
       if (error) {
         if (error.code === "23505") {
-          // Unique constraint violation
           setRegisterError("You have already registered for this event.")
         } else {
           throw error
@@ -96,7 +94,6 @@ const HomePage = () => {
       setRegisterSuccess(publicEventId)
       setRegistering(null)
 
-      // Reset form
       setRegisterForm({
         name: "",
         email: "",
@@ -210,8 +207,8 @@ const HomePage = () => {
             </h2>
             <p className="text-3xl text-gray-700 mb-4 font-light">Technology Film and Photography Society</p>
             <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto leading-relaxed">
-              Where creativity meets technology. Join our vibrant community of photographers and filmmakers as we
-              capture stories, create art, and push the boundaries of visual expression.
+              We are a collective of passionate filmmakers, photographers and storytellers bonding over our shared love for expression and art.
+              Through collaboration, we bend ideas into reality, shaping thoughts into frames.
             </p>
           </div>
         </div>
@@ -851,7 +848,7 @@ const HomePage = () => {
                 <div className="p-8 lg:p-12 flex flex-col justify-center">
                   <div className="mb-6">
                     <h4 className="text-3xl font-bold text-gray-900 mb-3">Hometown Hues</h4>
-                    <p className="text-lg text-amber-600 font-medium mb-4">June 7-15</p>
+                    <p className="text-lg text-amber-600 font-medium mb-4">June 7-18th</p>
                   </div>
 
                   <div className="space-y-4 text-gray-600 leading-relaxed mb-8">
@@ -914,8 +911,8 @@ const HomePage = () => {
               What We Offer
             </h3>
             <p className="text-gray-600 max-w-2xl mx-auto text-lg">
-              TFPS provides a comprehensive platform for photography and film enthusiasts to grow their skills and
-              collaborate on projects.
+              TFPS provides a comprehensive platform for photography and film enthusiasts to grow their skills,
+              collaborate on projects and discuss aspects of art.
             </p>
           </div>
 
