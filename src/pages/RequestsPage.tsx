@@ -69,7 +69,10 @@ const RequestsPage = () => {
           const eventIds = requestsWithEvents.filter((req) => req.event_id).map((req) => req.event_id)
 
           if (eventIds.length > 0) {
-            const { data: eventsForRequests } = await supabase.from("events").select("*").in("id", eventIds)
+            const { data: eventsForRequests } = await supabase
+              .from("events")
+              .select("*, creator:created_by(*)")
+              .in("id", eventIds)
 
             // Manually attach events to requests
             requestsWithEvents = requestsWithEvents.map((req) => ({
@@ -679,7 +682,10 @@ const RequestsPage = () => {
         let requestsWithEvents = updatedRequests
 
         if (eventIds.length > 0) {
-          const { data: eventsForRequests } = await supabase.from("events").select("*").in("id", eventIds)
+          const { data: eventsForRequests } = await supabase
+            .from("events")
+            .select("*, creator:created_by(*)")
+            .in("id", eventIds)
           requestsWithEvents = updatedRequests.map((req) => ({
             ...req,
             events: req.event_id ? eventsForRequests?.find((e) => e.id === req.event_id) : null,
@@ -1088,6 +1094,9 @@ const RequestsPage = () => {
                                 <Link to="/calendar" className="hover:text-primary-600">
                                   {request.events.title}
                                 </Link>
+                                {request.events.creator && (
+                                  <span className="text-xs text-gray-400 ml-1">(by {request.events.creator.name})</span>
+                                )}
                               </>
                             ) : (
                               "General use"
