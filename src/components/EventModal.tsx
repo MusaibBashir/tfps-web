@@ -1,15 +1,12 @@
+"use client"
+
 import Link from "next/link"
-
-```typescriptreact file="src/pages/RequestsPage.tsx"
-[v0-no-op-code-block-prefix]"use client"
-
 import { useState, useEffect } from "react"
 import { useSupabase } from "../contexts/SupabaseContext"
 import { useAuth } from "../contexts/AuthContext"
 import type { EquipmentRequest } from "../types"
 import { formatToIST } from "../utils/timezone"
-import { Link } from "react-router-dom"
-import { Clock, XCircle } from 'lucide-react'
+import { Clock, XCircle } from "lucide-react"
 
 const RequestsPage = () => {
   const { supabase } = useSupabase()
@@ -41,17 +38,13 @@ const RequestsPage = () => {
         const { data: allRequestsData, error: allRequestsError } = await supabase
           .from("equipment_requests")
           .select(`
-            *,\
-equipment(*),\
-requester: users!
-equipment_requests_requester_id_fkey(*),\
-approver: users!
-equipment_requests_approved_by_fkey(*),\
-forwarded_user: users!
-equipment_requests_forwarded_to_fkey(*),\
-current_holder: users!
-equipment_requests_current_holder_id_fkey(*)
-          `)
+  *,
+  equipment(*),
+  requester: users!equipment_requests_requester_id_fkey(*),
+  approver: users!equipment_requests_approved_by_fkey(*),
+  forwarded_user: users!equipment_requests_forwarded_to_fkey(*),
+  current_holder: users!equipment_requests_current_holder_id_fkey(*)
+`)
           .order("created_at", { ascending: false })
 
         if (allRequestsError) {
@@ -190,22 +183,11 @@ user:user_id(*)
             status: "approved",
             approved_by: user?.id,
             forwarded_to: currentHolderId,
-            notes: \`Handover request sent to ${currentHolderName}`,
-})
+            notes: `Handover request sent to ${currentHolderName}`,
+          })
           .eq("id", requestId)
 
-        console.log(\`Request $
-{
-  requestId
-}
-forwarded
-to
-current
-holder: $
-{
-  currentHolderName
-}
-`)
+        console.log(`Request ${requestId} forwarded to current holder: ${currentHolderName}`)
       } else {
         // No one has the equipment currently - approve normally
         await supabase
@@ -232,7 +214,7 @@ holder: $
           expected_return_time: request.end_time,
         })
 
-        console.log(\`Request ${requestId} approved and equipment given to requester\`)
+        console.log(`Request ${requestId} approved and equipment given to requester`)
       }
 
       await refreshRequests()
@@ -280,7 +262,7 @@ holder: $
     if (request.equipment?.owner_id) {
       const owner = allUsers.find((u) => u.id === request.equipment.owner_id)
       if (owner) {
-        options.push({ value: request.equipment.owner_id, label: \`Return to Owner (${owner.name})\` })
+        options.push({ value: request.equipment.owner_id, label: `Return to Owner (${owner.name})` })
       }
     } else if (isHallEquipment && !isAdmin) {
       options.push({ value: "admin", label: "Return to Admin" })
@@ -307,278 +289,325 @@ holder: $
       if (handoverReq.requester) {
         options.push({
           value: handoverReq.requester.id,
-          label: \`Handover to ${handoverReq.requester.name}`,\
-requestId: handoverReq.id,
-})
+          label: `Handover to ${handoverReq.requester.name}`,
+          requestId: handoverReq.id,
+        })
       }
     })
 
-return options
-\
+    return options
   }
 
-const handleReturn = async (requestId: string) => {
-  setProcessingId(requestId)
-  try {
-    const request = requests.find((r) => r.id === requestId)
-    if (!request) return
+  const handleReturn = async (requestId: string) => {
+    setProcessingId(requestId)
+    try {
+      const request = requests.find((r) => r.id === requestId)
+      if (!request) return
 
-    const returnTime = new Date().toISOString()
-    const finalReturnUser = returnToUser
+      const returnTime = new Date().toISOString()
+      const finalReturnUser = returnToUser
 
-    // Find the option that was selected
-    const returnOptions = getReturnOptions(request)
-    const selectedOption = returnOptions.find((opt) => opt.value === finalReturnUser)
+      // Find the option that was selected
+      const returnOptions = getReturnOptions(request)
+      const selectedOption = returnOptions.find((opt) => opt.value === finalReturnUser)
 
-    if (finalReturnUser === request.equipment?.owner_id || finalReturnUser === "admin") {
-      // Returning to original owner/admin - complete the cycle
-      await supabase
-        .from("equipment_requests")
-        .update({
-          status: "returned",
-          returned_time: returnTime,
-          return_condition: returnCondition,
-          damage_notes: returnCondition === "damaged" ? damageNotes : null,
-        })
-        .eq("id", requestId)
-
-      // Update equipment status directly - no owner confirmation needed
-      await supabase
-        .from("equipment")
-        .update({
-          status: returnCondition === "damaged" ? "maintenance" : "available",
-          condition_notes: returnCondition === "damaged" ? damageNotes : null,
-        })
-        .eq("id", request.equipment_id)
-
-      // Update equipment log for current user
-      const { data: logData } = await supabase
-        .from("equipment_logs")
-        .select("*")
-        .eq("equipment_id", request.equipment_id)
-        .eq("user_id", request.current_holder_id || request.requester_id)
-        .is("return_time", null)
-        .order("checkout_time", { ascending: false })
-        .limit(1)
-        .single()
-
-      if (logData) {
+      if (finalReturnUser === request.equipment?.owner_id || finalReturnUser === "admin") {
+        // Returning to original owner/admin - complete the cycle
         await supabase
-          .from("equipment_logs")
+          .from("equipment_requests")
           .update({
-            return_time: returnTime,
+            status: "returned",
+            returned_time: returnTime,
+            return_condition: returnCondition,
+            damage_notes: returnCondition === "damaged" ? damageNotes : null,
           })
-          .eq("id", logData.id)
-      }
+          .eq("id", requestId)
 
-      // Clear forwarded_to for any approved requests for this equipment
-      await supabase
-        .from("equipment_requests")
-        .update({
-          forwarded_to: null,
-          notes: `Equipment returned to owner. Ready to give to requester.`,
-        })
-        .eq("equipment_id", request.equipment_id)
-        .eq("status", "approved")
-        .not("forwarded_to", "is", null)
-        .neq("id", requestId)
-
-      // Create damage report if damaged
-      if (returnCondition === "damaged" && damageNotes) {
-        await supabase.from("damage_reports").insert({
-          equipment_id: request.equipment_id,
-          reported_by: user?.id,
-          damage_description: damageNotes,
-          severity: "moderate",
-        })
-      }
-
-      console.log(`Equipment returned to owner/admin from request ${requestId}`)
-    } else if (selectedOption && selectedOption.requestId) {
-      // Handover to another user with approved request
-      const newHolderId = finalReturnUser
-      const handoverRequestId = selectedOption.requestId
-
-      // Update current request to returned with handover note
-      await supabase
-        .from("equipment_requests")
-        .update({
-          status: "returned",
-          returned_time: returnTime,
-          notes: `Handed over to ${allUsers.find((u) => u.id === newHolderId)?.name}`,
-        })
-        .eq("id", requestId)
-
-      // Update the handover request to received status
-      await supabase
-        .from("equipment_requests")
-        .update({
-          status: "received",
-          received_time: returnTime,
-          current_holder_id: newHolderId,
-          forwarded_to: null,
-          notes: `Equipment received via handover from ${user?.name}`,
-        })
-        .eq("id", handoverRequestId)
-
-      // Create transfer record
-      await supabase.from("equipment_transfers").insert({
-        equipment_id: request.equipment_id,
-        from_user_id: request.current_holder_id || request.requester_id,
-        to_user_id: newHolderId,
-        transfer_time: returnTime,
-        notes: `Handover via equipment request system`,
-      })
-
-      // Update equipment log for current holder (end their usage)
-      const { data: logData } = await supabase
-        .from("equipment_logs")
-        .select("*")
-        .eq("equipment_id", request.equipment_id)
-        .eq("user_id", request.current_holder_id || request.requester_id)
-        .is("return_time", null)
-        .order("checkout_time", { ascending: false })
-        .limit(1)
-        .single()
-
-      if (logData) {
+        // Update equipment status directly - no owner confirmation needed
         await supabase
-          .from("equipment_logs")
+          .from("equipment")
           .update({
-            return_time: returnTime,
-            transferred_to: newHolderId,
-            transfer_time: returnTime,
+            status: returnCondition === "damaged" ? "maintenance" : "available",
+            condition_notes: returnCondition === "damaged" ? damageNotes : null,
           })
-          .eq("id", logData.id)
-      }
+          .eq("id", request.equipment_id)
 
-      // Create new log for new holder (start their usage)
-      const handoverRequest = requests.find((r) => r.id === handoverRequestId)
-      await supabase.from("equipment_logs").insert({
-        equipment_id: request.equipment_id,
-        user_id: newHolderId,
-        checkout_time: returnTime,
-        expected_return_time: handoverRequest?.end_time,
-      })
+        // Update equipment log for current user
+        const { data: logData } = await supabase
+          .from("equipment_logs")
+          .select("*")
+          .eq("equipment_id", request.equipment_id)
+          .eq("user_id", request.current_holder_id || request.requester_id)
+          .is("return_time", null)
+          .order("checkout_time", { ascending: false })
+          .limit(1)
+          .single()
 
-      console.log(`Equipment handed over from ${user?.name} to ${allUsers.find((u) => u.id === newHolderId)?.name}`)
-    }
+        if (logData) {
+          await supabase
+            .from("equipment_logs")
+            .update({
+              return_time: returnTime,
+            })
+            .eq("id", logData.id)
+        }
 
-    setReturningId(null)
-    setReturnToUser("")
-    setReturnCondition("perfect")
-    setDamageNotes("")
-    await refreshRequests()
-  } catch (error) {
-    console.error("Error processing return:", error)
-  } finally {
-    setProcessingId(null)
-  }
-}
+        // Clear forwarded_to for any approved requests for this equipment
+        await supabase
+          .from("equipment_requests")
+          .update({
+            forwarded_to: null,
+            notes: `Equipment returned to owner. Ready to give to requester.`,
+          })
+          .eq("equipment_id", request.equipment_id)
+          .eq("status", "approved")
+          .not("forwarded_to", "is", null)
+          .neq("id", requestId)
 
-const handleGiveEquipment = async (requestId: string) => {
-  setProcessingId(requestId)
-  try {
-    const request = requests.find((r) => r.id === requestId)
-    if (!request) return
+        // Create damage report if damaged
+        if (returnCondition === "damaged" && damageNotes) {
+          await supabase.from("damage_reports").insert({
+            equipment_id: request.equipment_id,
+            reported_by: user?.id,
+            damage_description: damageNotes,
+            severity: "moderate",
+          })
+        }
 
-    const giveTime = new Date().toISOString()
+        console.log(`Equipment returned to owner/admin from request ${requestId}`)
+      } else if (selectedOption && selectedOption.requestId) {
+        // Handover to another user with approved request
+        const newHolderId = finalReturnUser
+        const handoverRequestId = selectedOption.requestId
 
-    // Update request to received status
-    await supabase
-      .from("equipment_requests")
-      .update({
-        status: "received",
-        received_time: giveTime,
-        current_holder_id: request.requester_id,
-        notes: `Equipment given by owner`,
-      })
-      .eq("id", requestId)
+        // Update current request to returned with handover note
+        await supabase
+          .from("equipment_requests")
+          .update({
+            status: "returned",
+            returned_time: returnTime,
+            notes: `Handed over to ${allUsers.find((u) => u.id === newHolderId)?.name}`,
+          })
+          .eq("id", requestId)
 
-    // Update equipment status to in_use
-    await supabase
-      .from("equipment")
-      .update({
-        status: "in_use",
-      })
-      .eq("id", request.equipment_id)
-
-    // Create equipment log
-    await supabase.from("equipment_logs").insert({
-      equipment_id: request.equipment_id,
-      user_id: request.requester_id,
-      checkout_time: giveTime,
-      expected_return_time: request.end_time,
-    })
-
-    console.log(`Owner gave equipment to requester for request ${requestId}`)
-    await refreshRequests()
-  } catch (error) {
-    console.error("Error giving equipment:", error)
-  } finally {
-    setProcessingId(null)
-  }
-}
-
-const handleReturnFromPossession = async (equipmentLog: any) => {
-  setProcessingId(equipmentLog.id)
-  try {
-    const returnTime = new Date().toISOString()
-
-    // Check if this is a handover to another user
-    const isHandover = returnToUser !== equipmentLog.equipment?.owner_id && returnToUser !== "admin"
-
-    if (isHandover) {
-      // This is a handover - find the corresponding request
-      const handoverRequest = requests.find(
-        (r) =>
-          r.equipment_id === equipmentLog.equipment_id &&
-          r.status === "approved" &&
-          r.forwarded_to === user?.id &&
-          r.requester_id === returnToUser,
-      )
-
-      if (handoverRequest) {
         // Update the handover request to received status
         await supabase
           .from("equipment_requests")
           .update({
             status: "received",
             received_time: returnTime,
-            current_holder_id: returnToUser,
+            current_holder_id: newHolderId,
             forwarded_to: null,
             notes: `Equipment received via handover from ${user?.name}`,
           })
-          .eq("id", handoverRequest.id)
+          .eq("id", handoverRequestId)
 
         // Create transfer record
         await supabase.from("equipment_transfers").insert({
-          equipment_id: equipmentLog.equipment_id,
-          from_user_id: user?.id,
-          to_user_id: returnToUser,
+          equipment_id: request.equipment_id,
+          from_user_id: request.current_holder_id || request.requester_id,
+          to_user_id: newHolderId,
           transfer_time: returnTime,
           notes: `Handover via equipment request system`,
         })
 
-        // Update current equipment log (end current user's usage)
+        // Update equipment log for current holder (end their usage)
+        const { data: logData } = await supabase
+          .from("equipment_logs")
+          .select("*")
+          .eq("equipment_id", request.equipment_id)
+          .eq("user_id", request.current_holder_id || request.requester_id)
+          .is("return_time", null)
+          .order("checkout_time", { ascending: false })
+          .limit(1)
+          .single()
+
+        if (logData) {
+          await supabase
+            .from("equipment_logs")
+            .update({
+              return_time: returnTime,
+              transferred_to: newHolderId,
+              transfer_time: returnTime,
+            })
+            .eq("id", logData.id)
+        }
+
+        // Create new log for new holder (start their usage)
+        const handoverRequest = requests.find((r) => r.id === handoverRequestId)
+        await supabase.from("equipment_logs").insert({
+          equipment_id: request.equipment_id,
+          user_id: newHolderId,
+          checkout_time: returnTime,
+          expected_return_time: handoverRequest?.end_time,
+        })
+
+        console.log(`Equipment handed over from ${user?.name} to ${allUsers.find((u) => u.id === newHolderId)?.name}`)
+      }
+
+      setReturningId(null)
+      setReturnToUser("")
+      setReturnCondition("perfect")
+      setDamageNotes("")
+      await refreshRequests()
+    } catch (error) {
+      console.error("Error processing return:", error)
+    } finally {
+      setProcessingId(null)
+    }
+  }
+
+  const handleGiveEquipment = async (requestId: string) => {
+    setProcessingId(requestId)
+    try {
+      const request = requests.find((r) => r.id === requestId)
+      if (!request) return
+
+      const giveTime = new Date().toISOString()
+
+      // Update request to received status
+      await supabase
+        .from("equipment_requests")
+        .update({
+          status: "received",
+          received_time: giveTime,
+          current_holder_id: request.requester_id,
+          notes: `Equipment given by owner`,
+        })
+        .eq("id", requestId)
+
+      // Update equipment status to in_use
+      await supabase
+        .from("equipment")
+        .update({
+          status: "in_use",
+        })
+        .eq("id", request.equipment_id)
+
+      // Create equipment log
+      await supabase.from("equipment_logs").insert({
+        equipment_id: request.equipment_id,
+        user_id: request.requester_id,
+        checkout_time: giveTime,
+        expected_return_time: request.end_time,
+      })
+
+      console.log(`Owner gave equipment to requester for request ${requestId}`)
+      await refreshRequests()
+    } catch (error) {
+      console.error("Error giving equipment:", error)
+    } finally {
+      setProcessingId(null)
+    }
+  }
+
+  const handleReturnFromPossession = async (equipmentLog: any) => {
+    setProcessingId(equipmentLog.id)
+    try {
+      const returnTime = new Date().toISOString()
+
+      // Check if this is a handover to another user
+      const isHandover = returnToUser !== equipmentLog.equipment?.owner_id && returnToUser !== "admin"
+
+      if (isHandover) {
+        // This is a handover - find the corresponding request
+        const handoverRequest = requests.find(
+          (r) =>
+            r.equipment_id === equipmentLog.equipment_id &&
+            r.status === "approved" &&
+            r.forwarded_to === user?.id &&
+            r.requester_id === returnToUser,
+        )
+
+        if (handoverRequest) {
+          // Update the handover request to received status
+          await supabase
+            .from("equipment_requests")
+            .update({
+              status: "received",
+              received_time: returnTime,
+              current_holder_id: returnToUser,
+              forwarded_to: null,
+              notes: `Equipment received via handover from ${user?.name}`,
+            })
+            .eq("id", handoverRequest.id)
+
+          // Create transfer record
+          await supabase.from("equipment_transfers").insert({
+            equipment_id: equipmentLog.equipment_id,
+            from_user_id: user?.id,
+            to_user_id: returnToUser,
+            transfer_time: returnTime,
+            notes: `Handover via equipment request system`,
+          })
+
+          // Update current equipment log (end current user's usage)
+          await supabase
+            .from("equipment_logs")
+            .update({
+              return_time: returnTime,
+              transferred_to: returnToUser,
+              transfer_time: returnTime,
+            })
+            .eq("id", equipmentLog.id)
+
+          // Create new log for new holder (start their usage)
+          await supabase.from("equipment_logs").insert({
+            equipment_id: equipmentLog.equipment_id,
+            user_id: returnToUser,
+            checkout_time: returnTime,
+            expected_return_time: handoverRequest.end_time,
+          })
+
+          // Find and update the current user's request to returned
+          const currentUserRequest = requests.find(
+            (r) =>
+              r.equipment_id === equipmentLog.equipment_id && r.status === "received" && r.requester_id === user?.id,
+          )
+
+          if (currentUserRequest) {
+            await supabase
+              .from("equipment_requests")
+              .update({
+                status: "returned",
+                returned_time: returnTime,
+                notes: `Handed over to ${allUsers.find((u) => u.id === returnToUser)?.name}`,
+              })
+              .eq("id", currentUserRequest.id)
+          }
+
+          console.log(`Handover completed from possession to ${allUsers.find((u) => u.id === returnToUser)?.name}`)
+        }
+      } else {
+        // Regular return to owner/admin
+        await supabase
+          .from("equipment")
+          .update({
+            status: returnCondition === "damaged" ? "maintenance" : "available",
+            condition_notes: returnCondition === "damaged" ? damageNotes : null,
+          })
+          .eq("id", equipmentLog.equipment_id)
+
+        // Update equipment log
         await supabase
           .from("equipment_logs")
           .update({
             return_time: returnTime,
-            transferred_to: returnToUser,
-            transfer_time: returnTime,
           })
           .eq("id", equipmentLog.id)
 
-        // Create new log for new holder (start their usage)
-        await supabase.from("equipment_logs").insert({
-          equipment_id: equipmentLog.equipment_id,
-          user_id: returnToUser,
-          checkout_time: returnTime,
-          expected_return_time: handoverRequest.end_time,
-        })
+        // Clear forwarded_to for any approved requests for this equipment
+        await supabase
+          .from("equipment_requests")
+          .update({
+            forwarded_to: null,
+            notes: `Equipment returned to owner. Ready to give to requester.`,
+          })
+          .eq("equipment_id", equipmentLog.equipment_id)
+          .eq("status", "approved")
+          .not("forwarded_to", "is", null)
 
-        // Find and update the current user's request to returned
+        // Update current user's request to returned
         const currentUserRequest = requests.find(
           (r) => r.equipment_id === equipmentLog.equipment_id && r.status === "received" && r.requester_id === user?.id,
         )
@@ -589,91 +618,44 @@ const handleReturnFromPossession = async (equipmentLog: any) => {
             .update({
               status: "returned",
               returned_time: returnTime,
-              notes: `Handed over to ${allUsers.find((u) => u.id === returnToUser)?.name}`,
+              return_condition: returnCondition,
+              damage_notes: returnCondition === "damaged" ? damageNotes : null,
             })
             .eq("id", currentUserRequest.id)
         }
 
-        console.log(`Handover completed from possession to ${allUsers.find((u) => u.id === returnToUser)?.name}`)
-      }
-    } else {
-      // Regular return to owner/admin
-      await supabase
-        .from("equipment")
-        .update({
-          status: returnCondition === "damaged" ? "maintenance" : "available",
-          condition_notes: returnCondition === "damaged" ? damageNotes : null,
-        })
-        .eq("id", equipmentLog.equipment_id)
-
-      // Update equipment log
-      await supabase
-        .from("equipment_logs")
-        .update({
-          return_time: returnTime,
-        })
-        .eq("id", equipmentLog.id)
-
-      // Clear forwarded_to for any approved requests for this equipment
-      await supabase
-        .from("equipment_requests")
-        .update({
-          forwarded_to: null,
-          notes: `Equipment returned to owner. Ready to give to requester.`,
-        })
-        .eq("equipment_id", equipmentLog.equipment_id)
-        .eq("status", "approved")
-        .not("forwarded_to", "is", null)
-
-      // Update current user's request to returned
-      const currentUserRequest = requests.find(
-        (r) => r.equipment_id === equipmentLog.equipment_id && r.status === "received" && r.requester_id === user?.id,
-      )
-
-      if (currentUserRequest) {
-        await supabase
-          .from("equipment_requests")
-          .update({
-            status: "returned",
-            returned_time: returnTime,
-            return_condition: returnCondition,
-            damage_notes: returnCondition === "damaged" ? damageNotes : null,
+        // Create damage report if damaged
+        if (returnCondition === "damaged" && damageNotes) {
+          await supabase.from("damage_reports").insert({
+            equipment_id: equipmentLog.equipment_id,
+            reported_by: user?.id,
+            damage_description: damageNotes,
+            severity: "moderate",
           })
-          .eq("id", currentUserRequest.id)
+        }
+
+        console.log(`Equipment returned to owner/admin from possession`)
       }
 
-      // Create damage report if damaged
-      if (returnCondition === "damaged" && damageNotes) {
-        await supabase.from("damage_reports").insert({
-          equipment_id: equipmentLog.equipment_id,
-          reported_by: user?.id,
-          damage_description: damageNotes,
-          severity: "moderate",
-        })
-      }
-
-      console.log(`Equipment returned to owner/admin from possession`)
+      setReturningId(null)
+      setReturnToUser("")
+      setReturnCondition("perfect")
+      setDamageNotes("")
+      await refreshRequests()
+    } catch (error) {
+      console.error("Error processing return from possession:", error)
+    } finally {
+      setProcessingId(null)
     }
-
-    setReturningId(null)
-    setReturnToUser("")
-    setReturnCondition("perfect")
-    setDamageNotes("")
-    await refreshRequests()
-  } catch (error) {
-    console.error("Error processing return from possession:", error)
-  } finally {
-    setProcessingId(null)
   }
-}
 
-const refreshRequests = async () => {
-  if (!user) return
+  const refreshRequests = async () => {
+    if (!user) return
 
-  try {
-    const { data: updatedRequests } = await supabase
-      .from("equipment_requests")
-      .select(`
+    try {
+      const { data: updatedRequests } = await supabase
+        .from("equipment_requests")
+        .select(`
           *,
           equipment(*),
           requester:users!equipment_requests_requester_id_fkey(*),
@@ -681,236 +663,236 @@ const refreshRequests = async () => {
           forwarded_user:users!equipment_requests_forwarded_to_fkey(*),
           current_holder:users!equipment_requests_current_holder_id_fkey(*)
         `)
-      .order("created_at", { ascending: false })
+        .order("created_at", { ascending: false })
 
-    if (updatedRequests) {
-      // Fetch events for updated requests
-      const eventIds = updatedRequests.filter((req) => req.event_id).map((req) => req.event_id)
-      let requestsWithEvents = updatedRequests
+      if (updatedRequests) {
+        // Fetch events for updated requests
+        const eventIds = updatedRequests.filter((req) => req.event_id).map((req) => req.event_id)
+        let requestsWithEvents = updatedRequests
 
-      if (eventIds.length > 0) {
-        const { data: eventsForRequests } = await supabase
-          .from("events")
-          .select("*, creator:created_by(*)")
-          .in("id", eventIds)
-        requestsWithEvents = updatedRequests.map((req) => ({
-          ...req,
-          events: req.event_id ? eventsForRequests?.find((e) => e.id === req.event_id) : null,
-        }))
+        if (eventIds.length > 0) {
+          const { data: eventsForRequests } = await supabase
+            .from("events")
+            .select("*, creator:created_by(*)")
+            .in("id", eventIds)
+          requestsWithEvents = updatedRequests.map((req) => ({
+            ...req,
+            events: req.event_id ? eventsForRequests?.find((e) => e.id === req.event_id) : null,
+          }))
+        }
+
+        // Filter for current user
+        let userRequests: any[] = []
+        if (user.is_admin) {
+          userRequests = requestsWithEvents
+        } else {
+          userRequests = requestsWithEvents.filter((req) => {
+            const isRequester = req.requester_id === user.id
+            const isOwner = req.equipment?.owner_id === user.id
+            const isForwarded = req.forwarded_to === user.id
+            const isCurrentHolder = req.current_holder_id === user.id
+            const isOriginalApprover = req.approved_by === user.id && !req.forwarded_to
+
+            return isRequester || isOwner || isForwarded || isCurrentHolder || isOriginalApprover
+          })
+        }
+
+        setRequests(userRequests)
+        setFilteredRequests(userRequests)
       }
 
-      // Filter for current user
-      let userRequests: any[] = []
-      if (user.is_admin) {
-        userRequests = requestsWithEvents
-      } else {
-        userRequests = requestsWithEvents.filter((req) => {
-          const isRequester = req.requester_id === user.id
-          const isOwner = req.equipment?.owner_id === user.id
-          const isForwarded = req.forwarded_to === user.id
-          const isCurrentHolder = req.current_holder_id === user.id
-          const isOriginalApprover = req.approved_by === user.id && !req.forwarded_to
-
-          return isRequester || isOwner || isForwarded || isCurrentHolder || isOriginalApprover
-        })
-      }
-
-      setRequests(userRequests)
-      setFilteredRequests(userRequests)
-    }
-
-    // Refresh equipment in possession
-    const { data: equipmentLogs } = await supabase
-      .from("equipment_logs")
-      .select(`
+      // Refresh equipment in possession
+      const { data: equipmentLogs } = await supabase
+        .from("equipment_logs")
+        .select(`
           *,
           equipment(*),
           user:user_id(*)
         `)
-      .eq("user_id", user.id)
-      .is("return_time", null)
-
-    setEquipmentInPossession(equipmentLogs || [])
-  } catch (error) {
-    console.error("Error refreshing requests:", error)
-  }
-}
-
-const fixMissingForwards = async (currentRequests?: any[]) => {
-  const requestsToCheck = currentRequests || requests
-  if (!requestsToCheck.length) return
-
-  try {
-    // Find approved requests that should be forwarded but aren't
-    const approvedRequests = requestsToCheck.filter(
-      (r) => r.status === "approved" && !r.forwarded_to && !r.received_time && r.current_holder_id !== r.requester_id,
-    )
-
-    for (const request of approvedRequests) {
-      // Check if equipment is currently in use
-      const { data: currentLog } = await supabase
-        .from("equipment_logs")
-        .select("*, user:user_id(*)")
-        .eq("equipment_id", request.equipment_id)
+        .eq("user_id", user.id)
         .is("return_time", null)
-        .order("checkout_time", { ascending: false })
-        .limit(1)
-        .single()
 
-      if (currentLog && currentLog.user_id !== request.requester_id) {
-        // This request should be forwarded to the current holder
-        console.log(`Auto-forwarding request ${request.id} to current holder: ${currentLog.user?.name}`)
+      setEquipmentInPossession(equipmentLogs || [])
+    } catch (error) {
+      console.error("Error refreshing requests:", error)
+    }
+  }
 
-        await supabase
-          .from("equipment_requests")
-          .update({
-            forwarded_to: currentLog.user_id,
-            notes: `Auto-forwarded to current equipment holder: ${currentLog.user?.name}`,
-          })
-          .eq("id", request.id)
+  const fixMissingForwards = async (currentRequests?: any[]) => {
+    const requestsToCheck = currentRequests || requests
+    if (!requestsToCheck.length) return
+
+    try {
+      // Find approved requests that should be forwarded but aren't
+      const approvedRequests = requestsToCheck.filter(
+        (r) => r.status === "approved" && !r.forwarded_to && !r.received_time && r.current_holder_id !== r.requester_id,
+      )
+
+      for (const request of approvedRequests) {
+        // Check if equipment is currently in use
+        const { data: currentLog } = await supabase
+          .from("equipment_logs")
+          .select("*, user:user_id(*)")
+          .eq("equipment_id", request.equipment_id)
+          .is("return_time", null)
+          .order("checkout_time", { ascending: false })
+          .limit(1)
+          .single()
+
+        if (currentLog && currentLog.user_id !== request.requester_id) {
+          // This request should be forwarded to the current holder
+          console.log(`Auto-forwarding request ${request.id} to current holder: ${currentLog.user?.name}`)
+
+          await supabase
+            .from("equipment_requests")
+            .update({
+              forwarded_to: currentLog.user_id,
+              notes: `Auto-forwarded to current equipment holder: ${currentLog.user?.name}`,
+            })
+            .eq("id", request.id)
+        }
       }
-    }
 
-    // Only refresh if we made changes
-    if (approvedRequests.length > 0) {
+      // Only refresh if we made changes
+      if (approvedRequests.length > 0) {
+        await refreshRequests()
+      }
+    } catch (error) {
+      console.error("Error fixing missing forwards:", error)
+    }
+  }
+
+  const handleReject = async (requestId: string) => {
+    setProcessingId(requestId)
+    try {
+      const { data, error } = await supabase
+        .from("equipment_requests")
+        .update({
+          status: "rejected",
+          approved_by: user?.id,
+        })
+        .eq("id", requestId)
+
+      if (error) throw error
       await refreshRequests()
+    } catch (error) {
+      console.error("Error rejecting request:", error)
+    } finally {
+      setProcessingId(null)
     }
-  } catch (error) {
-    console.error("Error fixing missing forwards:", error)
-  }
-}
-
-const handleReject = async (requestId: string) => {
-  setProcessingId(requestId)
-  try {
-    const { data, error } = await supabase
-      .from("equipment_requests")
-      .update({
-        status: "rejected",
-        approved_by: user?.id,
-      })
-      .eq("id", requestId)
-
-    if (error) throw error
-    await refreshRequests()
-  } catch (error) {
-    console.error("Error rejecting request:", error)
-  } finally {
-    setProcessingId(null)
-  }
-}
-
-const handleForward = async (requestId: string) => {
-  if (!selectedForwardUser) {
-    alert("Please select a user to forward to")
-    return
   }
 
-  setProcessingId(requestId)
-  try {
-    const { data, error } = await supabase
-      .from("equipment_requests")
-      .update({
-        forwarded_to: selectedForwardUser,
-        notes: `Forwarded by admin ${user?.name} to handle approval`,
-      })
-      .eq("id", requestId)
+  const handleForward = async (requestId: string) => {
+    if (!selectedForwardUser) {
+      alert("Please select a user to forward to")
+      return
+    }
 
-    if (error) throw error
+    setProcessingId(requestId)
+    try {
+      const { data, error } = await supabase
+        .from("equipment_requests")
+        .update({
+          forwarded_to: selectedForwardUser,
+          notes: `Forwarded by admin ${user?.name} to handle approval`,
+        })
+        .eq("id", requestId)
 
-    setForwardingId(null)
-    setSelectedForwardUser("")
-    setShowOtherUsers(false)
-    await refreshRequests()
-  } catch (error) {
-    console.error("Error forwarding request:", error)
-  } finally {
-    setProcessingId(null)
-  }
-}
+      if (error) throw error
 
-const getForwardingUsers = (request: any) => {
-  if (request.equipment?.ownership_type === "hall" && request.equipment?.hall) {
-    return allUsers.filter((u) => u.hostel === request.equipment.hall)
-  }
-  return []
-}
-
-const canApprove = (request: any) => {
-  if (user?.is_admin) return true
-  if (request.equipment?.owner_id && user?.id === request.equipment?.owner_id && !request.forwarded_to) return true
-  if (request.forwarded_to === user?.id) return true
-  return false
-}
-
-const getStatusBadge = (status: string, autoDeclined?: boolean) => {
-  if (status === "rejected" && autoDeclined) {
-    return (
-      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
-        Auto-Declined
-      </span>
-    )
+      setForwardingId(null)
+      setSelectedForwardUser("")
+      setShowOtherUsers(false)
+      await refreshRequests()
+    } catch (error) {
+      console.error("Error forwarding request:", error)
+    } finally {
+      setProcessingId(null)
+    }
   }
 
-  switch (status) {
-    case "pending":
+  const getForwardingUsers = (request: any) => {
+    if (request.equipment?.ownership_type === "hall" && request.equipment?.hall) {
+      return allUsers.filter((u) => u.hostel === request.equipment.hall)
+    }
+    return []
+  }
+
+  const canApprove = (request: any) => {
+    if (user?.is_admin) return true
+    if (request.equipment?.owner_id && user?.id === request.equipment?.owner_id && !request.forwarded_to) return true
+    if (request.forwarded_to === user?.id) return true
+    return false
+  }
+
+  const getStatusBadge = (status: string, autoDeclined?: boolean) => {
+    if (status === "rejected" && autoDeclined) {
       return (
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-          Pending
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+          Auto-Declined
         </span>
       )
-    case "approved":
-      return (
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-          Approved
-        </span>
-      )
-    case "rejected":
-      return (
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-          Rejected
-        </span>
-      )
-    case "received":
-      return (
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-          In Use
-        </span>
-      )
-    case "returned":
-      return (
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-          Returned
-        </span>
-      )
-    default:
-      return (
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-          {status}
-        </span>
-      )
+    }
+
+    switch (status) {
+      case "pending":
+        return (
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+            Pending
+          </span>
+        )
+      case "approved":
+        return (
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+            Approved
+          </span>
+        )
+      case "rejected":
+        return (
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+            Rejected
+          </span>
+        )
+      case "received":
+        return (
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+            In Use
+          </span>
+        )
+      case "returned":
+        return (
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+            Returned
+          </span>
+        )
+      default:
+        return (
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+            {status}
+          </span>
+        )
+    }
   }
-}
 
-const handleDeleteRequest = async (requestId: string) => {
-  if (!confirm("Are you sure you want to delete this request?")) {
-    return
+  const handleDeleteRequest = async (requestId: string) => {
+    if (!confirm("Are you sure you want to delete this request?")) {
+      return
+    }
+
+    setProcessingId(requestId)
+    try {
+      const { error } = await supabase.from("equipment_requests").delete().eq("id", requestId)
+
+      if (error) throw error
+      await refreshRequests()
+    } catch (error) {
+      console.error("Error deleting request:", error)
+    } finally {
+      setProcessingId(null)
+    }
   }
 
-  setProcessingId(requestId)
-  try {
-    const { error } = await supabase.from("equipment_requests").delete().eq("id", requestId)
-
-    if (error) throw error
-    await refreshRequests()
-  } catch (error) {
-    console.error("Error deleting request:", error)
-  } finally {
-    setProcessingId(null)
-  }
-}
-
-return (
+  return (
     <div className="container mx-auto">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900">Equipment Requests</h1>
@@ -1033,7 +1015,7 @@ return (
                     {request.events?.title ? (
                       <>
                         For event:{" "}
-                        <Link to="/calendar" className="hover:text-primary-600">
+                        <Link href="/calendar" className="hover:text-primary-600">
                           {request.events.title}
                         </Link>
                         {request.events.creator && (
@@ -1046,8 +1028,7 @@ return (
                     {request.start_time && request.end_time && (
                       <span className="ml-2 text-xs text-gray-400">
                         <Clock className="inline h-3 w-3 mr-1" />
-                        {formatToIST(request.start_time, "MMM d, h:mm a")} -{" "}
-                        {formatToIST(request.end_time, "h:mm a")}
+                        {formatToIST(request.start_time, "MMM d, h:mm a")} - {formatToIST(request.end_time, "h:mm a")}
                       </span>
                     )}
                   </div>
@@ -1209,7 +1190,6 @@ return (
       )}
     </div>
   )
-\
 }
 
 export default RequestsPage
