@@ -20,6 +20,7 @@ const CalendarPage = () => {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isCreating, setIsCreating] = useState(false)
   const [searchParams, setSearchParams] = useSearchParams()
+  const [joiningEvents, setJoiningEvents] = useState<Set<string>>(new Set())
 
   const start = startOfMonth(currentMonth)
   const end = endOfMonth(currentMonth)
@@ -120,11 +121,19 @@ const CalendarPage = () => {
     setSelectedEvent(null)
   }
 
-  const handleJoinEvent = async (eventId: string) => {
+  const handleJoinEvent = async (eventId: string, e?: React.MouseEvent) => {
+    if (e) {
+      e.stopPropagation() // Prevent event details modal from opening
+    }
+    
+    if (!user?.id || joiningEvents.has(eventId)) return
+
+    setJoiningEvents(prev => new Set(prev).add(eventId))
+
     try {
       const { error } = await supabase.from("event_participants").insert({
         event_id: eventId,
-        user_id: user?.id,
+        user_id: user.id,
         role: "participant",
       })
 
@@ -146,16 +155,31 @@ const CalendarPage = () => {
       }
     } catch (error) {
       console.error("Error joining event:", error)
+      // You could add toast notification here for better UX
+    } finally {
+      setJoiningEvents(prev => {
+        const newSet = new Set(prev)
+        newSet.delete(eventId)
+        return newSet
+      })
     }
   }
 
-  const handleLeaveEvent = async (eventId: string) => {
+  const handleLeaveEvent = async (eventId: string, e?: React.MouseEvent) => {
+    if (e) {
+      e.stopPropagation() // Prevent event details modal from opening
+    }
+    
+    if (!user?.id || joiningEvents.has(eventId)) return
+
+    setJoiningEvents(prev => new Set(prev).add(eventId))
+
     try {
       const { error } = await supabase
         .from("event_participants")
         .delete()
         .eq("event_id", eventId)
-        .eq("user_id", user?.id)
+        .eq("user_id", user.id)
 
       if (error) throw error
 
@@ -171,6 +195,13 @@ const CalendarPage = () => {
       }
     } catch (error) {
       console.error("Error leaving event:", error)
+      // You could add toast notification here for better UX
+    } finally {
+      setJoiningEvents(prev => {
+        const newSet = new Set(prev)
+        newSet.delete(eventId)
+        return newSet
+      })
     }
   }
 
@@ -234,36 +265,45 @@ const CalendarPage = () => {
 
                   <div className="overflow-y-auto max-h-20 sm:max-h-24">
                     {dayEvents.map((event) => (
-                      <div key={event.id} className="flex flex-col">
+                      <div key={event.id} className="flex flex-col mb-1">
                         <button
                           onClick={() => openEventDetails(event)}
-                          className={`w-full text-left text-xs mb-1 px-1 py-1 rounded truncate ${
+                          className={`w-full text-left text-xs px-1 py-1 rounded truncate ${
                             event.event_type === "shoot"
-                              ? "bg-blue-100 text-blue-800"
+                              ? "bg-blue-100 text-blue-800 hover:bg-blue-200"
                               : event.event_type === "screening"
-                                ? "bg-purple-100 text-purple-800"
-                                : "bg-gray-100 text-gray-800"
-                          } ${!event.is_open ? "opacity-75" : ""}`}
+                                ? "bg-purple-100 text-purple-800 hover:bg-purple-200"
+                                : "bg-gray-100 text-gray-800 hover:bg-gray-200"
+                          } ${!event.is_open ? "opacity-75" : ""} transition-colors`}
                           title={`${event.title} ${!event.is_open ? "(Private)" : ""}`}
                         >
                           {formatToIST(event.start_time, "h:mm a")} - {event.title}
                           {!event.is_open && <span className="ml-1">🔒</span>}
                         </button>
-                        {event.id && !isUserJoined(event) && (
-                          <button
-                            onClick={() => handleJoinEvent(event.id)}
-                            className="bg-green-500 text-white text-[0.6rem] rounded px-1 py-0.5 mt-0.5"
-                          >
-                            Join
-                          </button>
-                        )}
-                        {event.id && isUserJoined(event) && (
-                          <button
-                            onClick={() => handleLeaveEvent(event.id)}
-                            className="bg-red-500 text-white text-[0.6rem] rounded px-1 py-0.5 mt-0.5"
-                          >
-                            Leave
-                          </button>
+                        
+                        {/* Join/Leave buttons with proper event handling */}
+                        {event.id && event.is_open && (
+                          <div className="flex gap-1 mt-0.5">
+                            {!isUserJoined(event) ? (
+                              <button
+                                onClick={(e) => handleJoinEvent(event.id, e)}
+                                disabled={joiningEvents.has(event.id)}
+                                className="bg-green-500 hover:bg-green-600 disabled:bg-green-300 text-white text-[0.6rem] rounded px-1 py-0.5 transition-colors font-medium"
+                                title="Join this event"
+                              >
+                                {joiningEvents.has(event.id) ? "..." : "Join"}
+                              </button>
+                            ) : (
+                              <button
+                                onClick={(e) => handleLeaveEvent(event.id, e)}
+                                disabled={joiningEvents.has(event.id)}
+                                className="bg-red-500 hover:bg-red-600 disabled:bg-red-300 text-white text-[0.6rem] rounded px-1 py-0.5 transition-colors font-medium"
+                                title="Leave this event"
+                              >
+                                {joiningEvents.has(event.id) ? "..." : "Leave"}
+                              </button>
+                            )}
+                          </div>
                         )}
                       </div>
                     ))}
