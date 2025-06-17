@@ -1,7 +1,6 @@
 import { format, parse, parseISO } from "date-fns"
 
 const INDIA_TIMEZONE_OFFSET = 5.5 * 60 * 60 * 1000 
-
 const toIST = (date: Date): Date => {
   const utc = date.getTime() + date.getTimezoneOffset() * 60000
   return new Date(utc + INDIA_TIMEZONE_OFFSET)
@@ -13,7 +12,7 @@ const fromIST = (date: Date): Date => {
 }
 
 // Format a date/time string to IST display
-export const formatToIST = (dateString: string, formatString = "MMM d, yyyy HH:mm") => {
+export const formatToIST = (dateString: string, formatString = "MMM d, yyyy h:mm a") => {
   try {
     if (!dateString) return "Invalid date"
     const date = parseISO(dateString)
@@ -26,8 +25,8 @@ export const formatToIST = (dateString: string, formatString = "MMM d, yyyy HH:m
   }
 }
 
-// Format a date object to IST display
-export const formatDateToIST = (date: Date, formatString = "MMM d, yyyy HH:mm") => {
+// Format a date object
+export const formatDateToIST = (date: Date, formatString = "MMM d, yyyy h:mm a") => {
   try {
     if (!date || isNaN(date.getTime())) return "Invalid date"
     const istDate = toIST(date)
@@ -52,7 +51,6 @@ export const convertLocalToUTC = (dateStr: string, timeStr: string) => {
   }
 }
 
-// Convert UTC date to IST for form inputs
 export const convertUTCToLocal = (isoString: string) => {
   try {
     if (!isoString) {
@@ -86,15 +84,51 @@ export const convertUTCToLocal = (isoString: string) => {
   }
 }
 
+export const convertUTCToDateTimeLocal = (isoString: string) => {
+  try {
+    if (!isoString) {
+      const now = new Date()
+      return format(now, "yyyy-MM-dd'T'HH:mm")
+    }
+    const utcDate = parseISO(isoString)
+    if (isNaN(utcDate.getTime())) {
+      const now = new Date()
+      return format(now, "yyyy-MM-dd'T'HH:mm")
+    }
+    const istDate = toIST(utcDate)
+    return format(istDate, "yyyy-MM-dd'T'HH:mm")
+  } catch (error) {
+    console.error("Error converting UTC to datetime-local:", error)
+    const now = new Date()
+    return format(now, "yyyy-MM-dd'T'HH:mm")
+  }
+}
+
+export const convertDateTimeLocalToUTC = (dateTimeLocal: string) => {
+  try {
+    if (!dateTimeLocal) return new Date().toISOString()
+
+    const localDate = parse(dateTimeLocal, "yyyy-MM-dd'T'HH:mm", new Date())
+
+    const utcDate = fromIST(localDate)
+
+    return utcDate.toISOString()
+  } catch (error) {
+    console.error("Error converting datetime-local to UTC:", error)
+    return new Date().toISOString()
+  }
+}
+
+// Get current IST time
 export const getCurrentIST = () => {
   return toIST(new Date())
 }
 
+// Get current IST time as ISO string
 export const getCurrentISTString = () => {
   return getCurrentIST().toISOString()
 }
 
-// Check if a date is today in IST
 export const isToday = (dateString: string) => {
   try {
     if (!dateString) return false
@@ -135,6 +169,7 @@ export const formatRelativeTime = (dateString: string) => {
   }
 }
 
+// Check if two dates are the same day in IST
 export const isSameDayIST = (date1: Date, date2: Date) => {
   try {
     if (!date1 || !date2 || isNaN(date1.getTime()) || isNaN(date2.getTime())) return false
