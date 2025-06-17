@@ -904,7 +904,8 @@ const RequestsPage = () => {
                     <div>
                       <span className="font-medium text-gray-900">{log.equipment?.name}</span>
                       <span className="text-sm text-gray-500 ml-2">
-                        Since {log.checkout_time ? formatToIST(log.checkout_time, "MMM d, yyyy h:mm a") : "Unknown time"}
+                        Since{" "}
+                        {log.checkout_time ? formatToIST(log.checkout_time, "MMM d, yyyy h:mm a") : "Unknown time"}
                       </span>
                       {log.expected_return_time && (
                         <span className="text-xs text-gray-400 ml-2">
@@ -932,4 +933,212 @@ const RequestsPage = () => {
                             >
                               <option value="">Choose action...</option>
                               <option value={log.equipment?.owner_id || "admin"}>
-                                Return to {
+                                Return to{" "}
+                                {log.equipment?.owner_id
+                                  ? allUsers.find((u) => u.id === log.equipment.owner_id)?.name
+                                  : "Admin"}
+                              </option>
+                            </select>
+                          </div>
+                        </div>
+                      ) : (
+                        <button
+                          className="text-xs bg-blue-500 text-white px-2 py-1 rounded"
+                          onClick={() => setReturningId(`possession-${log.id}`)}
+                        >
+                          Return
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Requests Section */}
+      <div>
+        <h2 className="text-xl font-semibold text-gray-900 mb-4">Requests</h2>
+        <div className="bg-white border border-gray-200 rounded-lg p-4">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex gap-4">
+              <input
+                type="text"
+                className="border border-gray-300 rounded px-2 py-1"
+                placeholder="Search..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+              <select
+                className="text-xs border border-gray-300 rounded px-2 py-1"
+                value={selectedStatus}
+                onChange={(e) => setSelectedStatus(e.target.value)}
+              >
+                <option value="all">All</option>
+                <option value="pending">Pending</option>
+                <option value="approved">Approved</option>
+                <option value="rejected">Rejected</option>
+                <option value="received">In Use</option>
+                <option value="returned">Returned</option>
+              </select>
+            </div>
+          </div>
+          <div className="space-y-3">
+            {filteredRequests.map((request) => (
+              <div key={request.id} className="flex items-center justify-between bg-gray-50 p-3 rounded-md">
+                <div>
+                  <span className="font-medium text-gray-900">{request.equipment?.name}</span>
+                  <span className="text-sm text-gray-500 ml-2">Requested by {request.requester?.name}</span>
+                  {request.events && <span className="text-sm text-gray-500 ml-2">Event: {request.events.title}</span>}
+                  <div className="text-xs text-gray-400 mt-1">{getStatusBadge(request.status)}</div>
+                </div>
+                <div className="flex gap-2">
+                  {processingId === request.id ? (
+                    <span className="text-xs text-gray-500">Processing...</span>
+                  ) : (
+                    <>
+                      {canApprove(request) && (
+                        <button
+                          className="text-xs bg-green-500 text-white px-2 py-1 rounded"
+                          onClick={() => handleApprove(request.id)}
+                        >
+                          Approve
+                        </button>
+                      )}
+                      {request.status === "approved" && !request.received_time && (
+                        <button
+                          className="text-xs bg-blue-500 text-white px-2 py-1 rounded"
+                          onClick={() => handleReceived(request.id)}
+                        >
+                          Received
+                        </button>
+                      )}
+                      {request.status === "received" && (
+                        <button
+                          className="text-xs bg-red-500 text-white px-2 py-1 rounded"
+                          onClick={() => setReturningId(request.id)}
+                        >
+                          Return
+                        </button>
+                      )}
+                      {request.status === "pending" && user.is_admin && (
+                        <button
+                          className="text-xs bg-yellow-500 text-white px-2 py-1 rounded"
+                          onClick={() => setForwardingId(request.id)}
+                        >
+                          Forward
+                        </button>
+                      )}
+                    </>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Forwarding Modal */}
+      {forwardingId && (
+        <div className="fixed inset-0 flex items-center justify-center bg-gray-800 bg-opacity-75">
+          <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
+            <h3 className="text-lg font-bold mb-4">Forward Request</h3>
+            <select
+              className="text-xs border border-gray-300 rounded px-2 py-1 w-full mb-4"
+              value={selectedForwardUser}
+              onChange={(e) => setSelectedForwardUser(e.target.value)}
+            >
+              <option value="">Select User...</option>
+              {getForwardingUsers(requests.find((r) => r.id === forwardingId)).map((user) => (
+                <option key={user.id} value={user.id}>
+                  {user.name}
+                </option>
+              ))}
+            </select>
+            <div className="flex justify-end">
+              <button
+                className="text-xs bg-gray-500 text-white px-2 py-1 rounded mr-2"
+                onClick={() => {
+                  setForwardingId(null)
+                  setSelectedForwardUser("")
+                  setShowOtherUsers(false)
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                className="text-xs bg-blue-500 text-white px-2 py-1 rounded"
+                onClick={() => handleForward(forwardingId)}
+              >
+                Forward
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Returning Modal */}
+      {returningId && (
+        <div className="fixed inset-0 flex items-center justify-center bg-gray-800 bg-opacity-75">
+          <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
+            <h3 className="text-lg font-bold mb-4">Return Equipment</h3>
+            <select
+              className="text-xs border border-gray-300 rounded px-2 py-1 w-full mb-4"
+              value={returnToUser}
+              onChange={(e) => setReturnToUser(e.target.value)}
+            >
+              <option value="">Select User...</option>
+              {getReturnOptions(requests.find((r) => r.id === returningId)).map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+            <div className="flex items-center gap-2 mb-4">
+              <span className="text-xs text-gray-500">Condition:</span>
+              <select
+                className="text-xs border border-gray-300 rounded px-2 py-1"
+                value={returnCondition}
+                onChange={(e) => setReturnCondition(e.target.value as "perfect" | "damaged")}
+              >
+                <option value="perfect">Perfect</option>
+                <option value="damaged">Damaged</option>
+              </select>
+            </div>
+            {returnCondition === "damaged" && (
+              <textarea
+                className="border border-gray-300 rounded px-2 py-1 w-full mb-4"
+                placeholder="Enter damage notes..."
+                value={damageNotes}
+                onChange={(e) => setDamageNotes(e.target.value)}
+              />
+            )}
+            <div className="flex justify-end">
+              <button
+                className="text-xs bg-gray-500 text-white px-2 py-1 rounded mr-2"
+                onClick={() => {
+                  setReturningId(null)
+                  setReturnToUser("")
+                  setReturnCondition("perfect")
+                  setDamageNotes("")
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                className="text-xs bg-blue-500 text-white px-2 py-1 rounded"
+                onClick={() => handleReturn(returningId)}
+              >
+                Return
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+export default RequestsPage
