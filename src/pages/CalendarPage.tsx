@@ -65,7 +65,6 @@ const CalendarPage = () => {
         setSelectedEvent(eventToEdit)
         setIsCreating(false)
         setIsModalOpen(true)
-        // Remove the edit parameter from URL
         setSearchParams({})
       }
     }
@@ -111,13 +110,33 @@ const CalendarPage = () => {
     setSelectedEvent(null)
   }
 
-  const handleEventSaved = (savedEvent: Event) => {
+  const handleEventSaved = async (savedEvent: Event) => {
     if (selectedEvent) {
-      // Update existing event in the list
       setEvents(events.map((event) => (event.id === savedEvent.id ? savedEvent : event)))
     } else {
-      // Add new event to the list
       setEvents([...events, savedEvent])
+      
+      if (savedEvent.is_open && savedEvent.created_by === user?.id) {
+        try {
+          await supabase.from("event_participants").insert({
+            event_id: savedEvent.id,
+            user_id: user.id,
+            role: "creator",
+          })
+          
+          const currentMonthEvents = await supabase
+            .from("events")
+            .select("*, creator:created_by(*), event_participants(*)")
+            .gte("start_time", startOfMonth(currentMonth).toISOString())
+            .lte("start_time", endOfMonth(currentMonth).toISOString())
+
+          if (currentMonthEvents.data) {
+            setEvents(currentMonthEvents.data)
+          }
+        } catch (error) {
+          console.error("Error auto-joining creator to event:", error)
+        }
+      }
     }
     setIsModalOpen(false)
     setSelectedEvent(null)
@@ -134,8 +153,6 @@ const CalendarPage = () => {
     setError(null)
 
     try {
-      console.log('Attempting to join event:', eventId, 'for user:', user.id)
-      
       // First check if user is already joined
       const { data: existingParticipant, error: checkError } = await supabase
         .from("event_participants")
@@ -144,13 +161,11 @@ const CalendarPage = () => {
         .eq("user_id", user.id)
         .single()
 
-      if (checkError && checkError.code !== 'PGRST116') { // PGRST116 is "not found" error
-        console.error("Error checking existing participation:", checkError)
+      if (checkError && checkError.code !== 'PGRST116') { // "not found" error
         throw checkError
       }
 
       if (existingParticipant) {
-        console.log('User already joined this event')
         return
       }
 
@@ -165,11 +180,8 @@ const CalendarPage = () => {
         .select()
 
       if (insertError) {
-        console.error("Error inserting participant:", insertError)
         throw insertError
       }
-
-      console.log('Successfully joined event:', insertData)
 
       // Refresh events to show updated participant count
       const currentMonthEvents = await supabase
@@ -179,7 +191,6 @@ const CalendarPage = () => {
         .lte("start_time", endOfMonth(currentMonth).toISOString())
 
       if (currentMonthEvents.error) {
-        console.error("Error refreshing events:", currentMonthEvents.error)
         throw currentMonthEvents.error
       }
 
@@ -200,7 +211,7 @@ const CalendarPage = () => {
 
   const handleLeaveEvent = async (eventId: string, e?: React.MouseEvent) => {
     if (e) {
-      e.stopPropagation() // Prevent event details modal from opening
+      e.stopPropagation()
     }
     
     if (!user?.id || joiningEvents.has(eventId)) return
@@ -209,8 +220,6 @@ const CalendarPage = () => {
     setError(null)
 
     try {
-      console.log('Attempting to leave event:', eventId, 'for user:', user.id)
-      
       const { error } = await supabase
         .from("event_participants")
         .delete()
@@ -218,13 +227,9 @@ const CalendarPage = () => {
         .eq("user_id", user.id)
 
       if (error) {
-        console.error("Error leaving event:", error)
         throw error
       }
 
-      console.log('Successfully left event')
-
-      // Refresh events to show updated participant count
       const currentMonthEvents = await supabase
         .from("events")
         .select("*, creator:created_by(*), event_participants(*)")
@@ -232,7 +237,6 @@ const CalendarPage = () => {
         .lte("start_time", endOfMonth(currentMonth).toISOString())
 
       if (currentMonthEvents.error) {
-        console.error("Error refreshing events:", currentMonthEvents.error)
         throw currentMonthEvents.error
       }
 
@@ -309,7 +313,6 @@ const CalendarPage = () => {
           </div>
 
           <div className="grid grid-cols-7 gap-px bg-gray-200">
-            {/* Empty cells for days before the first day of month */}
             {Array.from({ length: firstDayOfMonth }).map((_, index) => (
               <div key={`empty-${index}`} className="bg-gray-50 h-24 sm:h-32"></div>
             ))}
