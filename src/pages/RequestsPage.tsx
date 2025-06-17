@@ -5,6 +5,8 @@ import { useSupabase } from "../contexts/SupabaseContext"
 import { useAuth } from "../contexts/AuthContext"
 import type { EquipmentRequest } from "../types"
 import { formatToIST } from "../utils/timezone"
+import { Link } from "react-router-dom"
+import { Clock, XCircle } from 'lucide-react'
 
 const RequestsPage = () => {
   const { supabase } = useSupabase()
@@ -872,6 +874,27 @@ const RequestsPage = () => {
     }
   }
 
+  const handleDeleteRequest = async (requestId: string) => {
+    if (!confirm("Are you sure you want to delete this request?")) {
+      return
+    }
+
+    setProcessingId(requestId)
+    try {
+      const { error } = await supabase
+        .from("equipment_requests")
+        .delete()
+        .eq("id", requestId)
+
+      if (error) throw error
+      await refreshRequests()
+    } catch (error) {
+      console.error("Error deleting request:", error)
+    } finally {
+      setProcessingId(null)
+    }
+  }
+
   return (
     <div className="container mx-auto">
       <div className="mb-8">
@@ -991,7 +1014,28 @@ const RequestsPage = () => {
                 <div>
                   <span className="font-medium text-gray-900">{request.equipment?.name}</span>
                   <span className="text-sm text-gray-500 ml-2">Requested by {request.requester?.name}</span>
-                  {request.events && <span className="text-sm text-gray-500 ml-2">Event: {request.events.title}</span>}
+                  <div className="text-sm text-gray-500">
+                    {request.events?.title ? (
+                      <>
+                        For event:{" "}
+                        <Link to="/calendar" className="hover:text-primary-600">
+                          {request.events.title}
+                        </Link>
+                        {request.events.creator && (
+                          <span className="text-xs text-gray-400 ml-1">(by {request.events.creator.name})</span>
+                        )}
+                      </>
+                    ) : (
+                      "General use"
+                    )}
+                    {request.start_time && request.end_time && (
+                      <span className="ml-2 text-xs text-gray-400">
+                        <Clock className="inline h-3 w-3 mr-1" />
+                        {formatToIST(request.start_time, "MMM d, h:mm a")} -{" "}
+                        {formatToIST(request.end_time, "h:mm a")}
+                      </span>
+                    )}
+                  </div>
                   <div className="text-xs text-gray-400 mt-1">{getStatusBadge(request.status)}</div>
                 </div>
                 <div className="flex gap-2">
@@ -1029,6 +1073,17 @@ const RequestsPage = () => {
                           onClick={() => setForwardingId(request.id)}
                         >
                           Forward
+                        </button>
+                      )}
+                      {/* Delete button for own pending requests */}
+                      {request.status === "pending" && request.requester_id === user?.id && (
+                        <button
+                          onClick={() => handleDeleteRequest(request.id)}
+                          disabled={!!processingId}
+                          className="inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50"
+                        >
+                          <XCircle className="mr-1 h-4 w-4" />
+                          Delete
                         </button>
                       )}
                     </>
