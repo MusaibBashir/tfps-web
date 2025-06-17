@@ -1,6 +1,5 @@
 "use client"
 
-import Link from "next/link"
 import { useState, useEffect } from "react"
 import { useSupabase } from "../contexts/SupabaseContext"
 import { useAuth } from "../contexts/AuthContext"
@@ -1015,9 +1014,9 @@ user:user_id(*)
                     {request.events?.title ? (
                       <>
                         For event:{" "}
-                        <Link href="/calendar" className="hover:text-primary-600">
+                        <a href="/calendar" className="hover:text-primary-600">
                           {request.events.title}
-                        </Link>
+                        </a>
                         {request.events.creator && (
                           <span className="text-xs text-gray-400 ml-1">(by {request.events.creator.name})</span>
                         )}
