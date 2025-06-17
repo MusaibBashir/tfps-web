@@ -24,50 +24,9 @@ A comprehensive web application for managing TFPS operations, equipment requests
 - **PostCSS** - CSS processing
 - **TypeScript** - Static type checking
 
-## Project Structure
+<pre> ## Project Structure ```plaintext src/ ├── components/ # Reusable UI components │ ├── AddEquipmentForm.tsx │ ├── AddUserForm.tsx │ ├── EquipmentStatusModal.tsx │ ├── EventModal.tsx │ ├── Layout.tsx │ ├── Navbar.tsx │ └── RequestEquipmentModal.tsx ├── contexts/ # React Context providers │ ├── AuthContext.tsx │ └── SupabaseContext.tsx ├── pages/ # Main application pages │ ├── AdminPage.tsx │ ├── CalendarPage.tsx │ ├── DashboardPage.tsx │ ├── EquipmentDetailPage.tsx │ ├── EquipmentPage.tsx │ ├── HomePage.tsx │ ├── LoginPage.tsx │ ├── MemberDetailPage.tsx │ ├── MembersPage.tsx │ ├── ProfilePage.tsx │ └── RequestsPage.tsx ├── types/ # TypeScript type definitions │ └── index.ts ├── utils/ # Utility functions │ ├── supabase.ts │ └── timezone.ts ├── App.tsx # Main application component ├── main.tsx # Application entry point └── index.css # Global styles public/ ├── camera-icon.svg # Custom SVG icon └── index.html # HTML template ``` </pre>
 
-\`\`\`
-src/
-├── components/           # Reusable UI components
-│   ├── AddEquipmentForm.tsx
-│   ├── AddUserForm.tsx
-│   ├── EquipmentStatusModal.tsx
-│   ├── EventModal.tsx
-│   ├── Layout.tsx
-│   ├── Navbar.tsx
-│   └── RequestEquipmentModal.tsx
-├── contexts/            # React Context providers
-│   ├── AuthContext.tsx
-│   └── SupabaseContext.tsx
-├── pages/              # Main application pages
-│   ├── AdminPage.tsx
-│   ├── CalendarPage.tsx
-│   ├── DashboardPage.tsx
-│   ├── EquipmentDetailPage.tsx
-│   ├── EquipmentPage.tsx
-│   ├── HomePage.tsx
-│   ├── LoginPage.tsx
-│   ├── MemberDetailPage.tsx
-│   ├── MembersPage.tsx
-│   ├── ProfilePage.tsx
-│   └── RequestsPage.tsx
-├── types/              # TypeScript type definitions
-│   └── index.ts
-├── utils/              # Utility functions
-│   ├── supabase.ts
-│   └── timezone.ts
-
-
-├── App.tsx             # Main application component
-├── main.tsx           # Application entry point
-└── index.css          # Global styles
-
-public/
-├── camera-icon.svg     # Custom SVG icon
-└── index.html         # HTML template
-\`\`\`
-
-## ✨ Features
+## Features
 
 ### Authentication & Authorization
 - **Secure Login System** - Username/password authentication
