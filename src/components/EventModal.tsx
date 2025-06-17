@@ -37,6 +37,7 @@ const EventModal: React.FC<EventModalProps> = ({
   const { supabase } = useSupabase()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [joiningEvent, setJoiningEvent] = useState(false)
   const modalRef = useRef<HTMLDivElement>(null)
   const [formData, setFormData] = useState({
     title: "",
@@ -136,6 +137,7 @@ const EventModal: React.FC<EventModalProps> = ({
       })
     }
     setError(null)
+    setJoiningEvent(false)
   }, [event, isOpen])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -221,6 +223,29 @@ const EventModal: React.FC<EventModalProps> = ({
     }
   }
 
+  const handleJoinLeaveEvent = async (action: 'join' | 'leave') => {
+    if (!event?.id || !onJoinEvent || !onLeaveEvent || joiningEvent) return
+
+    setJoiningEvent(true)
+    setError(null)
+
+    try {
+      if (action === 'join') {
+        await onJoinEvent(event.id)
+      } else {
+        await onLeaveEvent(event.id)
+      }
+      
+      // Close modal after successful join/leave
+      onClose()
+    } catch (error: any) {
+      console.error(`Error ${action}ing event:`, error)
+      setError(`Failed to ${action} event. Please try again.`)
+    } finally {
+      setJoiningEvent(false)
+    }
+  }
+
   if (!isOpen) return null
 
   return (
@@ -279,19 +304,30 @@ const EventModal: React.FC<EventModalProps> = ({
               </p>
             </div>
 
+            {error && (
+              <div className="bg-red-50 text-red-700 p-3 rounded-md text-sm">
+                {error}
+              </div>
+            )}
+
             {event?.is_open && onJoinEvent && onLeaveEvent && (
               <div className="pt-4 border-t">
                 {isUserJoined ? (
-                  <button onClick={() => onLeaveEvent(event.id)} className="w-full btn btn-secondary">
-                    Leave Event
+                  <button 
+                    onClick={() => handleJoinLeaveEvent('leave')} 
+                    disabled={joiningEvent}
+                    className="w-full btn btn-secondary disabled:opacity-50"
+                  >
+                    {joiningEvent ? "Leaving..." : "Leave Event"}
                   </button>
                 ) : (
                   <button
-                    onClick={() => onJoinEvent(event.id)}
-                    className="w-full btn btn-primary flex items-center justify-center gap-2"
+                    onClick={() => handleJoinLeaveEvent('join')}
+                    disabled={joiningEvent}
+                    className="w-full btn btn-primary flex items-center justify-center gap-2 disabled:opacity-50"
                   >
                     <UserPlus size={16} />
-                    Join Event
+                    {joiningEvent ? "Joining..." : "Join Event"}
                   </button>
                 )}
               </div>
