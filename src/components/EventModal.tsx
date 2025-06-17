@@ -2,7 +2,7 @@
 
 import type React from "react"
 import { useState, useEffect, useRef, type FormEvent } from "react"
-import { X, UserPlus } from "lucide-react"
+import { X, UserPlus, Users } from "lucide-react"
 import { useSupabase } from "../contexts/SupabaseContext"
 import type { Event } from "../types"
 import { convertLocalToUTC, convertUTCToLocal } from "../utils/timezone"
@@ -38,6 +38,8 @@ const EventModal: React.FC<EventModalProps> = ({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [joiningEvent, setJoiningEvent] = useState(false)
+  const [participants, setParticipants] = useState<any[]>([])
+  const [loadingParticipants, setLoadingParticipants] = useState(false)
   const modalRef = useRef<HTMLDivElement>(null)
   const [formData, setFormData] = useState({
     title: "",
@@ -76,6 +78,40 @@ const EventModal: React.FC<EventModalProps> = ({
       document.removeEventListener("keydown", handleEscapeKey)
     }
   }, [isOpen, onClose])
+
+  // Fetch participants when viewing an event
+  useEffect(() => {
+    const fetchParticipants = async () => {
+      if (!event?.id || isCreating || canEditEvent) return
+
+      setLoadingParticipants(true)
+      try {
+        const { data, error } = await supabase
+          .from("event_participants")
+          .select(`
+            *,
+            user:user_id (
+              id,
+              name,
+              email
+            )
+          `)
+          .eq("event_id", event.id)
+          .order("created_at", { ascending: true })
+
+        if (error) throw error
+        setParticipants(data || [])
+      } catch (error) {
+        console.error("Error fetching participants:", error)
+      } finally {
+        setLoadingParticipants(false)
+      }
+    }
+
+    if (isOpen) {
+      fetchParticipants()
+    }
+  }, [event?.id, isOpen, isCreating, canEditEvent, supabase])
 
   useEffect(() => {
     if (event) {
@@ -138,6 +174,7 @@ const EventModal: React.FC<EventModalProps> = ({
     }
     setError(null)
     setJoiningEvent(false)
+    setParticipants([])
   }, [event, isOpen])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -187,7 +224,7 @@ const EventModal: React.FC<EventModalProps> = ({
         start_time: startTime,
         end_time: endTime,
         created_by: currentUserId,
-        is_approved: isAdmin,
+        is_approved: isAdmin, // Auto-approve if admin
         approved_by: isAdmin ? currentUserId : null,
         is_open: formData.is_open,
         max_participants: formData.max_participants ? Number.parseInt(formData.max_participants) : null,
@@ -236,6 +273,24 @@ const EventModal: React.FC<EventModalProps> = ({
         await onLeaveEvent(event.id)
       }
       
+      // Refresh participants list after join/leave
+      const { data } = await supabase
+        .from("event_participants")
+        .select(`
+          *,
+          user:user_id (
+            id,
+            name,
+            email
+          )
+        `)
+        .eq("event_id", event.id)
+        .order("created_at", { ascending: true })
+
+      if (data) {
+        setParticipants(data)
+      }
+      
       // Close modal after successful join/leave
       onClose()
     } catch (error: any) {
@@ -262,7 +317,6 @@ const EventModal: React.FC<EventModalProps> = ({
         </div>
 
         {!isCreating && !canEditEvent ? (
-          // View-only mode for events user can't edit
           <div className="p-4 space-y-4">
             <div>
               <h3 className="text-xl font-bold text-gray-900">{event?.title}</h3>
@@ -304,6 +358,47 @@ const EventModal: React.FC<EventModalProps> = ({
               </p>
             </div>
 
+            {/* Participants List */}
+            {event?.is_open && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+                  <Users className="h-4 w-4" />
+                  Who's Joining
+                </label>
+                {loadingParticipants ? (
+                  <div className="flex items-center justify-center py-4">
+                    <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-primary-600"></div>
+                  </div>
+                ) : participants.length > 0 ? (
+                  <div className="bg-gray-50 rounded-lg p-3 max-h-32 overflow-y-auto">
+                    <div className="space-y-2">
+                      {participants.map((participant) => (
+                        <div key={participant.id} className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <div className="w-6 h-6 bg-primary-100 rounded-full flex items-center justify-center">
+                              <span className="text-xs font-medium text-primary-700">
+                                {participant.user?.name?.charAt(0)?.toUpperCase() || '?'}
+                              </span>
+                            </div>
+                            <span className="text-sm text-gray-900">{participant.user?.name || 'Unknown User'}</span>
+                          </div>
+                          {participant.role === 'creator' && (
+                            <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
+                              Creator
+                            </span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-500 bg-gray-50 rounded-lg p-3">
+                    No participants yet. Be the first to join!
+                  </p>
+                )}
+              </div>
+            )}
+
             {error && (
               <div className="bg-red-50 text-red-700 p-3 rounded-md text-sm">
                 {error}
@@ -334,7 +429,6 @@ const EventModal: React.FC<EventModalProps> = ({
             )}
           </div>
         ) : (
-          // Edit mode
           <form onSubmit={handleSubmit}>
             <div className="p-4 space-y-4">
               <div>
