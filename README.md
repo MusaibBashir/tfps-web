@@ -25,7 +25,6 @@ A comprehensive web application for managing TFPS operations, equipment requests
 - **TypeScript** - Static type checking
 
 ## Project Structure
-\`\`\`
 src/
 ├── components/                    # Reusable UI components
 │   ├── AddEquipmentForm.tsx
@@ -62,8 +61,6 @@ src/
 public/
 ├── camera-icon.svg                # Custom SVG icon
 └── index.html                     # HTML template
-\`\`\`
-
 ## Features
 
 ### Authentication & Authorization
