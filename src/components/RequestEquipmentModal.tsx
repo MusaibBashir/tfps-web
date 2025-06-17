@@ -7,7 +7,7 @@ import { X, AlertTriangle, Clock } from "lucide-react"
 import { useSupabase } from "../contexts/SupabaseContext"
 import type { Equipment, User, Event, TimeConflict } from "../types"
 import { format } from "date-fns"
-import { convertUTCToLocal } from "../utils/timezone"
+import { convertUTCToDateTimeLocal, convertDateTimeLocalToUTC } from "../utils/timezone"
 
 interface RequestEquipmentModalProps {
   equipment: Equipment
@@ -124,13 +124,12 @@ const RequestEquipmentModal: React.FC<RequestEquipmentModalProps> = ({ equipment
       const event = events.find((e) => e.id === selectedEvent)
       if (event && event.start_time && event.end_time) {
         try {
-          // Convert UTC times to IST for display in datetime-local inputs
-          const { date: startDate, time: startTime } = convertUTCToLocal(event.start_time)
-          const { date: endDate, time: endTime } = convertUTCToLocal(event.end_time)
+          // Convert UTC times to datetime-local format for the inputs
+          const startDateTime = convertUTCToDateTimeLocal(event.start_time)
+          const endDateTime = convertUTCToDateTimeLocal(event.end_time)
 
-          // Combine date and time for datetime-local input format
-          setStartTime(`${startDate}T${startTime}`)
-          setEndTime(`${endDate}T${endTime}`)
+          setStartTime(startDateTime)
+          setEndTime(endDateTime)
         } catch (error) {
           console.error("Error setting event times:", error)
         }
@@ -148,10 +147,14 @@ const RequestEquipmentModal: React.FC<RequestEquipmentModalProps> = ({ equipment
 
       setCheckingConflicts(true)
       try {
+        // Convert datetime-local to UTC for conflict checking
+        const startUTC = convertDateTimeLocalToUTC(startTime)
+        const endUTC = convertDateTimeLocalToUTC(endTime)
+
         const { data, error } = await supabase.rpc("check_time_conflicts", {
           p_equipment_id: equipment.id,
-          p_start_time: startTime,
-          p_end_time: endTime,
+          p_start_time: startUTC,
+          p_end_time: endUTC,
         })
 
         if (error) throw error
@@ -184,6 +187,10 @@ const RequestEquipmentModal: React.FC<RequestEquipmentModalProps> = ({ equipment
     setError(null)
 
     try {
+      // Convert datetime-local to UTC for storage
+      const startUTC = convertDateTimeLocalToUTC(startTime)
+      const endUTC = convertDateTimeLocalToUTC(endTime)
+
       // Create equipment request with time information
       const { data, error } = await supabase
         .from("equipment_requests")
@@ -193,8 +200,8 @@ const RequestEquipmentModal: React.FC<RequestEquipmentModalProps> = ({ equipment
           requester_id: currentUser.id,
           status: "pending",
           notes: notes || null,
-          start_time: startTime,
-          end_time: endTime,
+          start_time: startUTC,
+          end_time: endUTC,
         })
         .select("*")
         .single()
@@ -356,9 +363,9 @@ const RequestEquipmentModal: React.FC<RequestEquipmentModalProps> = ({ equipment
                             <li key={conflict.conflicting_request_id}>
                               {conflict.requester_name}:{" "}
                               {conflict.start_time
-                                ? format(new Date(conflict.start_time), "MMM d, HH:mm")
+                                ? format(new Date(conflict.start_time), "MMM d, h:mm a")
                                 : "Unknown time"}{" "}
-                              - {conflict.end_time ? format(new Date(conflict.end_time), "HH:mm") : "Unknown time"}
+                              - {conflict.end_time ? format(new Date(conflict.end_time), "h:mm a") : "Unknown time"}
                             </li>
                           ))}
                         </ul>
@@ -387,8 +394,8 @@ const RequestEquipmentModal: React.FC<RequestEquipmentModalProps> = ({ equipment
                               {req.start_time && req.end_time && (
                                 <span className="text-xs">
                                   {" "}
-                                  ({format(new Date(req.start_time), "MMM d, HH:mm")} -{" "}
-                                  {format(new Date(req.end_time), "HH:mm")})
+                                  ({format(new Date(req.start_time), "MMM d, h:mm a")} -{" "}
+                                  {format(new Date(req.end_time), "h:mm a")})
                                 </span>
                               )}
                               {req.current_holder && ` (currently with ${req.current_holder.name})`}
