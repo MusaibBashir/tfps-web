@@ -25,6 +25,7 @@ const CalendarPage = () => {
   const end = endOfMonth(currentMonth)
   const days = eachDayOfInterval({ start, end })
 
+  // First day of month (0 = Sunday, 1 = Monday, etc.)
   const firstDayOfMonth = getDay(start)
 
   useEffect(() => {
@@ -36,7 +37,7 @@ const CalendarPage = () => {
 
         const { data, error } = await supabase
           .from("events")
-          .select("*, creator:created_by(*), approver:approved_by(*)")
+          .select("*, creator:created_by(*), event_participants(*)")
           .gte("start_time", startStr)
           .lte("start_time", endStr)
 
@@ -109,12 +110,76 @@ const CalendarPage = () => {
 
   const handleEventSaved = (savedEvent: Event) => {
     if (selectedEvent) {
+      // Update existing event in the list
       setEvents(events.map((event) => (event.id === savedEvent.id ? savedEvent : event)))
     } else {
+      // Add new event to the list
       setEvents([...events, savedEvent])
     }
     setIsModalOpen(false)
     setSelectedEvent(null)
+  }
+
+  const handleJoinEvent = async (eventId: string) => {
+    try {
+      const { error } = await supabase.from("event_participants").insert({
+        event_id: eventId,
+        user_id: user?.id,
+        role: "participant",
+      })
+
+      if (error && error.code !== "23505") {
+        // 23505 is unique constraint violation (already joined)
+        console.error("Error joining event:", error)
+        throw error
+      }
+
+      // Refresh events to show updated participant count
+      const currentMonthEvents = await supabase
+        .from("events")
+        .select("*, creator:created_by(*), event_participants(*)")
+        .gte("start_time", startOfMonth(currentMonth).toISOString())
+        .lte("start_time", endOfMonth(currentMonth).toISOString())
+
+      if (currentMonthEvents.data) {
+        setEvents(currentMonthEvents.data)
+      }
+    } catch (error) {
+      console.error("Error joining event:", error)
+    }
+  }
+
+  const handleLeaveEvent = async (eventId: string) => {
+    try {
+      const { error } = await supabase
+        .from("event_participants")
+        .delete()
+        .eq("event_id", eventId)
+        .eq("user_id", user?.id)
+
+      if (error) throw error
+
+      // Refresh events to show updated participant count
+      const currentMonthEvents = await supabase
+        .from("events")
+        .select("*, creator:created_by(*), event_participants(*)")
+        .gte("start_time", startOfMonth(currentMonth).toISOString())
+        .lte("start_time", endOfMonth(currentMonth).toISOString())
+
+      if (currentMonthEvents.data) {
+        setEvents(currentMonthEvents.data)
+      }
+    } catch (error) {
+      console.error("Error leaving event:", error)
+    }
+  }
+
+  const isUserJoined = (event: Event) => {
+    return event.event_participants?.some((p: any) => p.user_id === user?.id) || false
+  }
+
+  const canEditEvent = (event: Event) => {
+    return event.created_by === user?.id || user?.is_admin
   }
 
   return (
@@ -169,21 +234,38 @@ const CalendarPage = () => {
 
                   <div className="overflow-y-auto max-h-20 sm:max-h-24">
                     {dayEvents.map((event) => (
-                      <button
-                        key={event.id}
-                        onClick={() => openEventDetails(event)}
-                        className={`w-full text-left text-xs mb-1 px-1 py-1 rounded truncate ${
-                          event.event_type === "shoot"
-                            ? "bg-blue-100 text-blue-800"
-                            : event.event_type === "screening"
-                              ? "bg-purple-100 text-purple-800"
-                              : "bg-gray-100 text-gray-800"
-                        } ${!event.is_open ? "opacity-75" : ""}`}
-                        title={`${event.title} ${!event.is_open ? "(Private)" : ""}`}
-                      >
-                        {formatToIST(event.start_time, "h:mm a")} - {event.title}
-                        {!event.is_open && <span className="ml-1">🔒</span>}
-                      </button>
+                      <div key={event.id} className="flex flex-col">
+                        <button
+                          onClick={() => openEventDetails(event)}
+                          className={`w-full text-left text-xs mb-1 px-1 py-1 rounded truncate ${
+                            event.event_type === "shoot"
+                              ? "bg-blue-100 text-blue-800"
+                              : event.event_type === "screening"
+                                ? "bg-purple-100 text-purple-800"
+                                : "bg-gray-100 text-gray-800"
+                          } ${!event.is_open ? "opacity-75" : ""}`}
+                          title={`${event.title} ${!event.is_open ? "(Private)" : ""}`}
+                        >
+                          {formatToIST(event.start_time, "h:mm a")} - {event.title}
+                          {!event.is_open && <span className="ml-1">🔒</span>}
+                        </button>
+                        {event.id && !isUserJoined(event) && (
+                          <button
+                            onClick={() => handleJoinEvent(event.id)}
+                            className="bg-green-500 text-white text-[0.6rem] rounded px-1 py-0.5 mt-0.5"
+                          >
+                            Join
+                          </button>
+                        )}
+                        {event.id && isUserJoined(event) && (
+                          <button
+                            onClick={() => handleLeaveEvent(event.id)}
+                            className="bg-red-500 text-white text-[0.6rem] rounded px-1 py-0.5 mt-0.5"
+                          >
+                            Leave
+                          </button>
+                        )}
+                      </div>
                     ))}
                   </div>
                 </div>
@@ -221,6 +303,10 @@ const CalendarPage = () => {
           isCreating={isCreating}
           currentUserId={user?.id || ""}
           isAdmin={user?.is_admin || false}
+          onJoinEvent={handleJoinEvent}
+          onLeaveEvent={handleLeaveEvent}
+          isUserJoined={selectedEvent ? isUserJoined(selectedEvent) : false}
+          canEditEvent={selectedEvent ? canEditEvent(selectedEvent) : false}
         />
       )}
     </div>
