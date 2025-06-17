@@ -230,17 +230,21 @@ const EventModal: React.FC<EventModalProps> = ({
     setError(null)
 
     try {
+      console.log(`Attempting to ${action} event:`, event.id)
+      
       if (action === 'join') {
         await onJoinEvent(event.id)
       } else {
         await onLeaveEvent(event.id)
       }
       
+      console.log(`Successfully ${action}ed event`)
+      
       // Close modal after successful join/leave
       onClose()
     } catch (error: any) {
       console.error(`Error ${action}ing event:`, error)
-      setError(`Failed to ${action} event. Please try again.`)
+      setError(`Failed to ${action} event: ${error.message || 'Unknown error'}`)
     } finally {
       setJoiningEvent(false)
     }
