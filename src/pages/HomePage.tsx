@@ -482,12 +482,6 @@ const HomePage = () => {
                         </div>
                       </div>
                     </div>
-                    <div className="absolute top-3 right-3 bg-black/70 backdrop-blur-md px-2 py-1 rounded-lg text-white text-sm font-medium">
-                      {video.duration}
-                    </div>
-                    <div className="absolute bottom-3 left-3 bg-black/70 backdrop-blur-md px-2 py-1 rounded-lg text-white text-xs">
-                      {video.views} views
-                    </div>
                   </div>
                   <div className="p-6">
                     <h4 className="text-lg font-semibold text-gray-900 mb-2 line-clamp-2">{video.title}</h4>
@@ -571,14 +565,6 @@ const HomePage = () => {
                     <p className="text-gray-700 mb-4 leading-relaxed text-sm line-clamp-2">{post.caption}</p>
                     <div className="flex items-center justify-between text-sm text-gray-500 mb-4">
                       <div className="flex items-center gap-4">
-                        <span className="flex items-center gap-1">
-                          <Star className="h-4 w-4 fill-red-500 text-red-500" />
-                          {post.likes}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <MessageCircle className="h-4 w-4" />
-                          {post.comments}
-                        </span>
                       </div>
                     </div>
                     <a
