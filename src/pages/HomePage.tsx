@@ -1,4 +1,7 @@
+"use client"
+
 import React, { useState, useEffect, useRef } from 'react';
+import {Link,  useNavigate } from 'react-router-dom';
 import { 
   Camera, 
   Users, 
@@ -242,9 +245,14 @@ const HomePage = () => {
             </div>
 
             {/* Login Button */}
-            <button className="px-6 py-2 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-xl font-medium hover:shadow-lg transition-all duration-300 hover:scale-105">
-              Login
-            </button>
+            <div className="px-6 py-2 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-xl font-medium hover:shadow-lg transition-all duration-300 hover:scale-105">
+              <Link
+                to="/login"
+              >
+                Login
+              </Link>
+            </div>
+
           </div>
         </div>
       </nav>
