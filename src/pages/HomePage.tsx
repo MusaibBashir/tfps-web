@@ -282,7 +282,7 @@ const HomePage = () => {
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-0">
                 <div className="relative h-64 lg:h-auto">
                   <img
-                    src="https://images.pexels.com/photos/1264210/pexels-photo-1264210.jpeg?auto=compress&cs=tinysrgb&w=800"
+                    src="https://i.imgur.com/0jN8AOw.png"
                     alt="Hometown Hues Photography Competition"
                     className="w-full h-full object-cover"
                   />
