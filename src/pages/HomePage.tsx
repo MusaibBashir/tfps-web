@@ -78,7 +78,7 @@ const HomePage = () => {
     {
       id: 6,
       title: "PAARDARSH | GC SFM 2025 SILVER | LLR HALL",
-      youtubeId: "dQw4w9WgXcQ",
+      youtubeId: "QOP0CvqCQ_w",
       description: "In the 1990s, Anvesh, a college student exploring photography, is assigned a mysterious project by his professor, along with a vintage camera. Believing the project is about perception, he decides"
     }
   ];
@@ -580,7 +580,6 @@ const HomePage = () => {
                           {post.comments}
                         </span>
                       </div>
-                      <span className="text-xs">2 days ago</span>
                     </div>
                     <a
                       href={post.postUrl}
