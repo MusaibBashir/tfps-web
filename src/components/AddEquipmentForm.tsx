@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Camera, Package, Lightbulb, Mic, Plus, AlertCircle } from "lucide-react"
 import { useSupabase } from "../contexts/SupabaseContext"
 import { useAuth } from "../contexts/AuthContext"
@@ -11,10 +11,13 @@ const AddEquipmentForm = () => {
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [cameras, setCameras] = useState<{ id: string; name: string }[]>([])
 
   const [formData, setFormData] = useState({
     name: "",
     type: "camera",
+    subtype: "",
+    parent_id: "",
     description: "",
     ownership_type: "hall",
     hall: "",
@@ -36,11 +39,32 @@ const AddEquipmentForm = () => {
     { value: "other", label: "Other", icon: Package }
   ]
 
+  useEffect(() => {
+    fetchCameras()
+  }, [])
+
+  const fetchCameras = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("equipment")
+        .select("id, name")
+        .eq("type", "camera")
+        .order("name")
+
+      if (error) throw error
+      setCameras(data || [])
+    } catch (error) {
+      console.error("Error fetching cameras:", error)
+    }
+  }
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
     setFormData(prev => ({
       ...prev,
-      [name]: value
+      [name]: value,
+      // Reset parent_id when type changes and it's not a lens
+      ...(name === "type" && value !== "lens" ? { parent_id: "" } : {})
     }))
   }
 
@@ -50,7 +74,6 @@ const AddEquipmentForm = () => {
     setError(null)
 
     try {
-      // Validate required fields
       if (!formData.name.trim()) {
         throw new Error("Equipment name is required")
       }
@@ -63,10 +86,11 @@ const AddEquipmentForm = () => {
         throw new Error("Owner selection is required for student-owned equipment")
       }
 
-      // Prepare data for insertion
       const equipmentData = {
         name: formData.name.trim(),
         type: formData.type,
+        subtype: formData.subtype.trim() || null,
+        parent_id: formData.type === "lens" && formData.parent_id ? formData.parent_id : null,
         description: formData.description.trim() || null,
         ownership_type: formData.ownership_type,
         hall: formData.ownership_type === "hall" ? formData.hall : null,
@@ -87,6 +111,8 @@ const AddEquipmentForm = () => {
       setFormData({
         name: "",
         type: "camera",
+        subtype: "",
+        parent_id: "",
         description: "",
         ownership_type: "hall",
         hall: "",
@@ -94,7 +120,8 @@ const AddEquipmentForm = () => {
         status: "available"
       })
 
-      // Hide success message after 3 seconds
+      await fetchCameras()
+
       setTimeout(() => setSuccess(false), 3000)
 
     } catch (err: any) {
@@ -179,6 +206,48 @@ const AddEquipmentForm = () => {
             ))}
           </select>
         </div>
+
+        {/* Subtype */}
+        <div>
+          <label htmlFor="subtype" className="block text-sm font-medium text-gray-700 mb-2">
+            Subtype (Optional)
+          </label>
+          <input
+            type="text"
+            id="subtype"
+            name="subtype"
+            value={formData.subtype}
+            onChange={handleInputChange}
+            className="input"
+            placeholder="e.g., DSLR, Prime Lens, etc."
+          />
+        </div>
+
+        {/* Parent camera selection for lenses */}
+        {formData.type === "lens" && (
+          <div>
+            <label htmlFor="parent_id" className="block text-sm font-medium text-gray-700 mb-2">
+              Associate with Camera (Optional)
+            </label>
+            <select
+              id="parent_id"
+              name="parent_id"
+              value={formData.parent_id}
+              onChange={handleInputChange}
+              className="select"
+            >
+              <option value="">No association (standalone lens)</option>
+              {cameras.map((camera) => (
+                <option key={camera.id} value={camera.id}>
+                  {camera.name}
+                </option>
+              ))}
+            </select>
+            <p className="mt-1 text-xs text-gray-500">
+              Associate this lens with a specific camera or leave unassociated
+            </p>
+          </div>
+        )}
 
         {/* Description */}
         <div>
