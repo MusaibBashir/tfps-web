@@ -1,215 +1,119 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { Link } from "react-router-dom"
-import { Package, Search, Camera, Lightbulb, Mic, Plus } from "lucide-react"
+import { useState } from "react"
+import { Camera, Package, Lightbulb, Mic, Plus, AlertCircle } from "lucide-react"
 import { useSupabase } from "../contexts/SupabaseContext"
 import { useAuth } from "../contexts/AuthContext"
-import type { Equipment } from "../types"
 
-const EquipmentPage = () => {
+const AddEquipmentForm = () => {
   const { supabase } = useSupabase()
   const { user } = useAuth()
-  const [equipment, setEquipment] = useState<Equipment[]>([])
-  const [filteredEquipment, setFilteredEquipment] = useState<Equipment[]>([])
-  const [loading, setLoading] = useState(true)
-  const [searchQuery, setSearchQuery] = useState("")
-  const [selectedType, setSelectedType] = useState<string>("all")
-  const [selectedStatus, setSelectedStatus] = useState<string>("all")
-  const [selectedOwnership, setSelectedOwnership] = useState<string>("all")
-  const [selectedHall, setSelectedHall] = useState<string>("all")
+  const [loading, setLoading] = useState(false)
+  const [success, setSuccess] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const [formData, setFormData] = useState({
+    name: "",
+    type: "camera",
+    description: "",
+    ownership_type: "hall",
+    hall: "",
+    owner_id: "",
+    status: "available"
+  })
 
   const halls = [
-    "LBS",
-    "RK",
-    "RP",
-    "Azad",
-    "Patel",
-    "Nehru",
-    "MMM",
-    "VS",
-    "MS",
-    "LLR",
-    "SNVH",
-    "MT",
-    "SNIG",
+    "LBS", "RK", "RP", "Azad", "Patel", "Nehru", "MMM", 
+    "VS", "MS", "LLR", "SNVH", "MT", "SNIG"
   ]
 
-  useEffect(() => {
-    const fetchEquipment = async () => {
-      try {
-        let query = supabase.from("equipment").select(`
-          *,
-          owner:users(name, hostel)
-        `)
+  const equipmentTypes = [
+    { value: "camera", label: "Camera", icon: Camera },
+    { value: "lens", label: "Lens", icon: Package },
+    { value: "tripod", label: "Tripod", icon: Package },
+    { value: "light", label: "Light", icon: Lightbulb },
+    { value: "audio", label: "Audio", icon: Mic },
+    { value: "other", label: "Other", icon: Package }
+  ]
 
-        // Filter based on selected type
-        if (selectedType === "lens") {
-          // Show ALL lenses
-          query = query.eq("type", "lens")
-        } else {
-          query = query.is("parent_id", null)
-        }
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }))
+  }
 
-        const { data, error } = await query.order("name")
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+    setError(null)
 
-        if (error) {
-          throw error
-        }
-
-        if (data) {
-          setEquipment(data)
-          setFilteredEquipment(data)
-        }
-      } catch (error) {
-        console.error("Error fetching equipment:", error)
-      } finally {
-        setLoading(false)
+    try {
+      // Validate required fields
+      if (!formData.name.trim()) {
+        throw new Error("Equipment name is required")
       }
-    }
 
-    fetchEquipment()
-  }, [supabase, selectedType])
+      if (formData.ownership_type === "hall" && !formData.hall) {
+        throw new Error("Hall selection is required for hall-owned equipment")
+      }
 
-  useEffect(() => {
-    // Filter equipment based on search query and filters
-    let filtered = equipment
+      if (formData.ownership_type === "student" && !formData.owner_id) {
+        throw new Error("Owner selection is required for student-owned equipment")
+      }
 
-    if (searchQuery) {
-      filtered = filtered.filter((item) => item.name.toLowerCase().includes(searchQuery.toLowerCase()))
-    }
+      // Prepare data for insertion
+      const equipmentData = {
+        name: formData.name.trim(),
+        type: formData.type,
+        description: formData.description.trim() || null,
+        ownership_type: formData.ownership_type,
+        hall: formData.ownership_type === "hall" ? formData.hall : null,
+        owner_id: formData.ownership_type === "student" ? formData.owner_id : null,
+        status: formData.status,
+        created_by: user?.id
+      }
 
-    if (selectedStatus !== "all") {
-      filtered = filtered.filter((item) => item.status === selectedStatus)
-    }
+      const { error: insertError } = await supabase
+        .from("equipment")
+        .insert([equipmentData])
 
-    if (selectedOwnership !== "all") {
-      filtered = filtered.filter((item) => item.ownership_type === selectedOwnership)
-    }
+      if (insertError) {
+        throw insertError
+      }
 
-    if (selectedHall !== "all") {
-      filtered = filtered.filter((item) => {
-        if (item.ownership_type === "hall") {
-          return item.hall === selectedHall
-        } else if (item.ownership_type === "student" && item.owner) {
-          return item.owner.hostel === selectedHall
-        }
-        return false
+      setSuccess(true)
+      setFormData({
+        name: "",
+        type: "camera",
+        description: "",
+        ownership_type: "hall",
+        hall: "",
+        owner_id: "",
+        status: "available"
       })
-    }
 
-    setFilteredEquipment(filtered)
-  }, [searchQuery, selectedStatus, selectedOwnership, selectedHall, equipment])
+      // Hide success message after 3 seconds
+      setTimeout(() => setSuccess(false), 3000)
 
-  const getEquipmentIcon = (type: string) => {
-    switch (type) {
-      case "camera":
-        return <Camera className="h-6 w-6" />
-      case "light":
-        return <Lightbulb className="h-6 w-6" />
-      case "audio":
-        return <Mic className="h-6 w-6" />
-      default:
-        return <Package className="h-6 w-6" />
+    } catch (err: any) {
+      console.error("Error adding equipment:", err)
+      setError(err.message || "Failed to add equipment. Please try again.")
+    } finally {
+      setLoading(false)
     }
   }
 
-  const getOwnershipDisplay = (item: Equipment) => {
-    if (item.ownership_type === "hall") {
-      return `${item.hall} Hall`
-    } else if (item.ownership_type === "student" && item.owner) {
-      return `${item.owner.name} (${item.owner.hostel})`
-    }
-    return item.ownership_type.charAt(0).toUpperCase() + item.ownership_type.slice(1) + " Owned"
+  const getEquipmentIcon = (type: string) => {
+    const equipmentType = equipmentTypes.find(t => t.value === type)
+    const IconComponent = equipmentType?.icon || Package
+    return <IconComponent className="h-5 w-5" />
   }
 
   return (
-    <div className="container mx-auto">
-      <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Equipment</h1>
-          <p className="text-gray-600 mt-2">Browse and manage all available equipment</p>
-        </div>
-        {user?.is_admin && (
-          <div className="mt-4 sm:mt-0">
-            <Link to="/admin?tab=equipment" className="btn btn-primary flex items-center">
-              <Plus className="mr-1 h-4 w-4" />
-              Add Equipment
-            </Link>
-          </div>
-        )}
-      </div>
-
-      <div className="mb-6 grid grid-cols-1 md:grid-cols-5 gap-4">
-        <div className="md:col-span-2 relative">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <Search className="h-5 w-5 text-gray-400" />
-          </div>
-          <input
-            type="text"
-            className="input pl-10"
-            placeholder="Search equipment..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div>
-
-        <div>
-          <select className="select" value={selectedType} onChange={(e) => setSelectedType(e.target.value)}>
-            <option value="all">All Types</option>
-            <option value="camera">Cameras</option>
-            <option value="lens">Lenses</option>
-            <option value="tripod">Tripods</option>
-            <option value="light">Lights</option>
-            <option value="audio">Audio</option>
-            <option value="other">Other</option>
-          </select>
-        </div>
-
-        <div>
-          <select className="select" value={selectedHall} onChange={(e) => setSelectedHall(e.target.value)}>
-            <option value="all">All Halls</option>
-            {halls.map((hall) => (
-              <option key={hall} value={hall}>
-                {hall}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="grid grid-cols-2 gap-2">
-          <select className="select" value={selectedStatus} onChange={(e) => setSelectedStatus(e.target.value)}>
-            <option value="all">All Status</option>
-            <option value="available">Available</option>
-            <option value="in_use">In Use</option>
-            <option value="maintenance">Maintenance</option>
-          </select>
-
-          <select className="select" value={selectedOwnership} onChange={(e) => setSelectedOwnership(e.target.value)}>
-            <option value="all">All Ownership</option>
-            <option value="hall">Hall Owned</option>
-            <option value="student">Student Owned</option>
-          </select>
-        </div>
-      </div>
-
-      {selectedType === "lens" && (
-        <div className="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <div className="flex items-center">
-            <div className="flex-shrink-0">
-              <Package className="h-5 w-5 text-blue-400" />
-            </div>
-            <div className="ml-3">
-              <p className="text-sm text-blue-800">
-                Showing all lenses. Lenses associated with cameras can also be viewed by clicking on the camera in the
-                equipment list.
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {selectedHall !== "all" && (
+    <div className="max-w-2xl mx-auto">
+      {success && (
         <div className="mb-6 bg-green-50 border border-green-200 rounded-lg p-4">
           <div className="flex items-center">
             <div className="flex-shrink-0">
@@ -217,100 +121,187 @@ const EquipmentPage = () => {
             </div>
             <div className="ml-3">
               <p className="text-sm text-green-800">
-                Showing equipment from {selectedHall} hall (including hall-owned equipment and student-owned equipment
-                from {selectedHall} residents).
+                Equipment added successfully!
               </p>
             </div>
           </div>
         </div>
       )}
 
-      {loading ? (
-        <div className="flex justify-center items-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-600"></div>
-        </div>
-      ) : filteredEquipment.length > 0 ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {filteredEquipment.map((item) => (
-            <Link key={item.id} to={`/equipment/${item.id}`} className="card group animate-fade-in">
-              <div
-                className={`p-4 flex justify-center ${
-                  item.status === "available" ? "bg-green-50" : item.status === "in_use" ? "bg-yellow-50" : "bg-red-50"
-                }`}
-              >
-                <div
-                  className={`p-4 rounded-full ${
-                    item.status === "available"
-                      ? "text-green-500"
-                      : item.status === "in_use"
-                        ? "text-yellow-500"
-                        : "text-red-500"
-                  }`}
-                >
-                  {getEquipmentIcon(item.type)}
-                </div>
-              </div>
-              <div className="p-4">
-                <div className="flex flex-col items-start">
-                  <h3 className="text-lg font-semibold text-gray-900 group-hover:text-primary-600 transition-colors">
-                    {item.name}
-                  </h3>
-                  <p className="text-sm text-gray-600">
-                    {item.type.charAt(0).toUpperCase() + item.type.slice(1)}
-                    {item.parent_id && <span className="text-xs text-blue-600 ml-1">(Associated with camera)</span>}
-                  </p>
-                  <div className="mt-2 flex flex-col space-y-1 w-full">
-                    <div className="flex items-center space-x-2">
-                      <span
-                        className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
-                          item.status === "available"
-                            ? "bg-green-100 text-green-800"
-                            : item.status === "in_use"
-                              ? "bg-yellow-100 text-yellow-800"
-                              : "bg-red-100 text-red-800"
-                        }`}
-                      >
-                        {item.status === "maintenance"
-                          ? "Damaged"
-                          : item.status.replace("_", " ").charAt(0).toUpperCase() +
-                            item.status.replace("_", " ").slice(1)}
-                      </span>
-                    </div>
-                    <div className="w-full">
-                      <span
-                        className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium w-full justify-center ${
-                          item.ownership_type === "hall" ? "bg-blue-100 text-blue-800" : "bg-purple-100 text-purple-800"
-                        }`}
-                      >
-                        {getOwnershipDisplay(item)}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </Link>
-          ))}
-        </div>
-      ) : (
-        <div className="text-center py-12 bg-white rounded-lg shadow">
-          <Package className="h-12 w-12 text-gray-400 mx-auto" />
-          <h3 className="mt-2 text-lg font-medium text-gray-900">No equipment found</h3>
-          <p className="mt-1 text-sm text-gray-500">Try adjusting your filters or search query.</p>
-          {user?.is_admin && (
-            <div className="mt-6">
-              <Link
-                to="/admin?tab=equipment"
-                className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700"
-              >
-                <Plus className="-ml-1 mr-2 h-4 w-4" />
-                Add New Equipment
-              </Link>
+      {error && (
+        <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
+          <div className="flex items-center">
+            <div className="flex-shrink-0">
+              <AlertCircle className="h-5 w-5 text-red-400" />
             </div>
-          )}
+            <div className="ml-3">
+              <p className="text-sm text-red-800">{error}</p>
+            </div>
+          </div>
         </div>
       )}
+
+      <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Equipment Name */}
+        <div>
+          <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
+            Equipment Name *
+          </label>
+          <input
+            type="text"
+            id="name"
+            name="name"
+            value={formData.name}
+            onChange={handleInputChange}
+            className="input"
+            placeholder="e.g., Canon EOS R5, Sony 24-70mm f/2.8"
+            required
+          />
+        </div>
+
+        {/* Equipment Type */}
+        <div>
+          <label htmlFor="type" className="block text-sm font-medium text-gray-700 mb-2">
+            Equipment Type *
+          </label>
+          <select
+            id="type"
+            name="type"
+            value={formData.type}
+            onChange={handleInputChange}
+            className="select"
+            required
+          >
+            {equipmentTypes.map((type) => (
+              <option key={type.value} value={type.value}>
+                {type.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Description */}
+        <div>
+          <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-2">
+            Description
+          </label>
+          <textarea
+            id="description"
+            name="description"
+            value={formData.description}
+            onChange={handleInputChange}
+            rows={3}
+            className="input"
+            placeholder="Additional details about the equipment..."
+          />
+        </div>
+
+        {/* Ownership Type */}
+        <div>
+          <label htmlFor="ownership_type" className="block text-sm font-medium text-gray-700 mb-2">
+            Ownership Type *
+          </label>
+          <select
+            id="ownership_type"
+            name="ownership_type"
+            value={formData.ownership_type}
+            onChange={handleInputChange}
+            className="select"
+            required
+          >
+            <option value="hall">Hall Owned</option>
+            <option value="student">Student Owned</option>
+          </select>
+        </div>
+
+        {/* Hall Selection (for hall-owned equipment) */}
+        {formData.ownership_type === "hall" && (
+          <div>
+            <label htmlFor="hall" className="block text-sm font-medium text-gray-700 mb-2">
+              Hall *
+            </label>
+            <select
+              id="hall"
+              name="hall"
+              value={formData.hall}
+              onChange={handleInputChange}
+              className="select"
+              required
+            >
+              <option value="">Select a hall</option>
+              {halls.map((hall) => (
+                <option key={hall} value={hall}>
+                  {hall}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {/* Owner ID (for student-owned equipment) */}
+        {formData.ownership_type === "student" && (
+          <div>
+            <label htmlFor="owner_id" className="block text-sm font-medium text-gray-700 mb-2">
+              Owner User ID *
+            </label>
+            <input
+              type="text"
+              id="owner_id"
+              name="owner_id"
+              value={formData.owner_id}
+              onChange={handleInputChange}
+              className="input"
+              placeholder="Enter the user ID of the equipment owner"
+              required
+            />
+            <p className="mt-1 text-xs text-gray-500">
+              You can find the user ID in the Users section of the admin panel
+            </p>
+          </div>
+        )}
+
+        {/* Status */}
+        <div>
+          <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-2">
+            Initial Status *
+          </label>
+          <select
+            id="status"
+            name="status"
+            value={formData.status}
+            onChange={handleInputChange}
+            className="select"
+            required
+          >
+            <option value="available">Available</option>
+            <option value="in_use">In Use</option>
+            <option value="maintenance">Maintenance/Damaged</option>
+          </select>
+        </div>
+
+        {/* Submit Button */}
+        <div className="flex justify-end">
+          <button
+            type="submit"
+            disabled={loading}
+            className="btn btn-primary flex items-center"
+          >
+            {loading ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white mr-2"></div>
+                Adding...
+              </>
+            ) : (
+              <>
+                <Plus className="mr-2 h-4 w-4" />
+                Add Equipment
+              </>
+            )}
+          </button>
+        </div>
+      </form>
     </div>
   )
 }
 
-export default EquipmentPage
+export default AddEquipmentForm
