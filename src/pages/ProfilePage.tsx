@@ -416,7 +416,7 @@ const ProfilePage = () => {
                   >
                     <option value="Photography">Photography</option>
                     <option value="Cinematography">Cinematography</option>
-                    <option value="Scripwriting">Scripwriting</option>
+                    <option value="Scriptwriting">Scriptwriting</option>
                     <option value="Editing">Editing</option>
                     <option value="Sound">Sound</option>
                     <option value="Other">Other</option>
