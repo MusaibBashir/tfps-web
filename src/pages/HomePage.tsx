@@ -91,8 +91,8 @@ const HomePage = () => {
     {
       id: 1,
       image: "https://i.imgur.com/ewIlsUG.jpeg",
-      caption: "The late night hustle, where the men and their tireless hands push against the night’s stillness.",
-      postUrl: "https://www.instagram.com/p/DKjzVjJsU9B/?img_index=1"
+      caption: "Beneath the carnival nights, it is the simplest stories that shine the brightest.",
+      postUrl: "https://www.instagram.com/p/DP6l8C3kyob/?img_index=4"
     },
     {
       id: 2,
@@ -115,8 +115,8 @@ const HomePage = () => {
     {
       id: 5,
       image: "https://i.imgur.com/BpdJnpu.jpeg",
-      caption: "Here's the next submission of our Photo-War: Murg Mussallam -A Photostory of Rebellion, Reflection, and Realisation.",
-      postUrl: "https://www.instagram.com/p/DJJrLuqzozm/?img_index=1"
+      caption: "In the stillness of shadows, I met pieces of myself, while some danced in the dark, some sat in silence and others reached for the Sun",
+      postUrl: "https://www.instagram.com/p/DNkjK9cRkQj/?img_index=1
     },
     {
       id: 6,
