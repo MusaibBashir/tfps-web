@@ -90,7 +90,7 @@ const HomePage = () => {
   const instagramPosts = [
     {
       id: 1,
-      image: "https://i.imgur.com/ewIlsUG.jpeg",
+      image: "https://image2url.com/images/1761455494614-fc87a242-ddd1-45e9-86f8-2a773aaed632.png",
       caption: "Beneath the carnival nights, it is the simplest stories that shine the brightest.",
       postUrl: "https://www.instagram.com/p/DP6l8C3kyob/?img_index=4"
     },
@@ -101,9 +101,9 @@ const HomePage = () => {
       postUrl: "https://www.instagram.com/p/DJ9KYr3pp08/?img_index=1"
     },
     {
-      id: 3,
+      id: 5,
       image: "https://i.imgur.com/19952oL.jpeg",
-      caption: "Concrete Poetry🌃",
+      caption: "Concrete Poetry",
       postUrl: "https://www.instagram.com/p/DJtvbjnT1eS/"
     },
     {
@@ -113,8 +113,8 @@ const HomePage = () => {
       postUrl: "https://www.instagram.com/p/DJJxu1-iBsg/?img_index=1"
     },
     {
-      id: 5,
-      image: "https://i.imgur.com/BpdJnpu.jpeg",
+      id: 3,
+      image: "https://image2url.com/images/1761455566759-23874de2-7ea3-4e6d-b88f-4b8912cfae05.png",
       caption: "In the stillness of shadows, I met pieces of myself, while some danced in the dark, some sat in silence and others reached for the Sun",
       postUrl: "https://www.instagram.com/p/DNkjK9cRkQj/?img_index=1
     },
