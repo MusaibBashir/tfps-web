@@ -1,50 +1,50 @@
 "use client"
 
-import React, { useState, useEffect, useRef } from 'react';
-import {Link,  useNavigate } from 'react-router-dom';
-import { 
-  Camera, 
-  Users, 
-  Calendar, 
-  Mail, 
-  MapPin, 
-  Instagram, 
-  ExternalLink, 
-  Star, 
-  BookOpen, 
+import type React from "react"
+import { useState, useEffect, useRef } from "react"
+import { Link } from "react-router-dom"
+import {
+  Camera,
+  Users,
+  Calendar,
+  Mail,
+  MapPin,
+  Instagram,
+  ExternalLink,
   Youtube,
   ChevronLeft,
   ChevronRight,
   MessageCircle,
-  Film
-} from 'lucide-react';
+} from "lucide-react"
+import DownloadsPage from "./DownloadsPage"
 
 const HomePage = () => {
-  const [activeSection, setActiveSection] = useState('hero');
-  const instagramScrollRef = useRef<HTMLDivElement>(null);
-  const youtubeScrollRef = useRef<HTMLDivElement>(null);
-  const recommendationsScrollRef = useRef<HTMLDivElement>(null);
+  const [activeSection, setActiveSection] = useState("hero")
+  const instagramScrollRef = useRef<HTMLDivElement>(null)
+  const youtubeScrollRef = useRef<HTMLDivElement>(null)
+  const recommendationsScrollRef = useRef<HTMLDivElement>(null)
 
   // Navigation sections
   const sections = [
-    { id: 'hero', label: 'Home' },
-    { id: 'current-event', label: 'Events' },
-    { id: 'about', label: 'About' },
-    { id: 'recommendations', label: 'Recommendations' },
-    { id: 'youtube', label: 'YouTube' },
-    { id: 'instagram', label: 'Instagram' }
-  ];
+    { id: "hero", label: "Home" },
+    { id: "current-event", label: "Events" },
+    { id: "about", label: "About" },
+    { id: "recommendations", label: "Recommendations" },
+    { id: "youtube", label: "YouTube" },
+    { id: "instagram", label: "Instagram" },
+    { id: "downloads", label: "Downloads" },
+  ]
 
   // Scroll functions
-  const scroll = (ref: React.RefObject<HTMLDivElement>, direction: 'left' | 'right') => {
+  const scroll = (ref: React.RefObject<HTMLDivElement>, direction: "left" | "right") => {
     if (ref.current) {
-      const scrollAmount = 320;
+      const scrollAmount = 320
       ref.current.scrollBy({
-        left: direction === 'left' ? -scrollAmount : scrollAmount,
-        behavior: 'smooth'
-      });
+        left: direction === "left" ? -scrollAmount : scrollAmount,
+        behavior: "smooth",
+      })
     }
-  };
+  }
 
   // YouTube videos data (6 videos)
   const youtubeVideos = [
@@ -52,79 +52,87 @@ const HomePage = () => {
       id: 1,
       title: "NAKSHA | GC SFM 2025 | LBS HALL",
       youtubeId: "Ekuy8Ymvk68",
-      description: "Two professional thieves brought together for an impossible heist. Will they overcome their differences?"
+      description:
+        "Two professional thieves brought together for an impossible heist. Will they overcome their differences?",
     },
     {
       id: 2,
       title: "CHANDRA | GC SFM 2025 | SNVH HALL",
       youtubeId: "7Ay0bQemOs8",
-      description: "A story of tradition, identity, and unexpected connections that challenge everything."
+      description: "A story of tradition, identity, and unexpected connections that challenge everything.",
     },
     {
       id: 3,
       title: "Before I Forget | Inter IIT Cultural Meet 6.0",
       youtubeId: "V3cechi6Ovk",
-      description: "A musician's battle with Alzheimer's and the power of memories."
+      description: "A musician's battle with Alzheimer's and the power of memories.",
     },
     {
       id: 4,
       title: "TABLE FOR TWO | GC SFM 2025 | VS HALL",
       youtubeId: "a3o0spraCrM",
-      description: "In this poignant short film, two former lovers unexpectedly reunite in a quiet café. What begins as an awkward encounter, gradually unfolds into a deeply emotional and reflective conversation..."
+      description:
+        "In this poignant short film, two former lovers unexpectedly reunite in a quiet café. What begins as an awkward encounter, gradually unfolds into a deeply emotional and reflective conversation...",
     },
     {
       id: 5,
       title: "NIYAT | GC SFM 2025 | Nehru Hall",
       youtubeId: "gTPzwS0oo9E",
-      description: "An old woman in a peaceful village gives everything she owns to the man she brought up as her own. She takes a stand, however, and turns to the village panchayat for justice when care becomes..."
+      description:
+        "An old woman in a peaceful village gives everything she owns to the man she brought up as her own. She takes a stand, however, and turns to the village panchayat for justice when care becomes...",
     },
     {
       id: 6,
       title: "PAARDARSH | GC SFM 2025 SILVER | LLR HALL",
       youtubeId: "QOP0CvqCQ_w",
-      description: "In the 1990s, Anvesh, a college student exploring photography, is assigned a mysterious project by his professor, along with a vintage camera. Believing the project is about perception, he decides"
-    }
-  ];
+      description:
+        "In the 1990s, Anvesh, a college student exploring photography, is assigned a mysterious project by his professor, along with a vintage camera. Believing the project is about perception, he decides",
+    },
+  ]
 
   // Instagram posts data (6 posts)
   const instagramPosts = [
     {
       id: 1,
-      image: "https://i.imgur.com/ewIlsUG.jpeg",
-      caption: "The late night hustle, where the men and their tireless hands push against the night’s stillness.",
-      postUrl: "https://www.instagram.com/p/DKjzVjJsU9B/?img_index=1"
+      image: "https://image2url.com/images/1761455494614-fc87a242-ddd1-45e9-86f8-2a773aaed632.png",
+      caption: "Beneath the carnival nights, it is the simplest stories that shine the brightest.",
+      postUrl: "https://www.instagram.com/p/DP6l8C3kyob/?img_index=4",
     },
     {
       id: 2,
       image: "https://i.imgur.com/bUPnJHp.jpeg",
-      caption: "Introducing our SILVER WINNING Photo story from the Online Photo Story Competition at Inter-IIT Cultural Meet 7.0! Theme- Over and Out",
-      postUrl: "https://www.instagram.com/p/DJ9KYr3pp08/?img_index=1"
+      caption:
+        "Introducing our SILVER WINNING Photo story from the Online Photo Story Competition at Inter-IIT Cultural Meet 7.0! Theme- Over and Out",
+      postUrl: "https://www.instagram.com/p/DJ9KYr3pp08/?img_index=1",
     },
     {
-      id: 3,
+      id: 5,
       image: "https://i.imgur.com/19952oL.jpeg",
-      caption: "Concrete Poetry🌃",
-      postUrl: "https://www.instagram.com/p/DJtvbjnT1eS/"
+      caption: "Concrete Poetry",
+      postUrl: "https://www.instagram.com/p/DJtvbjnT1eS/",
     },
     {
       id: 4,
       image: "https://i.imgur.com/7p4kEJK.jpeg",
-      caption: "Introducing one of our SILVER WINNING themes from the Street Photography Competition at Inter-IIT Cultural Meet 7.0! Theme(2/2) - Dream",
-      postUrl: "https://www.instagram.com/p/DJJxu1-iBsg/?img_index=1"
+      caption:
+        "Introducing one of our SILVER WINNING themes from the Street Photography Competition at Inter-IIT Cultural Meet 7.0! Theme(2/2) - Dream",
+      postUrl: "https://www.instagram.com/p/DJJxu1-iBsg/?img_index=1",
     },
     {
-      id: 5,
-      image: "https://i.imgur.com/BpdJnpu.jpeg",
-      caption: "Here's the next submission of our Photo-War: Murg Mussallam -A Photostory of Rebellion, Reflection, and Realisation.",
-      postUrl: "https://www.instagram.com/p/DJJrLuqzozm/?img_index=1"
+      id: 3,
+      image: "https://image2url.com/images/1761455566759-23874de2-7ea3-4e6d-b88f-4b8912cfae05.png",
+      caption:
+        "In the stillness of shadows, I met pieces of myself, while some danced in the dark, some sat in silence and others reached for the Sun",
+      postUrl: "https://www.instagram.com/p/DNkjK9cRkQj/?img_index=1",
     },
     {
       id: 6,
       image: "https://i.imgur.com/Um69NAf.jpeg",
-      caption: "Introducing one of our SILVER WINNING themes from the Street Photography Competition at Inter-IIT Cultural Meet 7.0! Theme(1/2) - Eye spy",
-      postUrl: "https://www.instagram.com/p/DIgX9_aCe4Z/?img_index=12"
-    }
-  ];
+      caption:
+        "Introducing one of our SILVER WINNING themes from the Street Photography Competition at Inter-IIT Cultural Meet 7.0! Theme(1/2) - Eye spy",
+      postUrl: "https://www.instagram.com/p/DIgX9_aCe4Z/?img_index=12",
+    },
+  ]
 
   // Film recommendations data
   const filmRecommendations = [
@@ -133,53 +141,56 @@ const HomePage = () => {
       title: "Normal People",
       genre: "Drama",
       poster: "https://th.bing.com/th/id/OIP.mM_Aq2s3u_J_CgXNiYl7PQHaKe?rs=1&pid=ImgDetMain",
-      reason: "Will ask Aryan Dagar once the website is released"
+      reason: "Will ask Aryan Dagar once the website is released",
     },
     {
       id: 2,
       title: "Synecdoche, New York",
       genre: "Drama",
       poster: "https://alchetron.com/cdn/Synecdoche-New-York-images-6ad63b79-3016-4cc0-a4b6-0250b30cf3b.jpg",
-      reason: "A movie thats so deeply personal all while being so universal- its insane. Surrealist and eerie and incredibly sad, but also surprisingly very funny.Such a deep, introspective and powerful movie on the human condition."
+      reason:
+        "A movie thats so deeply personal all while being so universal- its insane. Surrealist and eerie and incredibly sad, but also surprisingly very funny.Such a deep, introspective and powerful movie on the human condition.",
     },
     {
       id: 3,
       title: "Charulata",
       genre: "Romance",
       poster: "https://th.bing.com/th/id/OIP.zlhu4sxdSd1M5y8j8m9zLQAAAA?rs=1&pid=ImgDetMain",
-      reason: "Better ask Afrin."
+      reason: "Better ask Afrin.",
     },
     {
       id: 4,
       title: "The Grand Budapest Hotel",
       genre: "Comedy, Drama",
       poster: "https://images.pexels.com/photos/7991579/pexels-photo-7991579.jpeg?auto=compress&cs=tinysrgb&w=300",
-      reason: "Wes Anderson's meticulous visual style and symmetrical compositions create a whimsical cinematic experience."
+      reason:
+        "Wes Anderson's meticulous visual style and symmetrical compositions create a whimsical cinematic experience.",
     },
     {
       id: 5,
       title: "Columbus",
       genre: "Drama",
       poster: "https://th.bing.com/th/id/OIP.AkJKVPz3aL8OfFRAMIRZtgHaLH?rs=1&pid=ImgDetMain",
-      reason: "Beautiful breathable cinematography, a very simple and realistic storyline."
+      reason: "Beautiful breathable cinematography, a very simple and realistic storyline.",
     },
     {
       id: 6,
       title: "Old Boy",
       genre: "Thriller, Action",
       poster: "https://assets-prd.ignimgs.com/2024/04/17/oldboy-button-1713392676941.jpg?width=300&auto=webp&dpr=2",
-      reason: "Masterful cinematography and editing. Even the transitions were carefully placed. The twists make it entertaining, while being disgusting at the same time."
-    }
-  ];
+      reason:
+        "Masterful cinematography and editing. Even the transitions were carefully placed. The twists make it entertaining, while being disgusting at the same time.",
+    },
+  ]
 
   // Scroll to section function
   const scrollToSection = (sectionId: string) => {
-    const element = document.getElementById(sectionId);
+    const element = document.getElementById(sectionId)
     if (element) {
-      element.scrollIntoView({ behavior: 'smooth' });
-      setActiveSection(sectionId);
+      element.scrollIntoView({ behavior: "smooth" })
+      setActiveSection(sectionId)
     }
-  };
+  }
 
   // Intersection Observer for active section
   useEffect(() => {
@@ -187,20 +198,20 @@ const HomePage = () => {
       (entries) => {
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
-            setActiveSection(entry.target.id);
+            setActiveSection(entry.target.id)
           }
-        });
+        })
       },
-      { threshold: 0.3 }
-    );
+      { threshold: 0.3 },
+    )
 
     sections.forEach((section) => {
-      const element = document.getElementById(section.id);
-      if (element) observer.observe(element);
-    });
+      const element = document.getElementById(section.id)
+      if (element) observer.observe(element)
+    })
 
-    return () => observer.disconnect();
-  }, []);
+    return () => observer.disconnect()
+  }, [])
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-yellow-50 relative overflow-hidden">
@@ -235,8 +246,8 @@ const HomePage = () => {
                   onClick={() => scrollToSection(section.id)}
                   className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 ${
                     activeSection === section.id
-                      ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-lg'
-                      : 'text-gray-600 hover:text-gray-900 hover:bg-white/50'
+                      ? "bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-lg"
+                      : "text-gray-600 hover:text-gray-900 hover:bg-white/50"
                   }`}
                 >
                   {section.label}
@@ -246,13 +257,8 @@ const HomePage = () => {
 
             {/* Login Button */}
             <div className="px-6 py-2 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-xl font-medium hover:shadow-lg transition-all duration-300 hover:scale-105">
-              <Link
-                to="/login"
-              >
-                Login
-              </Link>
+              <Link to="/login">Login</Link>
             </div>
-
           </div>
         </div>
       </nav>
@@ -266,8 +272,8 @@ const HomePage = () => {
             </h2>
             <p className="text-3xl text-gray-700 mb-4 font-light">Technology Film and Photography Society</p>
             <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto leading-relaxed">
-              We are a collective of passionate filmmakers, photographers and storytellers bonding over our shared love for expression and art.
-              Through collaboration, we bend ideas into reality, shaping thoughts into frames.
+              We are a collective of passionate filmmakers, photographers and storytellers bonding over our shared love
+              for expression and art. Through collaboration, we bend ideas into reality, shaping thoughts into frames.
             </p>
           </div>
         </div>
@@ -305,7 +311,10 @@ const HomePage = () => {
 
                   <div className="space-y-4 text-gray-600 leading-relaxed mb-8">
                     <p>HOMETOWN HUES is back for its 2nd edition with more hues and ways to tell your stories.</p>
-                    <p>From chai stalls to quiet rooftops, from bustling sounds of streets to your grandfather's stories tell us everything that makes your Hometown special for you through the lens.</p>
+                    <p>
+                      From chai stalls to quiet rooftops, from bustling sounds of streets to your grandfather's stories
+                      tell us everything that makes your Hometown special for you through the lens.
+                    </p>
                     <p className="font-medium text-gray-900">All lenses are welcome.</p>
                   </div>
 
@@ -335,7 +344,8 @@ const HomePage = () => {
               What We Offer
             </h3>
             <p className="text-gray-600 max-w-2xl mx-auto text-lg">
-              TFPS provides a comprehensive platform for photography and film enthusiasts to grow their skills and collaborate on projects.
+              TFPS provides a comprehensive platform for photography and film enthusiasts to grow their skills and
+              collaborate on projects.
             </p>
           </div>
 
@@ -372,7 +382,8 @@ const HomePage = () => {
               Film Recommendations of the Month
             </h3>
             <p className="text-gray-600 max-w-2xl mx-auto text-lg">
-              Curated picks from our film enthusiasts - movies that inspire and entertain through exceptional cinematography and storytelling.
+              Curated picks from our film enthusiasts - movies that inspire and entertain through exceptional
+              cinematography and storytelling.
             </p>
           </div>
 
@@ -380,13 +391,13 @@ const HomePage = () => {
             <div className="flex items-center justify-between mb-6">
               <div className="flex gap-2">
                 <button
-                  onClick={() => scroll(recommendationsScrollRef, 'left')}
+                  onClick={() => scroll(recommendationsScrollRef, "left")}
                   className="p-2 bg-white/70 backdrop-blur-md rounded-full shadow-lg hover:bg-white/90 transition-all duration-300 hover:scale-110"
                 >
                   <ChevronLeft className="h-5 w-5 text-gray-600" />
                 </button>
                 <button
-                  onClick={() => scroll(recommendationsScrollRef, 'right')}
+                  onClick={() => scroll(recommendationsScrollRef, "right")}
                   className="p-2 bg-white/70 backdrop-blur-md rounded-full shadow-lg hover:bg-white/90 transition-all duration-300 hover:scale-110"
                 >
                   <ChevronRight className="h-5 w-5 text-gray-600" />
@@ -397,7 +408,7 @@ const HomePage = () => {
             <div
               ref={recommendationsScrollRef}
               className="flex gap-6 overflow-x-auto scrollbar-hide pb-4"
-              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+              style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
             >
               {filmRecommendations.map((film) => (
                 <div
@@ -406,7 +417,7 @@ const HomePage = () => {
                 >
                   <div className="relative h-48">
                     <img
-                      src={film.poster}
+                      src={film.poster || "/placeholder.svg"}
                       alt={film.title}
                       className="w-full h-full object-cover"
                     />
@@ -444,13 +455,13 @@ const HomePage = () => {
             <div className="flex items-center justify-between mb-6">
               <div className="flex gap-2">
                 <button
-                  onClick={() => scroll(youtubeScrollRef, 'left')}
+                  onClick={() => scroll(youtubeScrollRef, "left")}
                   className="p-2 bg-white/70 backdrop-blur-md rounded-full shadow-lg hover:bg-white/90 transition-all duration-300 hover:scale-110"
                 >
                   <ChevronLeft className="h-5 w-5 text-gray-600" />
                 </button>
                 <button
-                  onClick={() => scroll(youtubeScrollRef, 'right')}
+                  onClick={() => scroll(youtubeScrollRef, "right")}
                   className="p-2 bg-white/70 backdrop-blur-md rounded-full shadow-lg hover:bg-white/90 transition-all duration-300 hover:scale-110"
                 >
                   <ChevronRight className="h-5 w-5 text-gray-600" />
@@ -470,7 +481,7 @@ const HomePage = () => {
             <div
               ref={youtubeScrollRef}
               className="flex gap-6 overflow-x-auto scrollbar-hide pb-4"
-              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+              style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
             >
               {youtubeVideos.map((video) => (
                 <div
@@ -520,7 +531,8 @@ const HomePage = () => {
               Follow Us on Instagram
             </h3>
             <p className="text-gray-600 max-w-2xl mx-auto text-lg">
-              Dive into the wild creativity of our photographers and discover the extraordinary world through their lens!
+              Dive into the wild creativity of our photographers and discover the extraordinary world through their
+              lens!
             </p>
           </div>
 
@@ -528,13 +540,13 @@ const HomePage = () => {
             <div className="flex items-center justify-between mb-6">
               <div className="flex gap-2">
                 <button
-                  onClick={() => scroll(instagramScrollRef, 'left')}
+                  onClick={() => scroll(instagramScrollRef, "left")}
                   className="p-2 bg-white/70 backdrop-blur-md rounded-full shadow-lg hover:bg-white/90 transition-all duration-300 hover:scale-110"
                 >
                   <ChevronLeft className="h-5 w-5 text-gray-600" />
                 </button>
                 <button
-                  onClick={() => scroll(instagramScrollRef, 'right')}
+                  onClick={() => scroll(instagramScrollRef, "right")}
                   className="p-2 bg-white/70 backdrop-blur-md rounded-full shadow-lg hover:bg-white/90 transition-all duration-300 hover:scale-110"
                 >
                   <ChevronRight className="h-5 w-5 text-gray-600" />
@@ -554,7 +566,7 @@ const HomePage = () => {
             <div
               ref={instagramScrollRef}
               className="flex gap-6 overflow-x-auto scrollbar-hide pb-4"
-              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+              style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
             >
               {instagramPosts.map((post) => (
                 <div
@@ -563,7 +575,7 @@ const HomePage = () => {
                 >
                   <div className="relative">
                     <img
-                      src={post.image}
+                      src={post.image || "/placeholder.svg"}
                       alt="Instagram post"
                       className="w-full h-80 object-cover"
                     />
@@ -572,8 +584,7 @@ const HomePage = () => {
                   <div className="p-6">
                     <p className="text-gray-700 mb-4 leading-relaxed text-sm line-clamp-2">{post.caption}</p>
                     <div className="flex items-center justify-between text-sm text-gray-500 mb-4">
-                      <div className="flex items-center gap-4">
-                      </div>
+                      <div className="flex items-center gap-4"></div>
                     </div>
                     <a
                       href={post.postUrl}
@@ -593,6 +604,11 @@ const HomePage = () => {
         </div>
       </section>
 
+      {/* Downloads Section */}
+      <section id="downloads" className="py-16">
+        <DownloadsPage />
+      </section>
+
       {/* Footer */}
       <footer className="bg-gradient-to-br from-gray-900 to-gray-800 text-white py-12 relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-r from-amber-600/10 to-orange-600/10"></div>
@@ -609,7 +625,8 @@ const HomePage = () => {
                 </div>
               </div>
               <p className="text-gray-400 leading-relaxed">
-                Empowering creativity through technology, fostering a community of passionate photographers and filmmakers.
+                Empowering creativity through technology, fostering a community of passionate photographers and
+                filmmakers.
               </p>
             </div>
 
@@ -668,13 +685,13 @@ const HomePage = () => {
         </div>
       </footer>
     </div>
-  );
-};
+  )
+}
 
 interface FeatureCardProps {
-  icon: React.ReactNode;
-  title: string;
-  description: string;
+  icon: React.ReactNode
+  title: string
+  description: string
 }
 
 const FeatureCard = ({ icon, title, description }: FeatureCardProps) => (
@@ -685,6 +702,6 @@ const FeatureCard = ({ icon, title, description }: FeatureCardProps) => (
     <h4 className="text-xl font-semibold text-gray-900 mb-2 group-hover:text-amber-600 transition-colors">{title}</h4>
     <p className="text-gray-600 leading-relaxed">{description}</p>
   </div>
-);
+)
 
-export default HomePage;
+export default HomePage
